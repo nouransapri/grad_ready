@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1085571193268",
+    "project_id": "gradready-5033e",
+    "storage_bucket": "gradready-5033e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1085571193268:android:c9e9b0caba39b5a0a5bae1",
+        "android_client_info": {
+          "package_name": "com.example.grad_ready"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJpbKQpXZ9VLXloGr1vIOX3tjy4CbEUc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1085571193268:android:bb0da16fcca57a35a5bae1",
+        "android_client_info": {
+          "package_name": "com.gradready.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJpbKQpXZ9VLXloGr1vIOX3tjy4CbEUc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
