@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'home_page.dart'; 
 
 class CreateProfileScreen extends StatefulWidget {
   const CreateProfileScreen({super.key});
@@ -10,40 +13,20 @@ class CreateProfileScreen extends StatefulWidget {
 class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- القوائم الأساسية لتخزين البيانات ---
+  // --- القوائم الأساسية ---
   List<String> addedCourses = [];
   List<Map<String, String>> addedSkillsList = [];
   List<Map<String, String>> addedInternships = [];
   List<Map<String, String>> addedClubs = [];
   List<Map<String, String>> addedProjects = [];
 
-  // --- الكنترولرز للأقسام الإجبارية ---
+  // --- الكنترولرز ---
   final TextEditingController nameController = TextEditingController();
   final TextEditingController universityController = TextEditingController();
   final TextEditingController majorController = TextEditingController();
-
-  // --- متغيرات الأقسام ---
-  final List<String> academicYears = [
-    "Select year", "Freshman (Year 1)", "Sophomore (Year 2)", "Junior (Year 3)",
-    "Senior (Year 4)", "Year 5", "Year 6", "Year 7", "Internship Year (امتياز)",
-    "Master's Student (ماجستير)", "PhD Student (دكتوراه)", "Graduate Student", "Recent Graduate"
-  ];
-  String selectedYear = "Select year";
-
-  String selectedCourse = "Select a course";
-  bool showCustomCourseField = false;
+  final TextEditingController gpaController = TextEditingController();
   final TextEditingController customCourseController = TextEditingController();
-
-  String selectedSkillType = "Technical";
-  String selectedSkillName = "Select a skill";
-  String selectedProficiency = "Basic";
-  bool showCustomSkillField = false;
   final TextEditingController customSkillController = TextEditingController();
-
-  final List<String> technicalSkills = ["Select a skill", "Flutter", "Python", "Java", "SQL", "Dart", "C++", "HTML/CSS", "Other (Custom)"];
-  final List<String> softSkills = ["Select a skill", "Communication", "Leadership", "Teamwork", "Problem Solving", "Time Management", "Other (Custom)"];
-
-  // --- الكنترولرز للأقسام الأخرى ---
   final TextEditingController internTitleController = TextEditingController();
   final TextEditingController internCompanyController = TextEditingController();
   final TextEditingController internDurationController = TextEditingController();
@@ -52,14 +35,77 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final TextEditingController projectNameController = TextEditingController();
   final TextEditingController projectDescController = TextEditingController();
 
-  // --- منطق تفعيل الزرار النهائي (الإجباري فقط) ---
+  // --- المتغيرات المختارة ---
+  final List<String> academicYears = [
+    "Select year", "Freshman (Year 1)", "Sophomore (Year 2)", "Junior (Year 3)",
+    "Senior (Year 4)", "Year 5", "Year 6", "Year 7", "Internship Year",
+    "Master's Student", "PhD Student", "Graduate Student", "Recent Graduate"
+  ];
+  String selectedYear = "Select year";
+  String selectedCourse = "Select a course";
+  String selectedSkillType = "Technical";
+  String selectedSkillName = "Select a skill";
+  String selectedProficiency = "Basic";
+  bool showCustomCourseField = false;
+  bool showCustomSkillField = false;
+
+  final List<String> technicalSkills = ["Select a skill", "Flutter", "Python", "Java", "SQL", "Dart", "C++", "HTML/CSS", "Other (Custom)"];
+  final List<String> softSkills = ["Select a skill", "Communication", "Leadership", "Teamwork", "Problem Solving", "Time Management", "Other (Custom)"];
+
+  // --- التحقق من صحة النموذج ---
   bool get isFormValid {
-    bool hasAcademicInfo = nameController.text.trim().isNotEmpty && 
-                          universityController.text.trim().isNotEmpty &&
-                          majorController.text.trim().isNotEmpty;
-    bool hasCourses = addedCourses.isNotEmpty;
-    bool hasSkills = addedSkillsList.isNotEmpty;
-    return hasAcademicInfo && hasCourses && hasSkills;
+    return nameController.text.trim().isNotEmpty &&
+           universityController.text.trim().isNotEmpty &&
+           majorController.text.trim().isNotEmpty &&
+           addedCourses.isNotEmpty &&
+           addedSkillsList.isNotEmpty;
+  }
+
+  // --- دالة الحفظ في Firebase ---
+  Future<void> saveUserProfile() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF2A6CFF))),
+      );
+
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        Navigator.pop(context);
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        "uid": user.uid,
+        "email": user.email,
+        "full_name": nameController.text.trim(),
+        "university": universityController.text.trim(),
+        "major": majorController.text.trim(),
+        "academic_year": selectedYear,
+        "gpa": gpaController.text.trim(),
+        "added_courses": addedCourses,
+        "skills": addedSkillsList,
+        "internships": addedInternships,
+        "clubs": addedClubs,
+        "projects": addedProjects,
+        "profile_completed": true,
+        "created_at": FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context); 
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
   }
 
   @override
@@ -83,7 +129,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                 onChanged: () => setState(() {}),
                 child: Column(
                   children: [
-                    // 1. Academic Information (REQUIRED)
+                    // 1. Academic Information
                     _buildSectionCard(
                       title: "Academic Information *",
                       children: [
@@ -91,51 +137,36 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                         _buildInputField("Enter your full name", controller: nameController, isRequired: true),
                         _buildLabel("University *"),
                         _buildInputField("Enter your university name", controller: universityController, isRequired: true),
-                        _buildLabel("Major / Department *"),
+                        _buildLabel("Major *"),
                         _buildInputField("e.g., Computer Science", controller: majorController, isRequired: true),
                         _buildLabel("Academic Year"),
                         _buildDropdownField(academicYears, value: selectedYear, onChanged: (v) => setState(() => selectedYear = v!)),
                         _buildLabel("GPA (Optional)"),
-                        _buildInputField("e.g., 3.5", isRequired: false),
+                        _buildInputField("e.g., 3.5", controller: gpaController),
                       ],
                     ),
 
-                    // 2. Completed Courses (REQUIRED)
+                    // 2. Courses
                     _buildSectionCard(
-                      title: "Completed Courses * (${addedCourses.length})",
+                      title: "Courses * (${addedCourses.length})",
                       icon: Icons.menu_book_rounded, iconColor: Colors.blue,
                       children: [
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: Column(
-                                children: [
-                                  _buildDropdownField(
-                                    ["Select a course", "Data Structures", "Algorithms", "Database Systems", "Web Development", "Mobile Development", "Operating Systems", "Other (Custom)"],
-                                    value: selectedCourse,
-                                    onChanged: (val) => setState(() {
-                                      selectedCourse = val!;
-                                      showCustomCourseField = (val == "Other (Custom)");
-                                    }),
-                                  ),
-                                  if (showCustomCourseField)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: TextFormField(
-                                        controller: customCourseController,
-                                        onChanged: (v) => setState(() {}),
-                                        decoration: _inputDecoration("Enter custom course name..."),
-                                      ),
-                                    ),
-                                ],
+                              child: _buildDropdownField(
+                                ["Select a course", "Data Structures", "Algorithms", "Database Systems", "Web Development", "Mobile Development", "Other (Custom)"],
+                                value: selectedCourse,
+                                onChanged: (val) => setState(() {
+                                  selectedCourse = val!;
+                                  showCustomCourseField = (val == "Other (Custom)");
+                                }),
                               ),
                             ),
                             const SizedBox(width: 10),
                             _buildAddIconButton(isCourseInputActive, () {
                               setState(() {
-                                String toAdd = showCustomCourseField ? customCourseController.text : selectedCourse;
-                                addedCourses.add(toAdd);
+                                addedCourses.add(showCustomCourseField ? customCourseController.text : selectedCourse);
                                 selectedCourse = "Select a course";
                                 customCourseController.clear();
                                 showCustomCourseField = false;
@@ -143,126 +174,80 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                             }),
                           ],
                         ),
-                        ...addedCourses.map((c) => _buildAddedTile(c, Icons.menu_book_rounded, Colors.blue, () => setState(() => addedCourses.remove(c)))),
+                        if (showCustomCourseField)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: TextFormField(controller: customCourseController, decoration: _inputDecoration("Enter course name")),
+                          ),
+                        ...addedCourses.map((c) => _buildAddedTile(c, Icons.book, Colors.blue, () => setState(() => addedCourses.remove(c)))),
                       ],
                     ),
 
-                    // 3. Skills (REQUIRED)
+                    // 3. Skills
                     _buildSectionCard(
                       title: "Skills * (${addedSkillsList.length})",
-                      icon: Icons.auto_awesome_outlined, iconColor: Colors.purple,
+                      icon: Icons.star, iconColor: Colors.purple,
                       children: [
                         Row(
                           children: [
-                            Expanded(child: _buildDropdownField(["Technical", "Soft Skill"], value: selectedSkillType, onChanged: (val) => setState(() {
-                                  selectedSkillType = val!;
+                            Expanded(child: _buildDropdownField(["Technical", "Soft Skill"], value: selectedSkillType, onChanged: (v) => setState(() {
+                                  selectedSkillType = v!;
                                   selectedSkillName = "Select a skill";
                                   showCustomSkillField = false;
-                                }))),
+                            }))),
                             const SizedBox(width: 8),
-                            Expanded(child: _buildDropdownField(["Basic", "Intermediate", "Expert"], value: selectedProficiency, onChanged: (val) => setState(() => selectedProficiency = val!))),
+                            Expanded(child: _buildDropdownField(["Basic", "Intermediate", "Expert"], value: selectedProficiency, onChanged: (v) => setState(() => selectedProficiency = v!))),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: Column(
-                                children: [
-                                  _buildDropdownField(
-                                    selectedSkillType == "Technical" ? technicalSkills : softSkills,
-                                    value: selectedSkillName,
-                                    onChanged: (val) => setState(() {
-                                      selectedSkillName = val!;
-                                      showCustomSkillField = (val == "Other (Custom)");
-                                    }),
-                                  ),
-                                  if (showCustomSkillField)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: TextFormField(
-                                        controller: customSkillController,
-                                        onChanged: (v) => setState(() {}),
-                                        decoration: _inputDecoration("Enter custom skill..."),
-                                      ),
-                                    ),
-                                ],
+                              child: _buildDropdownField(
+                                selectedSkillType == "Technical" ? technicalSkills : softSkills,
+                                value: selectedSkillName,
+                                onChanged: (val) => setState(() {
+                                  selectedSkillName = val!;
+                                  showCustomSkillField = (val == "Other (Custom)");
+                                }),
                               ),
                             ),
                             const SizedBox(width: 10),
                             _buildAddIconButton(isSkillInputActive, () {
                               setState(() {
-                                String finalName = showCustomSkillField ? customSkillController.text : selectedSkillName;
-                                if (finalName != "Select a skill" && finalName.isNotEmpty) {
-                                  addedSkillsList.add({"name": finalName, "level": selectedProficiency});
-                                  selectedSkillName = "Select a skill";
-                                  customSkillController.clear();
-                                  showCustomSkillField = false;
-                                }
+                                addedSkillsList.add({"name": showCustomSkillField ? customSkillController.text : selectedSkillName, "level": selectedProficiency});
+                                selectedSkillName = "Select a skill";
+                                customSkillController.clear();
+                                showCustomSkillField = false;
                               });
                             }),
                           ],
                         ),
-                        ...addedSkillsList.map((skill) => _buildAddedTile("${skill['name']} (${skill['level']})", Icons.star_border, Colors.purple, () => setState(() => addedSkillsList.remove(skill)))),
+                        if (showCustomSkillField)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: TextFormField(controller: customSkillController, decoration: _inputDecoration("Enter skill name")),
+                          ),
+                        ...addedSkillsList.map((s) => _buildAddedTile("${s['name']} (${s['level']})", Icons.bolt, Colors.purple, () => setState(() => addedSkillsList.remove(s)))),
                       ],
                     ),
 
-                    // 4. Internships (OPTIONAL)
+                    // 4. Internships (Optional)
                     _buildSectionCard(
                       title: "Internships (${addedInternships.length})",
-                      icon: Icons.work_outline, iconColor: Colors.blueAccent,
+                      icon: Icons.work, iconColor: Colors.orange,
                       children: [
-                        _buildInputField("Internship Title", controller: internTitleController),
+                        _buildInputField("Title", controller: internTitleController),
                         _buildInputField("Company", controller: internCompanyController),
-                        _buildInputField("Duration", controller: internDurationController),
-                        _buildActionButton("Add Internship", Colors.blueAccent, Icons.add, () {
+                        _buildAddIconButton(true, () {
                           if (internTitleController.text.isNotEmpty) {
                             setState(() {
-                              addedInternships.add({"title": internTitleController.text, "company": internCompanyController.text, "duration": internDurationController.text});
-                              internTitleController.clear(); internCompanyController.clear(); internDurationController.clear();
+                              addedInternships.add({"title": internTitleController.text, "company": internCompanyController.text});
+                              internTitleController.clear(); internCompanyController.clear();
                             });
                           }
-                        }),
-                        ...addedInternships.map((i) => _buildAddedTile("${i['title']} @ ${i['company']}", Icons.work, Colors.blueAccent, () => setState(() => addedInternships.remove(i)))),
-                      ],
-                    ),
-
-                    // 5. Student Clubs (OPTIONAL)
-                    _buildSectionCard(
-                      title: "Student Clubs (${addedClubs.length})",
-                      icon: Icons.groups_3_outlined, iconColor: Colors.purple,
-                      children: [
-                        _buildInputField("Club Name", controller: clubNameController),
-                        _buildInputField("Your Role", controller: clubRoleController),
-                        _buildActionButton("Add Club", const Color(0xFF9226FF), Icons.add, () {
-                          if (clubNameController.text.isNotEmpty) {
-                            setState(() {
-                              addedClubs.add({"name": clubNameController.text, "role": clubRoleController.text});
-                              clubNameController.clear(); clubRoleController.clear();
-                            });
-                          }
-                        }),
-                        ...addedClubs.map((c) => _buildAddedTile("${c['name']} - ${c['role']}", Icons.groups, Colors.purple, () => setState(() => addedClubs.remove(c)))),
-                      ],
-                    ),
-
-                    // 6. Academic Projects (OPTIONAL)
-                    _buildSectionCard(
-                      title: "Academic Projects (${addedProjects.length})",
-                      icon: Icons.folder_open_rounded, iconColor: Colors.green,
-                      children: [
-                        _buildInputField("Project Name", controller: projectNameController),
-                        _buildInputField("Description", controller: projectDescController, maxLines: 2),
-                        _buildActionButton("Add Project", Colors.green, Icons.add, () {
-                          if (projectNameController.text.isNotEmpty) {
-                            setState(() {
-                              addedProjects.add({"name": projectNameController.text});
-                              projectNameController.clear(); projectDescController.clear();
-                            });
-                          }
-                        }),
-                        ...addedProjects.map((p) => _buildAddedTile(p['name']!, Icons.folder, Colors.green, () => setState(() => addedProjects.remove(p)))),
+                        }, label: "Add Internship"),
+                        ...addedInternships.map((i) => _buildAddedTile("${i['title']} @ ${i['company']}", Icons.business, Colors.orange, () => setState(() => addedInternships.remove(i)))),
                       ],
                     ),
 
@@ -280,123 +265,49 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   }
 
   // --- Helpers ---
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24),
-      decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF2A6CFF), Color(0xFF9226FF)])),
-      child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(Icons.person_outline, color: Colors.white, size: 40),
-          SizedBox(height: 8),
-          Text('Create Profile', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
-          Text('Complete Information', style: TextStyle(color: Colors.white70, fontSize: 14)),
-      ]),
-    );
-  }
+  Widget _buildHeader() => Container(
+    width: double.infinity, padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24),
+    decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF2A6CFF), Color(0xFF9226FF)])),
+    child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(Icons.person_add_alt_1, color: Colors.white, size: 40),
+      SizedBox(height: 10),
+      Text('Create Profile', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+    ]),
+  );
 
-  Widget _buildSectionCard({required String title, IconData? icon, Color? iconColor, required List<Widget> children}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          if (icon != null) Icon(icon, color: iconColor, size: 22),
-          if (icon != null) const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-        ]),
-        const Divider(height: 25, thickness: 1),
-        ...children,
-      ]),
-    );
-  }
+  Widget _buildSectionCard({required String title, IconData? icon, Color? iconColor, required List<Widget> children}) => Container(
+    margin: const EdgeInsets.only(bottom: 20), padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)]),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [if (icon != null) Icon(icon, color: iconColor, size: 20), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]),
+      const Divider(height: 20), ...children,
+    ]),
+  );
 
-  Widget _buildAddedTile(String text, IconData icon, Color color, VoidCallback onRemove) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
-      child: Row(children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
-        GestureDetector(onTap: onRemove, child: const Icon(Icons.close, size: 18, color: Colors.grey)),
-      ]),
-    );
-  }
+  Widget _buildInputField(String hint, {bool isRequired = false, TextEditingController? controller}) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: TextFormField(controller: controller, validator: (v) => isRequired && (v == null || v.isEmpty) ? "Required" : null, decoration: _inputDecoration(hint)),
+  );
 
-  Widget _buildAddIconButton(bool isActive, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: isActive ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: isActive ? const Color(0xFF2A6CFF) : const Color(0xFFD1D5DB), borderRadius: BorderRadius.circular(12)),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
+  InputDecoration _inputDecoration(String hint) => InputDecoration(hintText: hint, filled: true, fillColor: const Color(0xFFF9FAFB), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12));
 
-  Widget _buildInputField(String hint, {bool isRequired = false, int maxLines = 1, TextEditingController? controller}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        validator: (v) => isRequired && (v == null || v.isEmpty) ? "Required" : null,
-        decoration: _inputDecoration(hint),
-      ),
-    );
-  }
+  Widget _buildDropdownField(List<String> items, {String? value, ValueChanged<String?>? onChanged}) => DropdownButtonFormField<String>(isExpanded: true, value: value, items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14)))).toList(), onChanged: onChanged, decoration: _inputDecoration(""));
 
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-    );
-  }
+  Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 5, top: 5), child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)));
 
-  Widget _buildDropdownField(List<String> items, {String? value, ValueChanged<String?>? onChanged}) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      isExpanded: true,
-      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
-      onChanged: onChanged,
-      decoration: _inputDecoration(""),
-    );
-  }
+  Widget _buildAddIconButton(bool active, VoidCallback onTap, {String? label}) => label == null 
+    ? IconButton(onPressed: active ? onTap : null, icon: Icon(Icons.add_circle, color: active ? Colors.blue : Colors.grey, size: 30))
+    : ElevatedButton.icon(onPressed: active ? onTap : null, icon: const Icon(Icons.add), label: Text(label), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white));
 
-  Widget _buildLabel(String text) {
-    return Padding(padding: const EdgeInsets.only(bottom: 6, top: 8), child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)));
-  }
+  Widget _buildAddedTile(String text, IconData icon, Color color, VoidCallback onRemove) => Container(
+    margin: const EdgeInsets.only(top: 8),
+    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+    child: ListTile(dense: true, leading: Icon(icon, color: color, size: 20), title: Text(text, style: const TextStyle(fontSize: 13)), trailing: IconButton(icon: const Icon(Icons.close, size: 18), onPressed: onRemove)),
+  );
 
-  Widget _buildActionButton(String text, Color color, IconData icon, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(text),
-        style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-      ),
-    );
-  }
-
-  Widget _buildFinalSubmitButton() {
-    bool active = isFormValid;
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), boxShadow: active ? [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 10)] : []),
-      child: ElevatedButton(
-        onPressed: active ? () { if (_formKey.currentState!.validate()) { print("Success!"); } } : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: active ? const Color(0xFF2A6CFF) : const Color(0xFFD1D5DB), 
-          minimumSize: const Size(double.infinity, 55), 
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-        child: const Text('Create Profile', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
+  Widget _buildFinalSubmitButton() => ElevatedButton(
+    onPressed: isFormValid ? saveUserProfile : null,
+    style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF2A6CFF), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+    child: const Text("Complete Profile", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+  );
 }

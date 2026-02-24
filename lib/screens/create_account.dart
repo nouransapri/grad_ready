@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-// تأكدي أن اسم الملف التاني هو create_profile.dart في مشروعك
-import 'create_profile.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'home_page.dart'; // تعديل المسار ليروح للهوم مباشرة
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -22,6 +22,80 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     passwordController.dispose();
     confirmController.dispose();
     super.dispose();
+  }
+
+  Future<void> registerUser() async {
+    // 1. التحقق من أن جميع الخانات ممتلئة
+    if (emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty ||
+        confirmController.text.trim().isEmpty) {
+      _showError("Please fill in all fields");
+      return;
+    }
+
+    // 2. التحقق من تطابق كلمتي السر
+    if (passwordController.text.trim() != confirmController.text.trim()) {
+      _showError("Passwords do not match");
+      return;
+    }
+
+    // 3. التحقق من طول كلمة السر (شرط فايربيز الأساسي)
+    if (passwordController.text.trim().length < 6) {
+      _showError("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      // إظهار دائرة تحميل
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+
+      // محاولة إنشاء الحساب في Firebase
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // إغلاق دائرة التحميل
+
+      // الانتقال لصفحة الـ Home Page مباشرة بعد نجاح التسجيل
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomePage(),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // إغلاق دائرة التحميل
+
+      String errorMsg = "An error occurred";
+      if (e.code == 'weak-password') errorMsg = "The password is too weak.";
+      if (e.code == 'email-already-in-use') errorMsg = "This email is already in use.";
+      if (e.code == 'invalid-email') errorMsg = "The email address is badly formatted.";
+      
+      _showError(errorMsg);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showError("Unexpected error: $e");
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -49,7 +123,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
-
                         /// LOGO
                         Container(
                           width: 120,
@@ -70,7 +143,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 15),
                         const Text(
                           'GradReady',
@@ -80,7 +152,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             color: Colors.white,
                           ),
                         ),
-                        
                         const SizedBox(height: 4),
                         Text(
                           'Turning Gaps into Growth',
@@ -89,10 +160,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             color: Colors.white.withOpacity(0.9),
                           ),
                         ),
-
-                        const Spacer(), 
-
-                        /// Create Account Card (Glassmorphism)
+                        const Spacer(),
+                        /// Registration Card
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: ClipRRect(
@@ -110,7 +179,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   ),
                                 ),
                                 child: Column(
-                                  mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
                                     const Text(
@@ -123,26 +191,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 25),
-                                    
-                                    _buildTextField(emailController, 'Email / Username', Icons.mail_outline),
+                                    _buildTextField(emailController, 'Email', Icons.mail_outline),
                                     const SizedBox(height: 18),
                                     _buildTextField(passwordController, 'Password', Icons.lock_outline, isPass: true),
                                     const SizedBox(height: 18),
                                     _buildTextField(confirmController, 'Confirm Password', Icons.lock_outline, isPass: true),
-                                    
                                     const SizedBox(height: 25),
-                                    
-                                    /// --- زرار الانتقال المعدل ---
                                     ElevatedButton(
-                                      onPressed: () {
-                                        // الكود اللي بينقلك لصفحة البروفايل
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => const CreateProfileScreen(),
-                                          ),
-                                        );
-                                      },
+                                      onPressed: registerUser,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
                                         foregroundColor: const Color(0xFF2A6CFF),
@@ -150,16 +206,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(16),
                                         ),
+                                        elevation: 5,
                                       ),
                                       child: const Text(
                                         'Create Account',
-                                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ),
-                                    /// -------------------------
-
                                     const SizedBox(height: 20),
-
                                     GestureDetector(
                                       onTap: () => Navigator.pop(context),
                                       child: const Text(
@@ -191,20 +247,27 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isPass = false}) {
+  Widget _buildTextField(TextEditingController controller, String hint,
+      IconData icon,
+      {bool isPass = false}) {
     return TextField(
       controller: controller,
       obscureText: isPass,
-      style: const TextStyle(color: Colors.black),
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.6),
+        fillColor: Colors.white.withOpacity(0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
         ),
-        prefixIcon: Icon(icon, color: Colors.black87),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
+        prefixIcon: Icon(icon, color: Colors.white70),
       ),
     );
   }
