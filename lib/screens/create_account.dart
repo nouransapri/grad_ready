@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_page.dart'; // تعديل المسار ليروح للهوم مباشرة
+import 'create_profile.dart'; // تعديل المسار
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -25,7 +25,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> registerUser() async {
-    // 1. التحقق من أن جميع الخانات ممتلئة
     if (emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty ||
         confirmController.text.trim().isEmpty) {
@@ -33,20 +32,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    // 2. التحقق من تطابق كلمتي السر
     if (passwordController.text.trim() != confirmController.text.trim()) {
       _showError("Passwords do not match");
       return;
     }
 
-    // 3. التحقق من طول كلمة السر (شرط فايربيز الأساسي)
     if (passwordController.text.trim().length < 6) {
       _showError("Password must be at least 6 characters");
       return;
     }
 
     try {
-      // إظهار دائرة تحميل
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -55,31 +51,35 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
       );
 
-      // محاولة إنشاء الحساب في Firebase
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // إغلاق دائرة التحميل
+      Navigator.pop(context); // إغلاق التحميل
 
-      // الانتقال لصفحة الـ Home Page مباشرة بعد نجاح التسجيل
+      // بعد التسجيل → روح CreateProfileScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const HomePage(),
+          builder: (context) => CreateProfileScreen(),
         ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // إغلاق دائرة التحميل
+      Navigator.pop(context);
 
       String errorMsg = "An error occurred";
       if (e.code == 'weak-password') errorMsg = "The password is too weak.";
-      if (e.code == 'email-already-in-use') errorMsg = "This email is already in use.";
-      if (e.code == 'invalid-email') errorMsg = "The email address is badly formatted.";
-      
+      if (e.code == 'email-already-in-use') {
+        errorMsg = "This email is already in use.";
+      }
+      if (e.code == 'invalid-email') {
+        errorMsg = "The email address is badly formatted.";
+      }
+
       _showError(errorMsg);
     } catch (e) {
       if (!mounted) return;
@@ -123,6 +123,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
+
                         /// LOGO
                         Container(
                           width: 120,
@@ -160,7 +161,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             color: Colors.white.withOpacity(0.9),
                           ),
                         ),
+
                         const Spacer(),
+
                         /// Registration Card
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -169,7 +172,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                               child: Container(
-                                padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
+                                padding:
+                                    const EdgeInsets.fromLTRB(24, 30, 24, 30),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.18),
                                   borderRadius: BorderRadius.circular(28),
@@ -179,7 +183,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   ),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     const Text(
                                       'Create Account',
@@ -191,20 +196,30 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 25),
-                                    _buildTextField(emailController, 'Email', Icons.mail_outline),
+
+                                    _buildTextField(
+                                        emailController, 'Email', Icons.mail_outline),
                                     const SizedBox(height: 18),
-                                    _buildTextField(passwordController, 'Password', Icons.lock_outline, isPass: true),
+                                    _buildTextField(passwordController,
+                                        'Password', Icons.lock_outline,
+                                        isPass: true),
                                     const SizedBox(height: 18),
-                                    _buildTextField(confirmController, 'Confirm Password', Icons.lock_outline, isPass: true),
+                                    _buildTextField(confirmController,
+                                        'Confirm Password', Icons.lock_outline,
+                                        isPass: true),
+
                                     const SizedBox(height: 25),
+
                                     ElevatedButton(
                                       onPressed: registerUser,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
                                         foregroundColor: const Color(0xFF2A6CFF),
-                                        padding: const EdgeInsets.symmetric(vertical: 15),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 15),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                         ),
                                         elevation: 5,
                                       ),
@@ -215,7 +230,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                             fontWeight: FontWeight.bold),
                                       ),
                                     ),
+
                                     const SizedBox(height: 20),
+
                                     GestureDetector(
                                       onTap: () => Navigator.pop(context),
                                       child: const Text(
@@ -234,6 +251,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             ),
                           ),
                         ),
+
                         const Spacer(flex: 2),
                       ],
                     ),
