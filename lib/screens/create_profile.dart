@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
 
 class CreateProfileScreen extends StatefulWidget {
-  const CreateProfileScreen({super.key});
+  final bool isEditMode;
+
+  const CreateProfileScreen({super.key, this.isEditMode = false});
 
   @override
   State<CreateProfileScreen> createState() => _CreateProfileScreenState();
@@ -27,6 +29,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final TextEditingController customSkillController = TextEditingController();
   final TextEditingController internTitleController = TextEditingController();
   final TextEditingController internCompanyController = TextEditingController();
+  final TextEditingController internDurationController = TextEditingController();
   final TextEditingController clubNameController = TextEditingController();
   final TextEditingController clubRoleController = TextEditingController();
   final TextEditingController projectNameController = TextEditingController();
@@ -55,6 +58,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   String selectedProficiency = "Basic";
   bool showCustomCourseField = false;
   bool showCustomSkillField = false;
+  bool internshipsExpanded = true;
 
   final List<String> technicalSkills = [
     "Select a skill",
@@ -77,6 +81,48 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     "Time Management",
     "Other (Custom)"
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEditMode) _loadExistingProfile();
+  }
+
+  Future<void> _loadExistingProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (!doc.exists || !mounted) return;
+    final d = doc.data()!;
+    nameController.text = d['full_name']?.toString() ?? '';
+    universityController.text = d['university']?.toString() ?? '';
+    majorController.text = d['major']?.toString() ?? '';
+    gpaController.text = d['gpa']?.toString() ?? '';
+    final year = d['academic_year']?.toString();
+    if (year != null && year.isNotEmpty) selectedYear = year;
+    addedCourses = List<String>.from(d['added_courses'] ?? []);
+    final skillsList = d['skills'] as List?;
+    addedSkillsList = skillsList?.map((e) {
+      final m = e as Map<dynamic, dynamic>;
+      return Map<String, String>.from(m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')));
+    }).toList() ?? [];
+    final internshipsList = d['internships'] as List?;
+    addedInternships = internshipsList?.map((e) {
+      final m = e as Map<dynamic, dynamic>;
+      return Map<String, String>.from(m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')));
+    }).toList() ?? [];
+    final clubsList = d['clubs'] as List?;
+    addedClubs = clubsList?.map((e) {
+      final m = e as Map<dynamic, dynamic>;
+      return Map<String, String>.from(m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')));
+    }).toList() ?? [];
+    final projectsList = d['projects'] as List?;
+    addedProjects = projectsList?.map((e) {
+      final m = e as Map<dynamic, dynamic>;
+      return Map<String, String>.from(m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')));
+    }).toList() ?? [];
+    if (mounted) setState(() {});
+  }
 
   bool get isFormValid {
     return nameController.text.trim().isNotEmpty &&
@@ -134,7 +180,13 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         "gpa": gpaController.text.trim(),
         "added_courses": addedCourses,
         "skills": addedSkillsList,
-        "internships": addedInternships,
+        "internships": addedInternships
+            .map((i) => {
+                  "title": i["title"],
+                  "company": i["company"],
+                  "duration": i["duration"] ?? "",
+                })
+            .toList(),
         "clubs": addedClubs,
         "projects": addedProjects,
         "profile_completed": true,
@@ -145,14 +197,18 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile completed successfully 🎉")),
+        const SnackBar(content: Text("Profile updated successfully 🎉")),
       );
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
-        (route) => false,
-      );
+      if (widget.isEditMode) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+          (route) => false,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
@@ -268,9 +324,11 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                               onChanged: (_) => setState(() {}),
                             ),
                           ),
-                        ...addedCourses.map((c) => _buildAddedTile(
-                            c, Icons.book, Colors.blue,
-                            () => setState(() => addedCourses.remove(c)))),
+                        ...addedCourses.map((c) => _buildSkillCourseChip(
+                            name: c,
+                            typeTag: 'Course',
+                            levelTag: null,
+                            onRemove: () => setState(() => addedCourses.remove(c)))),
                       ],
                     ),
 
@@ -295,7 +353,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: _buildDropdownField(
-                                ["Basic", "Intermediate", "Expert"],
+                                ["Basic", "Intermediate", "Advanced"],
                                 value: selectedProficiency,
                                 onChanged: (v) =>
                                     setState(() => selectedProficiency = v!),
@@ -326,6 +384,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                                   "name": showCustomSkillField
                                       ? customSkillController.text
                                       : selectedSkillName,
+                                  "type": selectedSkillType,
                                   "level": selectedProficiency
                                 });
                                 selectedSkillName = "Select a skill";
@@ -344,42 +403,15 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                               onChanged: (_) => setState(() {}),
                             ),
                           ),
-                        ...addedSkillsList.map((s) => _buildAddedTile(
-                            "${s['name']} (${s['level']})",
-                            Icons.bolt,
-                            Colors.purple,
-                            () => setState(() => addedSkillsList.remove(s)))),
+                        ...addedSkillsList.map((s) => _buildSkillCourseChip(
+                            name: s['name'] ?? '',
+                            typeTag: s['type'] ?? 'Technical',
+                            levelTag: s['level'],
+                            onRemove: () => setState(() => addedSkillsList.remove(s)))),
                       ],
                     ),
 
-                    _buildSectionCard(
-                      title: "Internships (${addedInternships.length})",
-                      icon: Icons.work,
-                      iconColor: Colors.orange,
-                      children: [
-                        _buildInputField("Title",
-                            controller: internTitleController),
-                        _buildInputField("Company",
-                            controller: internCompanyController),
-                        _buildAddIconButton(true, () {
-                          if (internTitleController.text.isNotEmpty) {
-                            setState(() {
-                              addedInternships.add({
-                                "title": internTitleController.text,
-                                "company": internCompanyController.text
-                              });
-                              internTitleController.clear();
-                              internCompanyController.clear();
-                            });
-                          }
-                        }, label: "Add Internship"),
-                        ...addedInternships.map((i) => _buildAddedTile(
-                            "${i['title']} @ ${i['company']}",
-                            Icons.business,
-                            Colors.orange,
-                            () => setState(() => addedInternships.remove(i)))),
-                      ],
-                    ),
+                    _buildInternshipsSection(),
 
                     _buildSectionCard(
                       title: "Student Clubs (${addedClubs.length})",
@@ -452,20 +484,27 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
 
   Widget _buildHeader() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24),
+        padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24, right: 24),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF2A6CFF), Color(0xFF9226FF)],
           ),
         ),
-        child: const Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.person_add_alt_1, color: Colors.white, size: 40),
-            SizedBox(height: 10),
+            if (widget.isEditMode)
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+                padding: EdgeInsets.zero,
+                alignment: Alignment.centerLeft,
+              ),
+            const Icon(Icons.person_add_alt_1, color: Colors.white, size: 40),
+            const SizedBox(height: 10),
             Text(
-              'Create Profile',
-              style: TextStyle(
+              widget.isEditMode ? 'Edit Profile' : 'Create Profile',
+              style: const TextStyle(
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.bold),
@@ -485,7 +524,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -504,6 +543,181 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           ],
         ),
       );
+
+  static const _internshipsBlue = Color(0xFF2A6CFF);
+
+  Widget _buildInternshipsSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => internshipsExpanded = !internshipsExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.work_outline, color: _internshipsBlue, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Internships (${addedInternships.length})",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    internshipsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 28,
+                    color: Colors.black54,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (internshipsExpanded) ...[
+            const Divider(height: 24),
+            _buildInputField(
+              "Internship/Training Title",
+              controller: internTitleController,
+              onChanged: (_) => setState(() {}),
+            ),
+            _buildInputField(
+              "Company/Organization",
+              controller: internCompanyController,
+              onChanged: (_) => setState(() {}),
+            ),
+            _buildInputField(
+              "Duration (e.g., 3 months, Summer 2024)",
+              controller: internDurationController,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            Builder(
+              builder: (context) {
+                final canAdd = internTitleController.text.trim().isNotEmpty &&
+                    internCompanyController.text.trim().isNotEmpty &&
+                    internDurationController.text.trim().isNotEmpty;
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: canAdd
+                        ? () {
+                            setState(() {
+                              addedInternships.add({
+                                "title": internTitleController.text.trim(),
+                                "company": internCompanyController.text.trim(),
+                                "duration": internDurationController.text.trim(),
+                              });
+                              internTitleController.clear();
+                              internCompanyController.clear();
+                              internDurationController.clear();
+                            });
+                          }
+                        : null,
+                    icon: Icon(
+                      Icons.add,
+                      color: canAdd ? Colors.white : Colors.grey,
+                      size: 20,
+                    ),
+                    label: Text(
+                      "Add Internship",
+                      style: TextStyle(
+                        color: canAdd ? Colors.white : Colors.grey,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canAdd ? _internshipsBlue : Colors.grey[400],
+                      disabledBackgroundColor: Colors.grey[400],
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (addedInternships.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ...addedInternships.map((i) => _buildInternshipTile(
+                    title: i['title'] ?? '',
+                    company: i['company'] ?? '',
+                    duration: i['duration'] ?? '',
+                    onRemove: () => setState(() => addedInternships.remove(i)),
+                  )),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInternshipTile({
+    required String title,
+    required String company,
+    required String duration,
+    required VoidCallback onRemove,
+  }) {
+    final subtitle = [company, duration].where((s) => s.isNotEmpty).join(' • ');
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.close, size: 20, color: Colors.red),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildInputField(String hint,
           {bool isRequired = false,
@@ -536,7 +750,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           {String? value, ValueChanged<String?>? onChanged}) =>
       DropdownButtonFormField<String>(
         isExpanded: true,
-        value: value,
+        initialValue: value,
         items: items
             .map((e) => DropdownMenuItem(
                 value: e,
@@ -582,6 +796,73 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             icon: const Icon(Icons.close, size: 18),
             onPressed: onRemove,
           ),
+        ),
+      );
+
+  /// Card style for Skills & Courses: icon, name, type tag, level tag, remove.
+  Widget _buildSkillCourseChip({
+    required String name,
+    required String typeTag,
+    String? levelTag,
+    required VoidCallback onRemove,
+  }) {
+    const purple = Color(0xFF9226FF);
+    final typeBg = purple.withOpacity(0.2);
+    final levelBg = levelTag == null
+        ? null
+        : levelTag == 'Basic'
+            ? const Color(0xFFFFF3E0) // light orange/amber
+            : levelTag == 'Intermediate'
+                ? const Color(0xFFE3F2FD) // light blue
+                : const Color(0xFFE8F5E9); // light green (Advanced)
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.school_rounded, color: purple, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+                _buildChip(typeTag, typeBg),
+                if (levelTag != null) _buildChip(levelTag, levelBg!),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close, size: 20, color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(String label, Color bgColor) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.black87),
         ),
       );
 
