@@ -2,7 +2,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/insight_model.dart';
+import '../models/trend_model.dart';
+import '../services/firestore_service.dart';
 import 'my_profile_screen.dart';
+import 'select_job_role_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,6 +17,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  final FirestoreService _firestore = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
@@ -98,9 +103,9 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       const SizedBox(height: 15),
-                      _buildDemandedSkillsCard(),
+                      _buildInsightsSection(),
                       const SizedBox(height: 25),
-                      _buildJobMarketTrends(),
+                      _buildMarketTrendsSection(),
                       const SizedBox(height: 120),
                     ],
                   ),
@@ -272,8 +277,31 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- 4. Most Demanded Skills ---
-  Widget _buildDemandedSkillsCard() {
+  // --- 4. Latest Insights (dynamic from Firestore) ---
+  static const List<Color> _skillBarColors = [
+    Color(0xFF9226FF),
+    Color(0xFF2A6CFF),
+    Color(0xFF4CAF50),
+    Color(0xFFFF9800),
+  ];
+
+  Widget _buildInsightsSection() {
+    return StreamBuilder<List<InsightModel>>(
+      stream: _firestore.streamInsights(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return _buildDemandedSkillsCardLoading();
+        }
+        if (snapshot.hasError) {
+          return _buildDemandedSkillsCardError(snapshot.error.toString());
+        }
+        final insights = snapshot.data ?? [];
+        return _buildDemandedSkillsCard(insights);
+      },
+    );
+  }
+
+  Widget _buildDemandedSkillsCardLoading() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -281,38 +309,114 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(25),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
       ),
-      child: Column(
-        children: [
-          _buildSkillProgress('Python', 0.95, const Color(0xFF9226FF)),
-          const SizedBox(height: 15),
-          _buildSkillProgress('Data Analysis', 0.88, const Color(0xFF2A6CFF)),
-          const SizedBox(height: 15),
-          _buildSkillProgress('Cloud Computing', 0.82, const Color(0xFF4CAF50)),
-          const SizedBox(height: 15),
-          _buildSkillProgress('Machine Learning', 0.78, const Color(0xFFFF9800)),
-        ],
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
+        ),
       ),
     );
   }
 
-  Widget _buildSkillProgress(String name, double progress, Color color) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
-            Text('${(progress * 100).toInt()}%'),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(value: progress, color: color, backgroundColor: Colors.grey[200], minHeight: 8),
-      ],
+  Widget _buildDemandedSkillsCardError(String message) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+      ),
+      child: Text('Error loading insights: $message', style: const TextStyle(color: Colors.red)),
     );
   }
 
-  // --- 5. Job Market Trends ---
-  Widget _buildJobMarketTrends() {
+  Widget _buildDemandedSkillsCard(List<InsightModel> insights) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+      ),
+      child: insights.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('No insights yet. Add data in Firestore or run uploadHomeMockData().'),
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < insights.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 15),
+                  _AnimatedInsightBar(
+                    key: ValueKey(insights[i].id),
+                    skillName: insights[i].skillName,
+                    targetProgress: insights[i].progress,
+                    color: _skillBarColors[i % _skillBarColors.length],
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+
+  // --- 5. Job Market Trends (dynamic from Firestore) ---
+  static const List<Color> _trendBgColors = [
+    Color(0xFFE8F5E9),
+    Color(0xFFE3F2FD),
+    Color(0xFFF3E5F5),
+  ];
+  static const List<Color> _trendIconColors = [
+    Color(0xFF4CAF50),
+    Color(0xFF2196F3),
+    Color(0xFF9C27B0),
+  ];
+
+  Widget _buildMarketTrendsSection() {
+    return StreamBuilder<List<TrendModel>>(
+      stream: _firestore.streamMarketTrends(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return _buildJobMarketTrendsLoading();
+        }
+        if (snapshot.hasError) {
+          return _buildJobMarketTrendsError(snapshot.error.toString());
+        }
+        final trends = snapshot.data ?? [];
+        return _buildJobMarketTrends(trends);
+      },
+    );
+  }
+
+  Widget _buildJobMarketTrendsLoading() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+      ),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJobMarketTrendsError(String message) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+      ),
+      child: Text('Error loading trends: $message', style: const TextStyle(color: Colors.red)),
+    );
+  }
+
+  Widget _buildJobMarketTrends(List<TrendModel> trends) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -334,11 +438,26 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 18),
-          _trendItem('AI/ML Jobs', '+45% growth in 2025', const Color(0xFFE8F5E9), const Color(0xFF4CAF50), Icons.trending_up),
-          const SizedBox(height: 12),
-          _trendItem('Cybersecurity', 'High demand, 350K+ openings', const Color(0xFFE3F2FD), const Color(0xFF2196F3), Icons.security),
-          const SizedBox(height: 12),
-          _trendItem('Remote Work', '65% of tech jobs now remote-friendly', const Color(0xFFF3E5F5), const Color(0xFF9C27B0), Icons.home_work),
+          if (trends.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('No trends yet. Add data in Firestore or run uploadHomeMockData().'),
+            )
+          else
+            ...trends.asMap().entries.map((e) {
+              final i = e.key;
+              final t = e.value;
+              return Padding(
+                padding: EdgeInsets.only(top: i > 0 ? 12 : 0),
+                child: _trendItem(
+                  t.title,
+                  t.displaySubtitle,
+                  _trendBgColors[i % _trendBgColors.length],
+                  _trendIconColors[i % _trendIconColors.length],
+                  trendIconFromName(t.iconName),
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -437,6 +556,13 @@ class _HomePageState extends State<HomePage> {
               builder: (context) => const MyProfileScreen(),
             ),
           );
+        } else if (index == 1) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SelectJobRoleScreen(),
+            ),
+          );
         } else {
           setState(() => _selectedIndex = index);
         }
@@ -467,6 +593,117 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Animated progress bar: pulse/shimmer on color, optional jitter on %, smooth transition when Firestore updates.
+class _AnimatedInsightBar extends StatefulWidget {
+  final String skillName;
+  final double targetProgress;
+  final Color color;
+
+  const _AnimatedInsightBar({
+    super.key,
+    required this.skillName,
+    required this.targetProgress,
+    required this.color,
+  });
+
+  @override
+  State<_AnimatedInsightBar> createState() => _AnimatedInsightBarState();
+}
+
+class _AnimatedInsightBarState extends State<_AnimatedInsightBar>
+    with TickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late AnimationController _jitterController;
+  late AnimationController _transitionController;
+  double _displayedProgress = 0;
+  double _transitionFrom = 0;
+  double _transitionTo = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedProgress = widget.targetProgress;
+    _transitionTo = widget.targetProgress;
+
+    // Pulse: smooth opacity shimmer on the bar (repeat reverse = battery-friendly).
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    // Jitter: slight % fluctuation for "live data" feel (repeat reverse).
+    _jitterController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    // One-shot transition when Firestore value changes.
+    _transitionController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    )..addListener(_onTransitionTick);
+  }
+
+  void _onTransitionTick() {
+    if (!mounted) return;
+    setState(() {
+      _displayedProgress = _transitionFrom +
+          (_transitionTo - _transitionFrom) *
+              Curves.easeInOut.transform(_transitionController.value);
+    });
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedInsightBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetProgress != widget.targetProgress) {
+      _transitionFrom = _displayedProgress;
+      _transitionTo = widget.targetProgress;
+      _transitionController
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _jitterController.dispose();
+    _transitionController.removeListener(_onTransitionTick);
+    _transitionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Pulse: bar color opacity 0.8 → 1.0 → 0.8
+    final pulseOpacity = 0.8 + 0.2 * _pulseController.value;
+    // Jitter: ±0.2% on displayed value
+    final jitter = (_jitterController.value - 0.5) * 0.004;
+    final currentProgress = (_displayedProgress + jitter).clamp(0.0, 1.0);
+    final displayPercent = (currentProgress * 100).toStringAsFixed(1);
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(widget.skillName, style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text('$displayPercent%'),
+          ],
+        ),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(
+          value: currentProgress,
+          color: widget.color.withOpacity(pulseOpacity),
+          backgroundColor: Colors.grey[200],
+          minHeight: 8,
+        ),
+      ],
     );
   }
 }

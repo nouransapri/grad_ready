@@ -2,8 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'create_account.dart'; 
-import 'home_page.dart'; // تأكدي من عمل import لصفحة الهوم
+import 'create_account.dart';
+import 'home_page.dart';
+import 'admin/admin_overview_screen.dart';
 
 const Color _gradientTop = Color(0xFF2A6CFF);
 const Color _gradientBottom = Color(0xFF9226FF);
@@ -35,6 +36,19 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    // دخول لوحة الأدمن (فقط من صفحة اللوجن بهذه البيانات)
+    if (email == 'admin@gradready' && password == '1111') {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminOverviewScreen()),
+      );
+      return;
+    }
+
     try {
       // إظهار دائرة تحميل
       showDialog(
@@ -45,8 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // تنفيذ عملية تسجيل الدخول
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: email,
+        password: password,
       );
 
       if (!mounted) return;
@@ -63,9 +77,13 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pop(context); // إغلاق دائرة التحميل
       
       String message = "Login Failed";
-      if (e.code == 'user-not-found') message = "No user found for that email.";
-      else if (e.code == 'wrong-password') message = "Wrong password provided.";
-      else message = e.message ?? "An error occurred";
+      if (e.code == 'user-not-found') {
+        message = "No user found for that email.";
+      } else if (e.code == 'wrong-password') {
+        message = "Wrong password provided.";
+      } else {
+        message = e.message ?? "An error occurred";
+      }
 
       _showError(message);
     }

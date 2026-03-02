@@ -51,8 +51,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
       );
 
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
@@ -64,7 +63,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => CreateProfileScreen(),
+          builder: (context) => const CreateProfileScreen(),
         ),
       );
     } on FirebaseAuthException catch (e) {
