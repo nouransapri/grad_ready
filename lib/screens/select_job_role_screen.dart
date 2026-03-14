@@ -52,9 +52,11 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
       stream: _jobsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            backgroundColor: const Color(0xFFF8F9FA),
-            body: Center(child: CircularProgressIndicator(color: _gradientStart)),
+          return const Scaffold(
+            backgroundColor: Color(0xFFF8F9FA),
+            body: Center(
+              child: CircularProgressIndicator(color: _gradientStart),
+            ),
           );
         }
         if (snapshot.hasError) {
@@ -98,21 +100,19 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final job = filteredJobs[index];
-                            final isSelected = _selectedJob?.id == job.id;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: _JobCard(
-                                job: job,
-                                isSelected: isSelected,
-                                onSelect: () => setState(() => _selectedJob = job),
-                              ),
-                            );
-                          },
-                          childCount: filteredJobs.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final job = filteredJobs[index];
+                          final isSelected = _selectedJob?.id == job.id;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _JobCard(
+                              job: job,
+                              isSelected: isSelected,
+                              onSelect: () =>
+                                  setState(() => _selectedJob = job),
+                            ),
+                          );
+                        }, childCount: filteredJobs.length),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -120,7 +120,12 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).padding.bottom),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  12,
+                  16,
+                  16 + MediaQuery.of(context).padding.bottom,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: _selectedJob == null
@@ -129,11 +134,17 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             side: BorderSide(color: Colors.grey[400]!),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           child: Text(
                             'View Job Requirements',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         )
                       : ElevatedButton(
@@ -142,7 +153,8 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => JobRequirementsScreen(job: _selectedJob!),
+                                  builder: (context) =>
+                                      JobRequirementsScreen(job: _selectedJob!),
                                 ),
                               );
                             }
@@ -151,10 +163,18 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                             backgroundColor: const Color(0xFF2A6CFF),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             elevation: 0,
                           ),
-                          child: const Text('View Job Requirements', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                          child: const Text(
+                            'View Job Requirements',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                 ),
               ),
@@ -191,7 +211,10 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                 children: [
                   Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
                   SizedBox(width: 4),
-                  Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  Text(
+                    'Back',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
                 ],
               ),
             ),
@@ -207,7 +230,10 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
             const SizedBox(height: 6),
             Text(
               'Choose the position you\'re aiming for.',
-              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -222,7 +248,12 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +282,10 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
               ),
@@ -281,7 +315,6 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
       ),
     );
   }
-
 }
 
 class _JobCard extends StatelessWidget {
@@ -311,7 +344,12 @@ class _JobCard extends StatelessWidget {
             color: isSelected ? _blue : Colors.transparent,
             width: isSelected ? 2 : 0,
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,13 +367,17 @@ class _JobCard extends StatelessWidget {
                   ),
                 ),
                 if (isSelected)
-                  Icon(Icons.check_circle, color: _blue, size: 22),
+                  const Icon(Icons.check_circle, color: _blue, size: 22),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               job.description,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.35),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                height: 1.35,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -343,7 +385,11 @@ class _JobCard extends StatelessWidget {
                 _tag(job.category, Colors.grey[200]!, Colors.grey[800]!),
                 const SizedBox(width: 8),
                 if (job.isHighDemand)
-                  _tag('High Demand', const Color(0xFFE8F5E9), const Color(0xFF2E7D32)),
+                  _tag(
+                    'High Demand',
+                    const Color(0xFFE8F5E9),
+                    const Color(0xFF2E7D32),
+                  ),
               ],
             ),
             const SizedBox(height: 14),
@@ -352,7 +398,11 @@ class _JobCard extends StatelessWidget {
               children: [
                 Text(
                   job.salaryRange,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green[700]),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green[700],
+                  ),
                 ),
                 Text(
                   '${job.requiredSkillsCount} required skills',
@@ -380,7 +430,14 @@ class _JobCard extends StatelessWidget {
             Icon(Icons.trending_up, size: 14, color: fg),
             const SizedBox(width: 4),
           ],
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: fg)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );

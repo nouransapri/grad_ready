@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Shield, LayoutGrid, Briefcase, Award, TrendingUp, Database, ArrowRight, Users } from 'lucide-react'
+import { Shield, LayoutGrid, Briefcase, Award, TrendingUp, Database, ArrowRight, Users, BarChart3 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const tabs = [
@@ -9,6 +9,7 @@ const tabs = [
   { to: '/analytics', label: 'Analytics', icon: TrendingUp },
   { to: '/market', label: 'Market', icon: Database },
   { to: '/users', label: 'Users', icon: Users },
+  { to: '/analysis', label: 'Analysis', icon: BarChart3 },
 ]
 
 export default function AdminLayout() {

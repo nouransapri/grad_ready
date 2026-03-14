@@ -8,6 +8,7 @@ import SkillsManagement from './pages/SkillsManagement'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import MarketDataMaintenance from './pages/MarketDataMaintenance'
 import UserManagement from './pages/UserManagement'
+import GapAnalysisScreen from './pages/GapAnalysisScreen'
 
 function AppRoutes() {
   const { isAdmin } = useAuth()
@@ -25,6 +26,7 @@ function AppRoutes() {
         <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route path="market" element={<MarketDataMaintenance />} />
         <Route path="users" element={<UserManagement />} />
+        <Route path="analysis" element={<GapAnalysisScreen />} />
       </Route>
       <Route path="*" element={<Navigate to={isAdmin ? '/' : '/login'} replace />} />
     </Routes>

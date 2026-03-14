@@ -46,9 +46,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        builder: (context) =>
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
 
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -62,9 +61,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       // بعد التسجيل → روح CreateProfileScreen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const CreateProfileScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const CreateProfileScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -129,9 +126,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.4),
+                              color: Colors.white.withValues(alpha: 0.4),
                               width: 2,
                             ),
                           ),
@@ -157,7 +154,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           'Turning Gaps into Growth',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
 
@@ -171,13 +168,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                               child: Container(
-                                padding:
-                                    const EdgeInsets.fromLTRB(24, 30, 24, 30),
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  30,
+                                  24,
+                                  30,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                   borderRadius: BorderRadius.circular(28),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     width: 1.5,
                                   ),
                                 ),
@@ -197,15 +198,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     const SizedBox(height: 25),
 
                                     _buildTextField(
-                                        emailController, 'Email', Icons.mail_outline),
+                                      emailController,
+                                      'Email',
+                                      Icons.mail_outline,
+                                    ),
                                     const SizedBox(height: 18),
-                                    _buildTextField(passwordController,
-                                        'Password', Icons.lock_outline,
-                                        isPass: true),
+                                    _buildTextField(
+                                      passwordController,
+                                      'Password',
+                                      Icons.lock_outline,
+                                      isPass: true,
+                                    ),
                                     const SizedBox(height: 18),
-                                    _buildTextField(confirmController,
-                                        'Confirm Password', Icons.lock_outline,
-                                        isPass: true),
+                                    _buildTextField(
+                                      confirmController,
+                                      'Confirm Password',
+                                      Icons.lock_outline,
+                                      isPass: true,
+                                    ),
 
                                     const SizedBox(height: 25),
 
@@ -213,20 +223,25 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       onPressed: registerUser,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
-                                        foregroundColor: const Color(0xFF2A6CFF),
+                                        foregroundColor: const Color(
+                                          0xFF2A6CFF,
+                                        ),
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 15),
+                                          vertical: 15,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                         elevation: 5,
                                       ),
                                       child: const Text(
                                         'Create Account',
                                         style: TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.bold),
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
 
@@ -264,9 +279,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint,
-      IconData icon,
-      {bool isPass = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool isPass = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: isPass,
@@ -275,14 +293,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: Colors.white.withValues(alpha: 0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         prefixIcon: Icon(icon, color: Colors.white70),
       ),

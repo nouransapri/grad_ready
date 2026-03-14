@@ -1,6 +1,13 @@
-# grad_ready
+# GradReady
 
-A new Flutter project.
+تطبيق Flutter لمساعدة الخريجين على تحليل الفجوة بين مهاراتهم ومتطلبات الوظائف.
+
+## إعداد حساب الأدمن
+
+لتسجيل دخول لوحة الأدمن:
+
+1. في Firebase Console → Authentication أنشئ مستخدماً بالإيميل `admin@gradready.com` (أو `admin@gradready`) وكلمة المرور `1111`.
+2. عند أول تسجيل دخول بهذا الحساب سيتم إنشاء مستند في Firestore تلقائياً بحقل `role: 'admin'` وتوجيهك للوحة الأدمن.
 
 ## Getting Started
 

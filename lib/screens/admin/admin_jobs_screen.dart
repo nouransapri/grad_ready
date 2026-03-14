@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
 import 'admin_create_job_role_screen.dart';
+
 const Color _red = Color(0xFFD32F2F);
 const Color _chipCategoryBg = Color(0xFFE8E4F5);
 const Color _chipCategoryText = Color(0xFF5B4B9E);
@@ -44,13 +45,24 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
       builder: (context, snapshot) {
         final theme = Theme.of(context);
         final jobs = snapshot.data ?? [];
-        final categories = jobs.map((j) => j.category).where((c) => c.isNotEmpty).toSet().toList()..sort();
+        final categories =
+            jobs
+                .map((j) => j.category)
+                .where((c) => c.isNotEmpty)
+                .toSet()
+                .toList()
+              ..sort();
         final highDemandCount = jobs.where((j) => j.isHighDemand).length;
         final filtered = _filterJobs(jobs);
         const displayCount = 15;
 
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 20 + bottomPadding),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            14,
+            horizontalPadding,
+            20 + bottomPadding,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -97,11 +109,11 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                     );
                   },
                   borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(Icons.add_rounded, color: Colors.white, size: 22),
                         SizedBox(width: 8),
                         Text(
@@ -131,9 +143,16 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                   decoration: InputDecoration(
                     hintText: 'Search job roles...',
                     hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[600], size: 22),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: Colors.grey[600],
+                      size: 22,
+                    ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -143,12 +162,20 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                 initialValue: _selectedCategory,
                 onSelected: (v) => setState(() => _selectedCategory = v),
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'All Categories', child: Text('All Categories')),
-                  ...categories.map((c) => PopupMenuItem(value: c, child: Text(c))),
+                  const PopupMenuItem(
+                    value: 'All Categories',
+                    child: Text('All Categories'),
+                  ),
+                  ...categories.map(
+                    (c) => PopupMenuItem(value: c, child: Text(c)),
+                  ),
                 ],
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -165,17 +192,25 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[700], size: 24),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey[700],
+                        size: 24,
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
               // قائمة الأدوار
-              ...filtered.take(displayCount).map((job) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _JobRoleCard(job: job),
-                  )),
+              ...filtered
+                  .take(displayCount)
+                  .map(
+                    (job) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _JobRoleCard(job: job),
+                    ),
+                  ),
               const SizedBox(height: 8),
               // Footer
               Center(
@@ -247,13 +282,7 @@ class _JobsStatCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
         ],
       ),
     );
@@ -267,7 +296,8 @@ class _JobRoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skillCount = job.technicalSkillsWithLevel.length + job.softSkillsWithLevel.length;
+    final skillCount =
+        job.technicalSkillsWithLevel.length + job.softSkillsWithLevel.length;
     final hasSkills = skillCount > 0;
     final count = hasSkills ? skillCount : job.requiredSkills.length;
 
@@ -305,7 +335,11 @@ class _JobRoleCard extends StatelessWidget {
                     SnackBar(content: Text('Edit ${job.title} – Coming soon')),
                   );
                 },
-                child: Icon(Icons.edit_outlined, size: 20, color: Colors.grey[600]),
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: 20,
+                  color: Colors.grey[600],
+                ),
               ),
             ],
           ),
@@ -325,7 +359,11 @@ class _JobRoleCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _chip(job.category, _categoryChipColor(job.category), _chipCategoryText),
+              _chip(
+                job.category,
+                _categoryChipColor(job.category),
+                _chipCategoryText,
+              ),
               _chip(
                 job.isHighDemand ? 'High Demand' : 'Growing Demand',
                 job.isHighDemand ? _chipHighDemandBg : _chipGrowingBg,
@@ -371,7 +409,11 @@ class _JobRoleCard extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: textColor,
+        ),
       ),
     );
   }

@@ -13,15 +13,23 @@ class JobRequirementsScreen extends StatelessWidget {
   static const _blue = Color(0xFF2A6CFF);
 
   List<SkillProficiency> get _technicalSkills {
-    if (job.technicalSkillsWithLevel.isNotEmpty) return job.technicalSkillsWithLevel;
+    if (job.technicalSkillsWithLevel.isNotEmpty) {
+      return job.technicalSkillsWithLevel;
+    }
     final n = (job.requiredSkills.length / 2).ceil();
-    return job.requiredSkills.take(n).map((s) => SkillProficiency(name: s, percent: 70)).toList();
+    return job.requiredSkills
+        .take(n)
+        .map((s) => SkillProficiency(name: s, percent: 70))
+        .toList();
   }
 
   List<SkillProficiency> get _softSkills {
     if (job.softSkillsWithLevel.isNotEmpty) return job.softSkillsWithLevel;
     final n = (job.requiredSkills.length / 2).ceil();
-    return job.requiredSkills.skip(n).map((s) => SkillProficiency(name: s, percent: 70)).toList();
+    return job.requiredSkills
+        .skip(n)
+        .map((s) => SkillProficiency(name: s, percent: 70))
+        .toList();
   }
 
   List<String> get _criticalSkills {
@@ -46,7 +54,9 @@ class JobRequirementsScreen extends StatelessWidget {
                       width: double.infinity,
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(28),
+                        ),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -67,7 +77,12 @@ class JobRequirementsScreen extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 12, 20, 16 + MediaQuery.of(context).padding.bottom),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              16 + MediaQuery.of(context).padding.bottom,
+            ),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -79,15 +94,25 @@ class JobRequirementsScreen extends StatelessWidget {
                     ),
                   );
                 },
-                icon: const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.arrow_forward,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 label: const Text(
                   'Start Skills Gap Analysis',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2A6CFF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
               ),
@@ -100,111 +125,140 @@ class JobRequirementsScreen extends StatelessWidget {
 
   Widget _buildHeaderBox(BuildContext context) {
     return Container(
-        width: double.infinity,
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 12,
-          left: 16,
-          right: 16,
-          bottom: 32,
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 12,
+        left: 16,
+        right: 16,
+        bottom: 32,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_gradientStart, _gradientEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [_gradientStart, _gradientEnd],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const Row(
+              children: [
+                Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                SizedBox(width: 4),
+                Text(
+                  'Back',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: const Row(
-                children: [
-                  Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                  SizedBox(width: 4),
-                  Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
-                ],
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Icon(Icons.gps_fixed, color: Colors.white, size: 20),
+              SizedBox(width: 6),
+              Text(
+                'Target Job Role',
+                style: TextStyle(color: Colors.white, fontSize: 14),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            job.title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 12),
-            const Row(
+          ),
+          const SizedBox(height: 8),
+          Text(
+            job.description,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 15,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _headerTag(job.category, const Color(0xFFB0BEC5)),
+              const SizedBox(width: 10),
+              if (job.isHighDemand)
+                _headerTag(
+                  'High Demand',
+                  const Color(0xFFE8F5E9),
+                  isGreen: true,
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
               children: [
-                Icon(Icons.gps_fixed, color: Colors.white, size: 20),
-                SizedBox(width: 6),
-                Text('Target Job Role', style: TextStyle(color: Colors.white, fontSize: 14)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Expected Salary Range',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        job.salaryRangeShort,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 40, color: Colors.white38),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Required Skills',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${job.requiredSkillsCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              job.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              job.description,
-              style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 15, height: 1.3),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                _headerTag(job.category, const Color(0xFFB0BEC5)),
-                const SizedBox(width: 10),
-                if (job.isHighDemand) _headerTag('High Demand', const Color(0xFFE8F5E9), isGreen: true),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Expected Salary Range',
-                          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          job.salaryRangeShort,
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, height: 40, color: Colors.white38),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Required Skills',
-                          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${job.requiredSkillsCount}',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -247,14 +301,22 @@ class JobRequirementsScreen extends StatelessWidget {
               SizedBox(width: 8),
               Text(
                 'Job Requirements',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1C1E)),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1C1E),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             'These are the skills and proficiency levels required for this position. Your profile will be compared against these requirements.',
-            style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.45),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              height: 1.45,
+            ),
           ),
         ],
       ),
@@ -277,11 +339,19 @@ class JobRequirementsScreen extends StatelessWidget {
             children: [
               Text(
                 name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1A1C1E)),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1C1E),
+                ),
               ),
               Text(
                 '$percent%',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: barColor),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: barColor,
+                ),
               ),
             ],
           ),
@@ -313,11 +383,15 @@ class JobRequirementsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.circle, size: 8, color: _purple),
+              const Icon(Icons.circle, size: 8, color: _purple),
               const SizedBox(width: 8),
               Text(
                 'Technical Skills (${list.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1C1E)),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1C1E),
+                ),
               ),
             ],
           ),
@@ -338,11 +412,15 @@ class JobRequirementsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.circle, size: 8, color: _blue),
+              const Icon(Icons.circle, size: 8, color: _blue),
               const SizedBox(width: 8),
               Text(
                 'Soft Skills (${list.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1C1E)),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1C1E),
+                ),
               ),
             ],
           ),
@@ -373,29 +451,48 @@ class JobRequirementsScreen extends StatelessWidget {
               const SizedBox(width: 8),
               const Text(
                 'Critical Skills',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1C1E)),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1C1E),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             'These high-priority skills are essential for success in this role:',
-            style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[700],
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: list
-                .map((name) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.orange[200]!),
+                .map(
+                  (name) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
-                      child: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -420,12 +517,20 @@ class JobRequirementsScreen extends StatelessWidget {
         children: [
           const Text(
             'Ready for Analysis?',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
             'We\'ll compare your skills and courses with these job requirements to calculate your readiness score and identify skill gaps.',
-            style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 14, height: 1.45),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 14,
+              height: 1.45,
+            ),
           ),
           const SizedBox(height: 18),
           _checkItem('Detailed gap analysis'),
@@ -444,7 +549,10 @@ class JobRequirementsScreen extends StatelessWidget {
           Container(
             width: 22,
             height: 22,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
             child: const Icon(Icons.check, size: 14, color: _blue),
           ),
           const SizedBox(width: 12),

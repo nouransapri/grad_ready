@@ -16,7 +16,8 @@ class AdminCreateJobRoleScreen extends StatefulWidget {
   const AdminCreateJobRoleScreen({super.key});
 
   @override
-  State<AdminCreateJobRoleScreen> createState() => _AdminCreateJobRoleScreenState();
+  State<AdminCreateJobRoleScreen> createState() =>
+      _AdminCreateJobRoleScreenState();
 }
 
 class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
@@ -85,7 +86,11 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.shield_outlined, color: Colors.white, size: 28),
+                  const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +119,11 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
                 ),
-                icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 24),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
@@ -201,22 +210,41 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                 const Spacer(),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, size: 24, color: Colors.black54),
+                  icon: const Icon(
+                    Icons.close,
+                    size: 24,
+                    color: Colors.black54,
+                  ),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 18),
-            _field('Job Title *', _titleController, hint: 'e.g., Senior Data Analyst'),
+            _field(
+              'Job Title *',
+              _titleController,
+              hint: 'e.g., Senior Data Analyst',
+            ),
             const SizedBox(height: 14),
-            _field('Description *', _descriptionController,
-                hint: 'Brief description of the role...', maxLines: 4),
+            _field(
+              'Description *',
+              _descriptionController,
+              hint: 'Brief description of the role...',
+              maxLines: 4,
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
-                  child: _field('Category *', _categoryController, hint: 'e.g., Data & A'),
+                  child: _field(
+                    'Category *',
+                    _categoryController,
+                    hint: 'e.g., Data & A',
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -233,7 +261,10 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                       ),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(10),
@@ -244,9 +275,15 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                             value: _demand,
                             isExpanded: true,
                             items: ['High', 'Medium', 'Low']
-                                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (v) => setState(() => _demand = v ?? 'Medium'),
+                            onChanged: (v) =>
+                                setState(() => _demand = v ?? 'Medium'),
                           ),
                         ),
                       ),
@@ -256,7 +293,11 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            _field('Salary Range', _salaryController, hint: 'e.g., \$70K - \$110K'),
+            _field(
+              'Salary Range',
+              _salaryController,
+              hint: 'e.g., \$70K - \$110K',
+            ),
             const SizedBox(height: 20),
             const Text(
               'Required Skills',
@@ -289,7 +330,9 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _isTechnicalSkill ? Colors.white : Colors.black87,
+                              color: _isTechnicalSkill
+                                  ? Colors.white
+                                  : Colors.black87,
                             ),
                           ),
                         ),
@@ -313,7 +356,9 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: !_isTechnicalSkill ? Colors.white : Colors.black87,
+                              color: !_isTechnicalSkill
+                                  ? Colors.white
+                                  : Colors.black87,
                             ),
                           ),
                         ),
@@ -338,7 +383,10 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                       decoration: const InputDecoration(
                         hintText: 'Skill name...',
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -356,7 +404,10 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -404,17 +455,32 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'Add skills using the form above',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ],
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ..._technicalSkills.asMap().entries.map((e) => _skillChip(
-                            e.value.name, e.value.percent, true, e.key)),
-                        ..._softSkills.asMap().entries.map((e) => _skillChip(
-                            e.value.name, e.value.percent, false, e.key)),
+                        ..._technicalSkills.asMap().entries.map(
+                          (e) => _skillChip(
+                            e.value.name,
+                            e.value.percent,
+                            true,
+                            e.key,
+                          ),
+                        ),
+                        ..._softSkills.asMap().entries.map(
+                          (e) => _skillChip(
+                            e.value.name,
+                            e.value.percent,
+                            false,
+                            e.key,
+                          ),
+                        ),
                       ],
                     ),
             ),
@@ -432,7 +498,11 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.save_outlined, size: 20, color: _saveButtonText),
+                        const Icon(
+                          Icons.save_outlined,
+                          size: 20,
+                          color: _saveButtonText,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _saving ? 'Saving...' : 'Save Job Role',
@@ -454,8 +524,12 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     );
   }
 
-  Widget _field(String label, TextEditingController controller,
-      {String? hint, int maxLines = 1}) {
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    int maxLines = 1,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -480,7 +554,10 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
           ),
         ),
@@ -514,7 +591,11 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                       }
                     });
                   },
-                  child: const Icon(Icons.close, size: 16, color: Colors.black54),
+                  child: const Icon(
+                    Icons.close,
+                    size: 16,
+                    color: Colors.black54,
+                  ),
                 ),
               ],
             ),
@@ -546,13 +627,16 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     final category = _categoryController.text.trim();
     if (title.isEmpty || description.isEmpty || category.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill Job Title, Description, and Category')),
+        const SnackBar(
+          content: Text('Please fill Job Title, Description, and Category'),
+        ),
       );
       return;
     }
 
-    final salaryMatch = RegExp(r'\$?\s*(\d+)\s*[Kk]\s*[-–]\s*\$?\s*(\d+)\s*[Kk]')
-        .firstMatch(_salaryController.text.trim());
+    final salaryMatch = RegExp(
+      r'\$?\s*(\d+)\s*[Kk]\s*[-–]\s*\$?\s*(\d+)\s*[Kk]',
+    ).firstMatch(_salaryController.text.trim());
     int salaryMinK = 50;
     int salaryMaxK = 100;
     if (salaryMatch != null) {
@@ -574,7 +658,6 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
       salaryMinK: salaryMinK,
       salaryMaxK: salaryMaxK,
       requiredSkills: requiredSkills,
-      requiredCourses: [],
       technicalSkillsWithLevel: _technicalSkills,
       softSkillsWithLevel: _softSkills,
       criticalSkills: [],
@@ -590,9 +673,9 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

@@ -15,29 +15,43 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   static const _gradientEnd = Color(0xFF9226FF);
   static const _purple = Color(0xFF9226FF);
 
-  Future<DocumentSnapshot> _getProfileFuture() {
+  late Future<DocumentSnapshot> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = _loadProfileFuture();
+  }
+
+  Future<DocumentSnapshot> _loadProfileFuture() {
     final user = FirebaseAuth.instance.currentUser!;
     return FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+  }
+
+  void _refreshProfile() {
+    setState(() => _profileFuture = _loadProfileFuture());
   }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please sign in')),
-      );
+      return const Scaffold(body: Center(child: Text('Please sign in')));
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: FutureBuilder<DocumentSnapshot>(
-        future: _getProfileFuture(),
+        future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: _gradientStart));
+            return const Center(
+              child: CircularProgressIndicator(color: _gradientStart),
+            );
           }
-          if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+          if (snapshot.hasError ||
+              !snapshot.hasData ||
+              !snapshot.data!.exists) {
             return _buildBody(context, null);
           }
           final data = snapshot.data!.data() as Map<String, dynamic>?;
@@ -53,12 +67,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final major = data?['major'] as String? ?? '';
     final academicYear = data?['academic_year'] as String? ?? '';
     final gpa = data?['gpa'] as String? ?? '';
-    final courses = List<String>.from(data?['added_courses'] ?? []);
     final skills = List<Map<String, dynamic>>.from(
       (data?['skills'] as List?)?.map((e) => e as Map<String, dynamic>) ?? [],
     );
     final internships = List<Map<String, dynamic>>.from(
-      (data?['internships'] as List?)?.map((e) => e as Map<String, dynamic>) ?? [],
+      (data?['internships'] as List?)?.map((e) => e as Map<String, dynamic>) ??
+          [],
     );
     final clubs = List<Map<String, dynamic>>.from(
       (data?['clubs'] as List?)?.map((e) => e as Map<String, dynamic>) ?? [],
@@ -89,26 +103,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     _buildInfoRow('Full Name', name),
                     _buildInfoRow('University', university),
                     _buildInfoRow('Major', major),
-                    _buildInfoRow('Academic Year', academicYear.isEmpty || academicYear == 'Select year' ? '—' : academicYear),
+                    _buildInfoRow(
+                      'Academic Year',
+                      academicYear.isEmpty || academicYear == 'Select year'
+                          ? '—'
+                          : academicYear,
+                    ),
                     _buildInfoRow('GPA', gpa.isEmpty ? '—' : gpa),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              _buildSection(
-                context,
-                title: 'Completed Courses',
-                icon: Icons.menu_book_rounded,
-                iconColor: Colors.blue,
-                onEdit: () => _openEditProfile(context),
-                child: courses.isEmpty
-                    ? _emptyHint('No courses added')
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: courses.map((c) => _courseRow(c)).toList(),
-                      ),
-              ),
+
               const SizedBox(height: 20),
               _buildSection(
                 context,
@@ -122,11 +127,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: skills
-                            .map((s) => _skillRow(
-                                  name: s['name']?.toString() ?? '',
-                                  type: s['type']?.toString() ?? 'Technical',
-                                  level: s['level']?.toString() ?? '',
-                                ))
+                            .map(
+                              (s) => _skillRow(
+                                name: s['name']?.toString() ?? '',
+                                type: s['type']?.toString() ?? 'Technical',
+                                level: s['level']?.toString() ?? '',
+                              ),
+                            )
                             .toList(),
                       ),
               ),
@@ -143,11 +150,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: internships
-                            .map((i) => _internshipRow(
-                                  title: i['title']?.toString() ?? '',
-                                  company: i['company']?.toString() ?? '',
-                                  duration: i['duration']?.toString() ?? '',
-                                ))
+                            .map(
+                              (i) => _internshipRow(
+                                title: i['title']?.toString() ?? '',
+                                company: i['company']?.toString() ?? '',
+                                duration: i['duration']?.toString() ?? '',
+                              ),
+                            )
                             .toList(),
                       ),
               ),
@@ -164,10 +173,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: clubs
-                            .map((c) => _clubRow(
-                                  name: c['name']?.toString() ?? '',
-                                  role: c['role']?.toString() ?? '',
-                                ))
+                            .map(
+                              (c) => _clubRow(
+                                name: c['name']?.toString() ?? '',
+                                role: c['role']?.toString() ?? '',
+                              ),
+                            )
                             .toList(),
                       ),
               ),
@@ -184,10 +195,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: projects
-                            .map((p) => _projectRow(
-                                  name: p['name']?.toString() ?? '',
-                                  description: p['description']?.toString() ?? '',
-                                ))
+                            .map(
+                              (p) => _projectRow(
+                                name: p['name']?.toString() ?? '',
+                                description: p['description']?.toString() ?? '',
+                              ),
+                            )
                             .toList(),
                       ),
               ),
@@ -218,7 +231,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const Expanded(
             child: Text(
@@ -243,14 +260,23 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  Widget _buildProfileCard(BuildContext context, String name, String university) {
+  Widget _buildProfileCard(
+    BuildContext context,
+    String name,
+    String university,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -262,18 +288,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 height: 90,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _purple.withOpacity(0.15),
+                  color: _purple.withValues(alpha: 0.15),
                   border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
-                child: Icon(Icons.person_rounded, size: 48, color: _purple),
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 48,
+                  color: _purple,
+                ),
               ),
               Positioned(
                 right: -4,
                 bottom: -4,
                 child: IconButton(
                   onPressed: () => _openEditProfile(context),
-                  icon: const Icon(Icons.edit_rounded, color: _purple, size: 22),
+                  icon: const Icon(
+                    Icons.edit_rounded,
+                    color: _purple,
+                    size: 22,
+                  ),
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.white,
                     padding: const EdgeInsets.all(8),
@@ -330,7 +369,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,27 +448,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  Widget _courseRow(String name) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.menu_book_rounded, size: 22, color: Colors.blue[400]),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _clubRow({required String name, required String role}) {
     final subtitle = role.isNotEmpty ? ' — $role' : '';
     return Padding(
@@ -432,7 +455,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.groups_rounded, size: 22, color: _purple.withOpacity(0.9)),
+          Icon(
+            Icons.groups_rounded,
+            size: 22,
+            color: _purple.withValues(alpha: 0.9),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -453,7 +480,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline_rounded, size: 22, color: Colors.green[700]),
+          Icon(
+            Icons.lightbulb_outline_rounded,
+            size: 22,
+            color: Colors.green[700],
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -462,7 +493,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
@@ -483,17 +517,25 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  Widget _skillRow({required String name, required String type, required String level}) {
+  Widget _skillRow({
+    required String name,
+    required String type,
+    required String level,
+  }) {
     final levelColor = level == 'Basic'
         ? Colors.orange
         : level == 'Intermediate'
-            ? Colors.blue
-            : Colors.green;
+        ? Colors.blue
+        : Colors.green;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(Icons.workspace_premium_rounded, size: 22, color: _purple.withOpacity(0.9)),
+          Icon(
+            Icons.workspace_premium_rounded,
+            size: 22,
+            color: _purple.withValues(alpha: 0.9),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Wrap(
@@ -501,9 +543,16 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                _chip(type, _purple.withOpacity(0.2)),
-                if (level.isNotEmpty) _chip(level, levelColor.withOpacity(0.25)),
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                _chip(type, _purple.withValues(alpha: 0.2)),
+                if (level.isNotEmpty)
+                  _chip(level, levelColor.withValues(alpha: 0.25)),
               ],
             ),
           ),
@@ -519,7 +568,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         color: bgColor,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 12, color: Colors.black87),
+      ),
     );
   }
 
@@ -542,7 +594,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
@@ -566,7 +621,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         builder: (context) => const CreateProfileScreen(isEditMode: true),
       ),
     ).then((_) {
-      if (mounted) setState(() {});
+      if (mounted) _refreshProfile();
     });
   }
 }

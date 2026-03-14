@@ -14,9 +14,9 @@ class InsightModel {
   double get progress => (percentage.clamp(0, 100) / 100).toDouble();
 
   Map<String, dynamic> toFirestore() => {
-        'skill_name': skillName,
-        'percentage': percentage,
-      };
+    'skill_name': skillName,
+    'percentage': percentage,
+  };
 
   static InsightModel fromFirestore(String id, Map<String, dynamic> data) {
     final p = data['percentage'];

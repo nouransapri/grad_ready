@@ -16,10 +16,7 @@ class SplashScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2A6CFF),
-              Color(0xFF9226FF),
-            ],
+            colors: [Color(0xFF2A6CFF), Color(0xFF9226FF)],
           ),
         ),
         child: SafeArea(
@@ -30,19 +27,23 @@ class SplashScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 60),
 
-                /// LOGO
+                /// LOGO (same as login page)
                 Container(
-                  width: 150,
-                  height: 150,
+                  width: 120,
+                  height: 120,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      width: 2,
+                    ),
                   ),
                   child: Center(
                     child: SvgPicture.asset(
-                      'assets/logo.svg', // اتأكدي إن الصورة في المسار ده بالظبط
-                      width: 100,
-                      height: 100,
+                      'assets/logo.svg',
+                      width: 80,
+                      height: 80,
                     ),
                   ),
                 ),
@@ -62,10 +63,7 @@ class SplashScreen extends StatelessWidget {
 
                 const Text(
                   'Turning Gaps into Growth',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 18, color: Colors.white70),
                 ),
 
                 const SizedBox(height: 40),
@@ -90,10 +88,12 @@ class SplashScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 20), // مسافة بديلة للـ Spacer
-
                 // زرار Get Started
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 10,
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     height: 55,
@@ -149,15 +149,16 @@ class SplashScreen extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 30),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Icon(icon, color: Colors.white, size: 30),
           const SizedBox(width: 15),
-          Expanded( // عشان لو النص طويل ميعملش overflow برضه
+          Expanded(
+            // عشان لو النص طويل ميعملش overflow برضه
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -171,10 +172,7 @@ class SplashScreen extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),

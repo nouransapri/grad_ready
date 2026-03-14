@@ -1,5 +1,5 @@
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/insight_model.dart';
@@ -23,13 +23,14 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please sign in')),
-      );
+      return const Scaffold(body: Center(child: Text('Please sign in')));
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
+      // User doc stream: when skills are updated via addSkill/updateSkill (FirestoreService),
+      // this snapshot updates immediately so profile completion %, skills count, and stats
+      // reflect the new data without a manual refresh.
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('users')
@@ -79,11 +80,19 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 25),
                       const Row(
                         children: [
-                          Icon(Icons.bar_chart_rounded, color: Color(0xFF1A1C1E), size: 28),
+                          Icon(
+                            Icons.bar_chart_rounded,
+                            color: Color(0xFF1A1C1E),
+                            size: 28,
+                          ),
                           SizedBox(width: 10),
                           Text(
                             'Dashboard Overview',
-                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF1A1C1E)),
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1C1E),
+                            ),
                           ),
                         ],
                       ),
@@ -94,11 +103,19 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 25),
                       const Row(
                         children: [
-                          Icon(Icons.trending_up_rounded, color: Color(0xFF1A1C1E), size: 24),
+                          Icon(
+                            Icons.trending_up_rounded,
+                            color: Color(0xFF1A1C1E),
+                            size: 24,
+                          ),
                           SizedBox(width: 10),
                           Text(
                             'Latest Insights',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1C1E)),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1C1E),
+                            ),
                           ),
                         ],
                       ),
@@ -124,10 +141,17 @@ class _HomePageState extends State<HomePage> {
     if (data == null) return 0;
     int completed = 0;
     final name = (data['full_name'] as String?)?.trim().isNotEmpty ?? false;
-    final university = (data['university'] as String?)?.trim().isNotEmpty ?? false;
+    final university =
+        (data['university'] as String?)?.trim().isNotEmpty ?? false;
     final major = (data['major'] as String?)?.trim().isNotEmpty ?? false;
     final year = data['academic_year'] as String?;
-    final academicOk = name && university && major && year != null && year.isNotEmpty && year != 'Select year';
+    final academicOk =
+        name &&
+        university &&
+        major &&
+        year != null &&
+        year.isNotEmpty &&
+        year != 'Select year';
     if (academicOk) completed++;
     final courses = data['added_courses'] as List?;
     if (courses != null && courses.isNotEmpty) completed++;
@@ -159,22 +183,33 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(15),
             ),
             child: SvgPicture.asset(
               'assets/logo.svg',
               width: 32,
               height: 32,
-              placeholderBuilder: (context) => const Icon(Icons.auto_graph, color: Colors.white),
+              placeholderBuilder: (context) =>
+                  const Icon(Icons.auto_graph, color: Colors.white),
             ),
           ),
           const SizedBox(width: 15),
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('GradReady', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              Text('Turning Gaps into Growth', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              Text(
+                'GradReady',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Turning Gaps into Growth',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
             ],
           ),
           const Spacer(),
@@ -198,27 +233,65 @@ class _HomePageState extends State<HomePage> {
       mainAxisSpacing: 15,
       childAspectRatio: 1.6,
       children: [
-        _buildStatCard('${stats.skillsCount}', 'Skills', Icons.workspace_premium, const Color(0xFFF3E5F5), const Color(0xFF9C27B0)),
-        _buildStatCard('${stats.coursesCount}', 'Courses', Icons.menu_book, const Color(0xFFE3F2FD), const Color(0xFF2196F3)),
-        _buildStatCard('${stats.profileCompletionPercent}%', 'Profile Complete', Icons.check_circle, const Color(0xFFE8F5E9), const Color(0xFF4CAF50)),
-        _buildStatCard(stats.lastAnalysis, 'Last Analysis', Icons.bolt, const Color(0xFFFFF3E0), const Color(0xFFFF9800)),
+        _buildStatCard(
+          '${stats.skillsCount}',
+          'Skills',
+          Icons.workspace_premium,
+          const Color(0xFFF3E5F5),
+          const Color(0xFF9C27B0),
+        ),
+        _buildStatCard(
+          '${stats.coursesCount}',
+          'Courses',
+          Icons.menu_book,
+          const Color(0xFFE3F2FD),
+          const Color(0xFF2196F3),
+        ),
+        _buildStatCard(
+          '${stats.profileCompletionPercent}%',
+          'Profile Complete',
+          Icons.check_circle,
+          const Color(0xFFE8F5E9),
+          const Color(0xFF4CAF50),
+        ),
+        _buildStatCard(
+          stats.lastAnalysis,
+          'Last Analysis',
+          Icons.bolt,
+          const Color(0xFFFFF3E0),
+          const Color(0xFFFF9800),
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildStatCard(
+    String value,
+    String label,
+    IconData icon,
+    Color bgColor,
+    Color iconColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(icon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 12),
@@ -227,8 +300,17 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                ),
               ],
             ),
           ),
@@ -253,12 +335,17 @@ class _HomePageState extends State<HomePage> {
             children: [
               Text('💡', style: TextStyle(fontSize: 18)),
               SizedBox(width: 10),
-              Text('Quick Tips', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              Text(
+                'Quick Tips',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           _tipRow('Keep your profile updated with new skills and courses'),
-          _tipRow('Analyze multiple job roles to explore different career paths'),
+          _tipRow(
+            'Analyze multiple job roles to explore different career paths',
+          ),
           _tipRow('Focus on critical gaps to maximize your job readiness'),
         ],
       ),
@@ -270,8 +357,19 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Text('• ', style: TextStyle(color: Color(0xFF2A6CFF), fontWeight: FontWeight.bold)),
-          Expanded(child: Text(text, style: const TextStyle(color: Color(0xFF5A6B8D), fontSize: 14))),
+          const Text(
+            '• ',
+            style: TextStyle(
+              color: Color(0xFF2A6CFF),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Color(0xFF5A6B8D), fontSize: 14),
+            ),
+          ),
         ],
       ),
     );
@@ -289,7 +387,8 @@ class _HomePageState extends State<HomePage> {
     return StreamBuilder<List<InsightModel>>(
       stream: _firestore.streamInsights(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return _buildDemandedSkillsCardLoading();
         }
         if (snapshot.hasError) {
@@ -307,7 +406,12 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: const Center(
         child: Padding(
@@ -324,9 +428,17 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
-      child: Text('Error loading insights: $message', style: const TextStyle(color: Colors.red)),
+      child: Text(
+        'Error loading insights: $message',
+        style: const TextStyle(color: Colors.red),
+      ),
     );
   }
 
@@ -336,12 +448,19 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: insights.isEmpty
           ? const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('No insights yet. Add data in Firestore or run uploadHomeMockData().'),
+              child: Text(
+                'No insights yet. Add data in Firestore or run uploadHomeMockData().',
+              ),
             )
           : Column(
               children: [
@@ -375,7 +494,8 @@ class _HomePageState extends State<HomePage> {
     return StreamBuilder<List<TrendModel>>(
       stream: _firestore.streamMarketTrends(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return _buildJobMarketTrendsLoading();
         }
         if (snapshot.hasError) {
@@ -393,7 +513,12 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: const Center(
         child: Padding(
@@ -410,9 +535,17 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
-      child: Text('Error loading trends: $message', style: const TextStyle(color: Colors.red)),
+      child: Text(
+        'Error loading trends: $message',
+        style: const TextStyle(color: Colors.red),
+      ),
     );
   }
 
@@ -422,7 +555,12 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,7 +571,11 @@ class _HomePageState extends State<HomePage> {
               SizedBox(width: 10),
               Text(
                 'Job Market Trends',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1C1E)),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1C1E),
+                ),
               ),
             ],
           ),
@@ -441,7 +583,9 @@ class _HomePageState extends State<HomePage> {
           if (trends.isEmpty)
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('No trends yet. Add data in Firestore or run uploadHomeMockData().'),
+              child: Text(
+                'No trends yet. Add data in Firestore or run uploadHomeMockData().',
+              ),
             )
           else
             ...trends.asMap().entries.map((e) {
@@ -463,8 +607,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _trendItem(String title, String subtitle, Color bgColor, Color iconColor, IconData icon) {
-    final iconContainerColor = Color.lerp(bgColor, Colors.white, 0.6) ?? bgColor;
+  Widget _trendItem(
+    String title,
+    String subtitle,
+    Color bgColor,
+    Color iconColor,
+    IconData icon,
+  ) {
+    final iconContainerColor =
+        Color.lerp(bgColor, Colors.white, 0.6) ?? bgColor;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -499,10 +650,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -521,22 +669,26 @@ class _HomePageState extends State<HomePage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(35),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, -5))
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _navItem(
-            icon: Icons.person_rounded, 
-            label: 'My Profile', 
-            index: 0, 
+            icon: Icons.person_rounded,
+            label: 'My Profile',
+            index: 0,
             itemColor: const Color(0xFF2A6CFF),
           ),
           _navItem(
-            icon: Icons.track_changes_rounded, 
-            label: 'Job Analysis', 
-            index: 1, 
+            icon: Icons.track_changes_rounded,
+            label: 'Job Analysis',
+            index: 1,
             itemColor: const Color(0xFF9226FF),
           ),
         ],
@@ -544,7 +696,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _navItem({required IconData icon, required String label, required int index, required Color itemColor}) {
+  Widget _navItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required Color itemColor,
+  }) {
     bool isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () {
@@ -576,11 +733,7 @@ class _HomePageState extends State<HomePage> {
               color: itemColor, // اللون ثابت دائماً كما طلبتِ
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Icon(
-              icon, 
-              color: Colors.white, 
-              size: 28
-            ),
+            child: Icon(icon, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 6),
           Text(
@@ -651,7 +804,8 @@ class _AnimatedInsightBarState extends State<_AnimatedInsightBar>
   void _onTransitionTick() {
     if (!mounted) return;
     setState(() {
-      _displayedProgress = _transitionFrom +
+      _displayedProgress =
+          _transitionFrom +
           (_transitionTo - _transitionFrom) *
               Curves.easeInOut.transform(_transitionController.value);
     });
@@ -692,14 +846,17 @@ class _AnimatedInsightBarState extends State<_AnimatedInsightBar>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(widget.skillName, style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text(
+              widget.skillName,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
             Text('$displayPercent%'),
           ],
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: currentProgress,
-          color: widget.color.withOpacity(pulseOpacity),
+          color: widget.color.withValues(alpha: pulseOpacity),
           backgroundColor: Colors.grey[200],
           minHeight: 8,
         ),
@@ -736,8 +893,12 @@ class _DashboardStats {
     return _DashboardStats(
       skillsCount: skills?.length ?? 0,
       coursesCount: courses?.length ?? 0,
-      profileCompletionPercent: _HomePageState._profileCompletionPercentage(data),
-      lastAnalysis: lastAnalysisValue != null ? lastAnalysisValue.toString() : 'N/A',
+      profileCompletionPercent: _HomePageState._profileCompletionPercentage(
+        data,
+      ),
+      lastAnalysis: lastAnalysisValue != null
+          ? lastAnalysisValue.toString()
+          : 'N/A',
     );
   }
 }

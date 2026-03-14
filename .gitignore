@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase config with API keys — generate via FlutterFire CLI or CI; do not commit if repo is public
+lib/firebase_options.dart
+
+# Admin (Node) dependencies
+admin/node_modules/

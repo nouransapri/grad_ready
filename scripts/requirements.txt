@@ -1,0 +1,3 @@
+# For CSV-only usage no install is required (stdlib only).
+# For Firestore load use:
+firebase-admin>=6.0.0

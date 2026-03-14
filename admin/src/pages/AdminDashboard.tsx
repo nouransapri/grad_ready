@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -14,57 +15,118 @@ import {
   Legend,
 } from 'recharts'
 import { Users, UserCheck, Briefcase, Award, TrendingUp, Activity } from 'lucide-react'
+import {
+  subscribeUsers,
+  fetchJobs,
+  getSkillsDefinedCount,
+  aggregateJobSelections,
+  aggregateSkillGaps,
+  aggregateWeeklyActivity,
+  aggregateAcademicLevels,
+  buildQuickInsights,
+  type UserDoc,
+  type JobDoc,
+} from '../lib/firestoreAdmin'
 
-const statCards = [
-  { label: 'Total Users', value: '1,247', icon: Users, bg: 'bg-purple-100', iconColor: 'text-purple-600' },
-  { label: 'New This Month', value: '183', badge: '+14.7%', icon: UserCheck, bg: 'bg-blue-100', iconColor: 'text-blue-600' },
-  { label: 'Job Roles', value: '32', icon: Briefcase, bg: 'bg-green-100', iconColor: 'text-green-600' },
-  { label: 'Skills Defined', value: '42', icon: Award, bg: 'bg-orange-100', iconColor: 'text-orange-600' },
-  { label: 'Assessments', value: '3,891', icon: TrendingUp, bg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
-  { label: 'Active Today', value: '89', icon: Activity, bg: 'bg-pink-100', iconColor: 'text-pink-600' },
-]
-
-const jobRolesData = [
-  { name: 'Frontend Dev', count: 342 },
-  { name: 'Data Analyst', count: 298 },
-  { name: 'UX Designer', count: 267 },
-  { name: 'Backend Dev', count: 245 },
-  { name: 'Product Mgr', count: 198 },
-]
-
-const skillGapsData = [
-  { name: 'Cloud Computing', percent: 35 },
-  { name: 'Machine Learning', percent: 42 },
-  { name: 'DevOps', percent: 28 },
-  { name: 'Leadership', percent: 31 },
-  { name: 'UI/UX Design', percent: 25 },
-]
-
-const weeklyActivity = [
-  { day: 'Mon', count: 45 },
-  { day: 'Tue', count: 52 },
-  { day: 'Wed', count: 48 },
-  { day: 'Thu', count: 61 },
-  { day: 'Fri', count: 55 },
-  { day: 'Sat', count: 38 },
-  { day: 'Sun', count: 32 },
-]
-
-const academicLevels = [
-  { name: 'Bachelor', value: 45, color: '#8b5cf6' },
-  { name: 'Master', value: 30, color: '#6366f1' },
-  { name: 'PhD', value: 10, color: '#3b82f6' },
-  { name: 'Other', value: 15, color: '#10b981' },
-]
-
-const quickInsights = [
-  'Frontend Developer is the most popular career choice (342 selections)',
-  'Machine Learning has the largest skill gap across users (42%)',
-  'User engagement peaks on Thursdays with 61 assessments',
-  "45% of users hold Bachelor's degrees",
-]
+const COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#10b981']
 
 export default function AdminDashboard() {
+  const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState<UserDoc[]>([])
+  const [jobs, setJobs] = useState<JobDoc[]>([])
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    newThisMonth: 0,
+    jobRoles: 0,
+    skillsDefined: 0,
+    assessments: 0,
+    activeToday: 0,
+  })
+  const [jobRolesData, setJobRolesData] = useState<{ name: string; count: number }[]>([])
+  const [skillGapsData, setSkillGapsData] = useState<{ name: string; percent: number }[]>([])
+  const [weeklyActivity, setWeeklyActivity] = useState<{ day: string; count: number }[]>([])
+  const [academicLevels, setAcademicLevels] = useState<{ name: string; value: number; color: string }[]>([])
+  const [quickInsights, setQuickInsights] = useState<string[]>([])
+
+  useEffect(() => {
+    const unsub = subscribeUsers((userList) => {
+      setUsers(userList)
+    })
+    return () => unsub()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      try {
+        const [skillsCount, jobsList] = await Promise.all([getSkillsDefinedCount(), fetchJobs()])
+        if (cancelled) return
+        setJobs(jobsList)
+        setStats((s) => ({
+          ...s,
+          jobRoles: jobsList.length,
+          skillsDefined: skillsCount,
+        }))
+      } catch (_) {
+        if (!cancelled) setStats((s) => ({ ...s }))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    const now = new Date()
+    const todayStr = now.toDateString()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    let newThisMonth = 0
+    let assessments = 0
+    let activeToday = 0
+    users.forEach((u) => {
+      const created = u.created_at as { toDate?: () => Date } | undefined
+      if (created?.toDate && created.toDate() >= startOfMonth) newThisMonth++
+      if (u.last_analysis) assessments++
+      const at = u.last_analysis_at as { toDate?: () => Date } | undefined
+      if (at?.toDate && at.toDate().toDateString() === todayStr) activeToday++
+    })
+    setStats((s) => ({
+      ...s,
+      totalUsers: users.length,
+      newThisMonth,
+      assessments,
+      activeToday,
+    }))
+  }, [users, loading])
+
+  useEffect(() => {
+    if (users.length === 0 && jobs.length === 0) return
+    const jobData = aggregateJobSelections(users)
+    const gapData = aggregateSkillGaps(users, jobs)
+    const weekData = aggregateWeeklyActivity(users)
+    const academicData = aggregateAcademicLevels(users)
+    const insights = buildQuickInsights(users, jobs, jobData, gapData)
+    setJobRolesData(jobData.length ? jobData : [{ name: 'No data', count: 0 }])
+    setSkillGapsData(gapData.length ? gapData : [{ name: 'No data', percent: 0 }])
+    setWeeklyActivity(weekData)
+    setAcademicLevels(academicData.length ? academicData : [{ name: 'No data', value: 1, color: '#8b5cf6' }])
+    setQuickInsights(insights.length ? insights : ['Connect Firestore to see insights'])
+  }, [users, jobs])
+
+  const totalUsersPrev = Math.max(0, stats.totalUsers - stats.newThisMonth)
+  const newPercent = totalUsersPrev > 0 ? ((stats.newThisMonth / totalUsersPrev) * 100).toFixed(1) : '0'
+
+  const statCards = [
+    { label: 'Total Users', value: loading ? '…' : stats.totalUsers.toLocaleString(), icon: Users, bg: 'bg-purple-100', iconColor: 'text-purple-600' },
+    { label: 'New This Month', value: loading ? '…' : stats.newThisMonth.toString(), badge: loading ? undefined : `+${newPercent}%`, icon: UserCheck, bg: 'bg-blue-100', iconColor: 'text-blue-600' },
+    { label: 'Job Roles', value: loading ? '…' : stats.jobRoles.toString(), icon: Briefcase, bg: 'bg-green-100', iconColor: 'text-green-600' },
+    { label: 'Skills Defined', value: loading ? '…' : stats.skillsDefined.toString(), icon: Award, bg: 'bg-orange-100', iconColor: 'text-orange-600' },
+    { label: 'Assessments', value: loading ? '…' : stats.assessments.toLocaleString(), icon: TrendingUp, bg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
+    { label: 'Active Today', value: loading ? '…' : stats.activeToday.toString(), icon: Activity, bg: 'bg-pink-100', iconColor: 'text-pink-600' },
+  ]
+
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -99,7 +161,7 @@ export default function AdminDashboard() {
             <Tooltip
               contentStyle={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8 }}
             />
-            <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -118,7 +180,7 @@ export default function AdminDashboard() {
             <Tooltip
               contentStyle={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8 }}
             />
-            <Bar dataKey="percent" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="percent" fill="#f59e0b" radius={[0, 4, 4, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -139,6 +201,7 @@ export default function AdminDashboard() {
               stroke="#6366f1"
               strokeWidth={3}
               dot={{ fill: '#6366f1', r: 4 }}
+              isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -157,7 +220,8 @@ export default function AdminDashboard() {
               paddingAngle={2}
               dataKey="value"
               nameKey="name"
-              label={({ name, value }) => `${name} ${value}%`}
+              label={({ name, value }) => `${name} ${value}`}
+              isAnimationActive={false}
             >
               {academicLevels.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />

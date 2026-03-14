@@ -38,17 +38,94 @@ class _ReviewJobDisplay {
 }
 
 const List<_ReviewJobDisplay> _reviewNeededItems = [
-  _ReviewJobDisplay(id: 'outdated_0', title: 'Data Analyst', category: 'Data & Analytics', daysAgo: 228, skillsCount: 8, lastUpdatedLabel: 'Jul 18, 2025'),
-  _ReviewJobDisplay(id: 'outdated_1', title: 'Business Intelligence Analyst', category: 'Data & Analytics', daysAgo: 230, skillsCount: 8, lastUpdatedLabel: 'Jul 16, 2025'),
-  _ReviewJobDisplay(id: 'outdated_2', title: 'Digital Marketing Specialist', category: 'Marketing', daysAgo: 198, skillsCount: 8, lastUpdatedLabel: 'Aug 17, 2025'),
-  _ReviewJobDisplay(id: 'outdated_3', title: 'Social Media Manager', category: 'Marketing', daysAgo: 263, skillsCount: 7, lastUpdatedLabel: 'Jun 13, 2025'),
-  _ReviewJobDisplay(id: 'outdated_4', title: 'Product Manager', category: 'Management', daysAgo: 210, skillsCount: 9, lastUpdatedLabel: 'Jun 28, 2025'),
-  _ReviewJobDisplay(id: 'outdated_5', title: 'UX Designer', category: 'Design', daysAgo: 195, skillsCount: 7, lastUpdatedLabel: 'Jul 2, 2025'),
-  _ReviewJobDisplay(id: 'outdated_6', title: 'Backend Developer', category: 'Development', daysAgo: 220, skillsCount: 10, lastUpdatedLabel: 'Jun 20, 2025'),
-  _ReviewJobDisplay(id: 'outdated_7', title: 'Data Scientist', category: 'Data & Analytics', daysAgo: 245, skillsCount: 9, lastUpdatedLabel: 'Jun 8, 2025'),
-  _ReviewJobDisplay(id: 'outdated_8', title: 'DevOps Engineer', category: 'Development', daysAgo: 189, skillsCount: 8, lastUpdatedLabel: 'Jul 10, 2025'),
-  _ReviewJobDisplay(id: 'outdated_9', title: 'Content Strategist', category: 'Marketing', daysAgo: 201, skillsCount: 6, lastUpdatedLabel: 'Jun 25, 2025'),
-  _ReviewJobDisplay(id: 'outdated_10', title: 'QA Engineer', category: 'Development', daysAgo: 215, skillsCount: 7, lastUpdatedLabel: 'Jun 15, 2025'),
+  _ReviewJobDisplay(
+    id: 'outdated_0',
+    title: 'Data Analyst',
+    category: 'Data & Analytics',
+    daysAgo: 228,
+    skillsCount: 8,
+    lastUpdatedLabel: 'Jul 18, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_1',
+    title: 'Business Intelligence Analyst',
+    category: 'Data & Analytics',
+    daysAgo: 230,
+    skillsCount: 8,
+    lastUpdatedLabel: 'Jul 16, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_2',
+    title: 'Digital Marketing Specialist',
+    category: 'Marketing',
+    daysAgo: 198,
+    skillsCount: 8,
+    lastUpdatedLabel: 'Aug 17, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_3',
+    title: 'Social Media Manager',
+    category: 'Marketing',
+    daysAgo: 263,
+    skillsCount: 7,
+    lastUpdatedLabel: 'Jun 13, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_4',
+    title: 'Product Manager',
+    category: 'Management',
+    daysAgo: 210,
+    skillsCount: 9,
+    lastUpdatedLabel: 'Jun 28, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_5',
+    title: 'UX Designer',
+    category: 'Design',
+    daysAgo: 195,
+    skillsCount: 7,
+    lastUpdatedLabel: 'Jul 2, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_6',
+    title: 'Backend Developer',
+    category: 'Development',
+    daysAgo: 220,
+    skillsCount: 10,
+    lastUpdatedLabel: 'Jun 20, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_7',
+    title: 'Data Scientist',
+    category: 'Data & Analytics',
+    daysAgo: 245,
+    skillsCount: 9,
+    lastUpdatedLabel: 'Jun 8, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_8',
+    title: 'DevOps Engineer',
+    category: 'Development',
+    daysAgo: 189,
+    skillsCount: 8,
+    lastUpdatedLabel: 'Jul 10, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_9',
+    title: 'Content Strategist',
+    category: 'Marketing',
+    daysAgo: 201,
+    skillsCount: 6,
+    lastUpdatedLabel: 'Jun 25, 2025',
+  ),
+  _ReviewJobDisplay(
+    id: 'outdated_10',
+    title: 'QA Engineer',
+    category: 'Development',
+    daysAgo: 215,
+    skillsCount: 7,
+    lastUpdatedLabel: 'Jun 15, 2025',
+  ),
 ];
 
 /// محتوى تبويب Market في لوحة الأدمن (تنبيه + إحصائيات + Bulk Actions + أدوار تحتاج مراجعة + محدثة + رؤى السوق).
@@ -88,7 +165,11 @@ class _AdminMarketContentState extends State<AdminMarketContent> {
       await Future.delayed(const Duration(milliseconds: 800));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_selectedOutdatedIds.length} role(s) marked as updated')),
+        SnackBar(
+          content: Text(
+            '${_selectedOutdatedIds.length} role(s) marked as updated',
+          ),
+        ),
       );
       setState(() {
         _selectedOutdatedIds.clear();
@@ -97,14 +178,29 @@ class _AdminMarketContentState extends State<AdminMarketContent> {
     } catch (e) {
       if (mounted) {
         setState(() => _updating = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
   static String _formatLastUpdated(int daysAgo) {
     final d = DateTime.now().subtract(Duration(days: daysAgo));
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
@@ -136,23 +232,51 @@ class _AdminMarketContentState extends State<AdminMarketContent> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _MarketStatCard(value: '$totalRoles', label: 'Total Roles', color: _purpleStat)),
+                  Expanded(
+                    child: _MarketStatCard(
+                      value: '$totalRoles',
+                      label: 'Total Roles',
+                      color: _purpleStat,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _MarketStatCard(value: '$needUpdateCount', label: 'Need Update', color: _orangeText)),
+                  Expanded(
+                    child: _MarketStatCard(
+                      value: '$needUpdateCount',
+                      label: 'Need Update',
+                      color: _orangeText,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(child: _MarketStatCard(value: '$upToDateCount', label: 'Up to Date', color: _greenText)),
+                  Expanded(
+                    child: _MarketStatCard(
+                      value: '$upToDateCount',
+                      label: 'Up to Date',
+                      color: _greenText,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _MarketStatCard(value: '$selectedCount', label: 'Selected', color: _blueStat)),
+                  Expanded(
+                    child: _MarketStatCard(
+                      value: '$selectedCount',
+                      label: 'Selected',
+                      color: _blueStat,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
               const Text(
                 'Bulk Actions',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -181,43 +305,65 @@ class _AdminMarketContentState extends State<AdminMarketContent> {
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: _orangeText, size: 22),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: _orangeText,
+                    size: 22,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Needs Update ($needUpdateCount)',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              ..._reviewNeededItems.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _MarketJobCard(
-                      title: item.title,
-                      category: item.category,
-                      daysAgo: item.daysAgo,
-                      skillsCount: item.skillsCount,
-                      lastUpdatedLabel: item.lastUpdatedLabel,
-                      isReviewNeeded: true,
-                      isSelected: _selectedOutdatedIds.contains(item.id),
-                      onTap: () => _toggleOutdated(item.id),
-                    ),
-                  )),
+              ..._reviewNeededItems.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _MarketJobCard(
+                    title: item.title,
+                    category: item.category,
+                    daysAgo: item.daysAgo,
+                    skillsCount: item.skillsCount,
+                    lastUpdatedLabel: item.lastUpdatedLabel,
+                    isReviewNeeded: true,
+                    isSelected: _selectedOutdatedIds.contains(item.id),
+                    onTap: () => _toggleOutdated(item.id),
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Icon(Icons.check_circle_rounded, color: _greenText, size: 22),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: _greenText,
+                    size: 22,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Up to Date ($upToDateCount)',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               ...upToDateJobs.take(displayCount).map((job) {
-                final skillsCount = job.technicalSkillsWithLevel.length + job.softSkillsWithLevel.length;
-                final n = skillsCount > 0 ? skillsCount : job.requiredSkills.length;
+                final skillsCount =
+                    job.technicalSkillsWithLevel.length +
+                    job.softSkillsWithLevel.length;
+                final n = skillsCount > 0
+                    ? skillsCount
+                    : job.requiredSkills.length;
                 final daysAgo = 90 + (upToDateJobs.indexOf(job) * 15) % 200;
                 final lastUpdated = _formatLastUpdated(daysAgo);
                 return Padding(
@@ -236,7 +382,7 @@ class _AdminMarketContentState extends State<AdminMarketContent> {
               Center(
                 child: Text(
                   'Showing first ${upToDateJobs.length > displayCount ? displayCount : upToDateJobs.length} of ${upToDateJobs.length} up-to-date roles',
-                  style: TextStyle(color: _greyText, fontSize: 12),
+                  style: const TextStyle(color: _greyText, fontSize: 12),
                 ),
               ),
               const SizedBox(height: 20),
@@ -267,23 +413,40 @@ class _MarketAlertCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: _orangeText, size: 22),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'Market Data Needs Attention',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _orangeText),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _orangeText,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text.rich(
             TextSpan(
-              style: TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.black87,
+                height: 1.4,
+              ),
               children: [
-                TextSpan(text: '$needUpdateCount', style: TextStyle(fontWeight: FontWeight.bold, color: _orangeText)),
-                const TextSpan(text: ' job role(s) haven\'t been updated in over 6 months. Please review and update to ensure accuracy.'),
+                TextSpan(
+                  text: '$needUpdateCount',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _orangeText,
+                  ),
+                ),
+                const TextSpan(
+                  text:
+                      ' job role(s) haven\'t been updated in over 6 months. Please review and update to ensure accuracy.',
+                ),
               ],
             ),
           ),
@@ -298,7 +461,11 @@ class _MarketStatCard extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _MarketStatCard({required this.value, required this.label, required this.color});
+  const _MarketStatCard({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -308,16 +475,27 @@ class _MarketStatCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: _greyText)),
+          Text(label, style: const TextStyle(fontSize: 12, color: _greyText)),
         ],
       ),
     );
@@ -359,14 +537,21 @@ class _BulkActionButton extends StatelessWidget {
                 SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
                 )
               else if (icon != null)
                 Icon(icon, size: 18, color: color),
               if (icon != null || loading) const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -414,9 +599,7 @@ class _MarketJobCard extends StatelessWidget {
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border(
-          left: BorderSide(color: borderColor, width: 3),
-        ),
+        border: Border(left: BorderSide(color: borderColor, width: 3)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -430,7 +613,9 @@ class _MarketJobCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(right: 10),
                     child: Icon(
-                      isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      isSelected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
                       color: isSelected ? _orangeText : _greyText,
                       size: 22,
                     ),
@@ -450,23 +635,27 @@ class _MarketJobCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         category,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: _greyText,
-                        ),
+                        style: const TextStyle(fontSize: 13, color: _greyText),
                       ),
                     ],
                   ),
                 ),
                 if (!isReviewNeeded)
-                  Icon(Icons.check_circle_rounded, color: _greenText, size: 20),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: _greenText,
+                    size: 20,
+                  ),
               ],
             ),
             const SizedBox(height: 10),
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: chipBg,
                     borderRadius: BorderRadius.circular(8),
@@ -474,25 +663,36 @@ class _MarketJobCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.calendar_today_outlined, size: 14, color: accentColor),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: accentColor,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         '$daysAgo days ago',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: accentColor),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: accentColor,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: _greyChipBg,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '$skillsCount skills',
-                    style: TextStyle(fontSize: 12, color: _greyText),
+                    style: const TextStyle(fontSize: 12, color: _greyText),
                   ),
                 ),
               ],
@@ -503,7 +703,7 @@ class _MarketJobCard extends StatelessWidget {
               children: [
                 Text(
                   'Last updated: $lastUpdatedLabel',
-                  style: TextStyle(fontSize: 11, color: _greyText),
+                  style: const TextStyle(fontSize: 11, color: _greyText),
                 ),
                 Text(
                   isReviewNeeded ? 'Review needed' : 'Current',
@@ -557,11 +757,11 @@ class _MarketInsightsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.show_chart_rounded, color: Colors.white, size: 22),
-              const SizedBox(width: 8),
-              const Text(
+              Icon(Icons.show_chart_rounded, color: Colors.white, size: 22),
+              SizedBox(width: 8),
+              Text(
                 'Market Insights',
                 style: TextStyle(
                   color: Colors.white,
@@ -578,7 +778,10 @@ class _MarketInsightsCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('• ', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  const Text(
+                    '• ',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
                   Expanded(
                     child: Text(
                       text,

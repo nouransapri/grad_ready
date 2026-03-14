@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../app_theme.dart';
-import '../login_screen.dart';
+import '../../services/firestore_service.dart';
 import 'admin_jobs_screen.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_market_screen.dart';
@@ -39,15 +40,17 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
           // الهيدر (ألوان الثيم)
           Container(
             width: double.infinity,
-            padding: EdgeInsets.fromLTRB(horizontalPadding, topPadding + 12, horizontalPadding, 14),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              topPadding + 12,
+              horizontalPadding,
+              14,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  primary,
-                  theme.colorScheme.secondary,
-                ],
+                colors: [primary, theme.colorScheme.secondary],
               ),
             ),
             child: Column(
@@ -58,7 +61,11 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.shield_outlined, color: Colors.white, size: 28),
+                        const Icon(
+                          Icons.shield_outlined,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                         const SizedBox(width: 10),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,15 +90,23 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                       ],
                     ),
                     IconButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (!context.mounted) return;
+                        Navigator.of(
                           context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        );
+                        ).popUntil((route) => route.isFirst);
                       },
-                      icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 24),
+                      icon: const Icon(
+                        Icons.logout_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
                     ),
                   ],
                 ),
@@ -102,9 +117,13 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                     final isSelected = _selectedTabIndex == i;
                     return Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(right: i < _tabs.length - 1 ? 6 : 0),
+                        padding: EdgeInsets.only(
+                          right: i < _tabs.length - 1 ? 6 : 0,
+                        ),
                         child: Material(
-                          color: isSelected ? theme.colorScheme.surface : Colors.transparent,
+                          color: isSelected
+                              ? theme.colorScheme.surface
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
                           child: InkWell(
                             onTap: () => setState(() => _selectedTabIndex = i),
@@ -125,7 +144,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: isSelected ? primary : Colors.white,
+                                      color: isSelected
+                                          ? primary
+                                          : Colors.white,
                                     ),
                                   ),
                                 ],
@@ -144,7 +165,12 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
           Expanded(
             child: _selectedTabIndex == 0
                 ? SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 20 + bottomPadding),
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      16,
+                      horizontalPadding,
+                      20 + bottomPadding,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -175,7 +201,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                         const SizedBox(height: cardSpacing),
                         Row(
                           children: [
-                            Expanded(
+                            const Expanded(
                               child: _StatCard(
                                 icon: Icons.work_outline_rounded,
                                 iconColor: AppTheme.success,
@@ -202,7 +228,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           title: 'Most Selected Job Roles',
                           child: SizedBox(
                             height: 200,
-                            child: _MostSelectedJobRolesChart(screenWidth: screenWidth),
+                            child: _MostSelectedJobRolesChart(
+                              screenWidth: screenWidth,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -211,7 +239,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           title: 'Weekly Assessment Activity',
                           child: SizedBox(
                             height: 180,
-                            child: _WeeklyActivityChart(screenWidth: screenWidth),
+                            child: _WeeklyActivityChart(
+                              screenWidth: screenWidth,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -223,21 +253,24 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                         const SizedBox(height: 16),
                         // Quick Insights
                         _QuickInsightsCard(),
+                        const SizedBox(height: 16),
+                        // Level-based skill gap setup (seed + migrate)
+                        _LevelBasedSetupCard(),
                       ],
                     ),
                   )
                 : _selectedTabIndex == 1
-                    ? const AdminJobsContent()
-                    : _selectedTabIndex == 2
-                        ? const AdminAnalyticsContent()
-                        : _selectedTabIndex == 3
-                            ? const AdminMarketContent()
-                            : Center(
-                                child: Text(
-                                  '${_tabs[_selectedTabIndex].label} – Coming soon',
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                                ),
-                              ),
+                ? const AdminJobsContent()
+                : _selectedTabIndex == 2
+                ? const AdminAnalyticsContent()
+                : _selectedTabIndex == 3
+                ? const AdminMarketContent()
+                : Center(
+                    child: Text(
+                      '${_tabs[_selectedTabIndex].label} – Coming soon',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -277,9 +310,12 @@ class _StatCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(icon, color: iconColor, size: 26),
-                if (badge != null)
+              if (badge != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.success.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -296,13 +332,7 @@ class _StatCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
           const SizedBox(height: 4),
           Text(
             value,
@@ -385,10 +415,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
               reservedSize: 32,
               getTitlesWidget: (value, meta) => Text(
                 value.toInt().toString(),
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: Colors.grey, fontSize: 10),
               ),
               interval: 90,
             ),
@@ -404,10 +431,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       data[i].$1,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 11,
-                      ),
+                      style: const TextStyle(color: Colors.grey, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -417,17 +441,19 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
               },
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
         ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
           horizontalInterval: 90,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.grey.withValues(alpha: 0.2),
-            strokeWidth: 1,
-          ),
+          getDrawingHorizontalLine: (value) =>
+              FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         barGroups: data.asMap().entries.map((e) {
@@ -438,7 +464,9 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                 toY: e.value.$2,
                 color: Theme.of(context).colorScheme.primary,
                 width: (screenWidth - 32 - 48) / 3 * 0.45,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(6),
+                ),
               ),
             ],
             showingTooltipIndicators: [],
@@ -460,7 +488,11 @@ class _WeeklyActivityChart extends StatelessWidget {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const values = [45.0, 50.0, 45.0, 62.0, 55.0, 38.0, 30.0];
 
-    final spots = values.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList();
+    final spots = values
+        .asMap()
+        .entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value))
+        .toList();
 
     return LineChart(
       LineChartData(
@@ -495,17 +527,19 @@ class _WeeklyActivityChart extends StatelessWidget {
               },
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
         ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
           horizontalInterval: 20,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.grey.withValues(alpha: 0.2),
-            strokeWidth: 1,
-          ),
+          getDrawingHorizontalLine: (value) =>
+              FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: [
@@ -579,10 +613,7 @@ class _AcademicLevelDonut extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '${s.label}: ${s.percent.toInt()}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black87,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
                 ),
               ],
             );
@@ -627,11 +658,11 @@ class _QuickInsightsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              const Text(
+              Icon(Icons.bar_chart_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text(
                 'Quick Insights',
                 style: TextStyle(
                   color: Colors.white,
@@ -648,16 +679,93 @@ class _QuickInsightsCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('• ', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  const Text(
+                    '• ',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
                   Expanded(
                     child: Text(
                       text,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.35),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelBasedSetupCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _SectionCard(
+      title: 'Level-based skill gap analysis',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Seed the master skills collection from jobs and users, then migrate jobs and user skills to the new format so gap analysis uses level-aware weighted scoring.',
+            style: TextStyle(fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () async {
+              final firestore = FirestoreService();
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => const Center(
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Running setup…'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+              try {
+                final counts = await firestore.runLevelBasedSetup(
+                  migrateUsers: true,
+                );
+                if (!context.mounted) return;
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Done: ${counts['skillsWritten']} skills, ${counts['jobsMigrated']} jobs, ${counts['usersMigrated']} users migrated.',
+                    ),
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Setup failed: $e'),
+                    backgroundColor: theme.colorScheme.error,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Run level-based setup (seed + migrate)'),
           ),
         ],
       ),

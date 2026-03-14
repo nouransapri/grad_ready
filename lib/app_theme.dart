@@ -13,50 +13,44 @@ class AppTheme {
   static const Color warning = Color(0xFFE65100);
 
   static ThemeData get theme => ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
-          primary: primary,
-          secondary: secondary,
-          surface: surface,
-          error: Colors.red.shade700,
-          onPrimary: Colors.white,
-          onSecondary: Colors.white,
-          onSurface: const Color(0xFF1A1A1A),
-          onError: Colors.white,
-        ),
-        scaffoldBackgroundColor: scaffoldBackground,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        textTheme: const TextTheme(
-          headlineMedium: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1A1A1A),
-          ),
-          titleMedium: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1A1A1A),
-          ),
-          bodyMedium: TextStyle(
-            fontSize: 14,
-            color: Color(0xFF424242),
-          ),
-          bodySmall: TextStyle(
-            fontSize: 12,
-            color: Color(0xFF757575),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-          ),
-        ),
-      );
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primary,
+      primary: primary,
+      secondary: secondary,
+      surface: surface,
+      error: Colors.red.shade700,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: const Color(0xFF1A1A1A),
+      onError: Colors.white,
+    ),
+    scaffoldBackgroundColor: scaffoldBackground,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+    ),
+    textTheme: const TextTheme(
+      headlineMedium: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1A1A1A),
+      ),
+      titleMedium: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF1A1A1A),
+      ),
+      bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF424242)),
+      bodySmall: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+    ),
+  );
 }

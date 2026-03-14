@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'create_account.dart';
-import 'home_page.dart';
-import 'admin/admin_overview_screen.dart';
 
 const Color _gradientTop = Color(0xFF2A6CFF);
 const Color _gradientBottom = Color(0xFF9226FF);
@@ -31,7 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // دالة تسجيل الدخول عبر Firebase
   Future<void> _login() async {
     // التأكد أن الخانات ليست فارغة
-    if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
+    if (emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty) {
       _showError("Please enter your email and password");
       return;
     }
@@ -39,22 +38,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    // دخول لوحة الأدمن (فقط من صفحة اللوجن بهذه البيانات)
-    if (email == 'admin@gradready' && password == '1111') {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminOverviewScreen()),
-      );
-      return;
-    }
-
+    // تسجيل الدخول عبر Firebase (بما فيه حساب الأدمن: أنشئ مستخدم admin@gradready في Firebase Auth)
     try {
       // إظهار دائرة تحميل
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+        builder: (context) =>
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
 
       // تنفيذ عملية تسجيل الدخول
@@ -65,17 +56,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
       Navigator.pop(context); // إغلاق دائرة التحميل
-
-      // الانتقال للصفحة الرئيسية وحذف الشاشات السابقة من الذاكرة
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
-      
+      // العودة للشاشة الأولى (الـ StreamBuilder يعيد البناء ويوجّه حسب البروفايل/الأدمن)
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // إغلاق دائرة التحميل
-      
+
       String message = "Login Failed";
       if (e.code == 'user-not-found') {
         message = "No user found for that email.";
@@ -120,26 +106,45 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
+
                         /// LOGO
                         Container(
-                          width: 120, height: 120,
+                          width: 120,
+                          height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.2),
-                            border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
+                            color: Colors.white.withValues(alpha: 0.2),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.4),
+                              width: 2,
+                            ),
                           ),
                           child: Center(
                             child: SvgPicture.asset(
                               'assets/logo.svg',
-                              width: 80, height: 80,
+                              width: 80,
+                              height: 80,
                             ),
                           ),
                         ),
                         const SizedBox(height: 15),
-                        const Text('GradReady', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const Text(
+                          'GradReady',
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('Turning Gaps into Growth', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.9))),
-                        
+                        Text(
+                          'Turning Gaps into Growth',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+
                         const Spacer(),
 
                         /// Login Card
@@ -150,46 +155,102 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                               child: Container(
-                                padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  30,
+                                  24,
+                                  30,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                   borderRadius: BorderRadius.circular(28),
-                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 1.5,
+                                  ),
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    const Text('Login', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    const Text(
+                                      'Login',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                     const SizedBox(height: 25),
-                                    _buildTextField(emailController, 'Email', Icons.mail_outline),
+                                    _buildTextField(
+                                      emailController,
+                                      'Email',
+                                      Icons.mail_outline,
+                                    ),
                                     const SizedBox(height: 18),
-                                    _buildTextField(passwordController, 'Password', Icons.lock_outline, isPass: true),
+                                    _buildTextField(
+                                      passwordController,
+                                      'Password',
+                                      Icons.lock_outline,
+                                      isPass: true,
+                                    ),
                                     const SizedBox(height: 25),
                                     ElevatedButton(
                                       onPressed: _login,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
                                         foregroundColor: _accentBlue,
-                                        padding: const EdgeInsets.symmetric(vertical: 15),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 15,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
                                       ),
-                                      child: const Text('Login', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                                      child: const Text(
+                                        'Login',
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(height: 20),
                                     Wrap(
                                       alignment: WrapAlignment.center,
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       children: [
-                                        const Text("Don't have an account? ", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF222222))),
+                                        const Text(
+                                          "Don't have an account? ",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF222222),
+                                          ),
+                                        ),
                                         GestureDetector(
                                           onTap: () {
                                             Navigator.push(
                                               context,
-                                              MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const CreateAccountScreen(),
+                                              ),
                                             );
                                           },
-                                          child: const Text('Create New Account', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                                          child: const Text(
+                                            'Create New Account',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -212,7 +273,12 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isPass = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool isPass = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: isPass,
@@ -220,9 +286,12 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.6),
+        fillColor: Colors.white.withValues(alpha: 0.6),
         prefixIcon: Icon(icon, color: Colors.black87),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }

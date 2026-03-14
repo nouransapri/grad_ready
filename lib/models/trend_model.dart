@@ -21,11 +21,11 @@ class TrendModel {
       subtitle ?? '+$growthPercentage% growth in 2025';
 
   Map<String, dynamic> toFirestore() => {
-        'title': title,
-        'growth_percentage': growthPercentage,
-        'icon_name': iconName,
-        if (subtitle != null) 'subtitle': subtitle,
-      };
+    'title': title,
+    'growth_percentage': growthPercentage,
+    'icon_name': iconName,
+    if (subtitle != null) 'subtitle': subtitle,
+  };
 
   static TrendModel fromFirestore(String id, Map<String, dynamic> data) {
     final gp = data['growth_percentage'];

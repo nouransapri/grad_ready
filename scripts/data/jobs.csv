@@ -1,0 +1,9 @@
+job_id,required_skills
+job_1,"SQL, Excel, Python, Tableau, Statistics, Data Visualization, Problem Solving, Communication"
+job_2,"Python, R, Machine Learning, SQL, Statistics, Deep Learning, Data Wrangling, A/B Testing, Communication, Storytelling"
+job_3,"SQL, Power BI, Tableau, Excel, Data Modeling, ETL, Dashboard Design, Communication"
+job_4,"Excel, Google Analytics, SQL, Data Visualization, A/B Testing, SEO, Communication, Reporting"
+job_5,"Programming, Data Structures, Algorithms, Version Control, Testing, System Design, Problem Solving, Collaboration"
+job_6,"Product Strategy, User Research, Agile, Stakeholder Management, Analytics, Communication, Prioritization, Roadmapping"
+job_7,"Wireframing, Prototyping, User Research, UI Design, Figma, Usability Testing, Communication, Collaboration"
+job_8,"Linux, CI/CD, Docker, Kubernetes, Cloud (AWS/GCP), Scripting, Monitoring, Security"

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, RefreshCw, CheckCircle, Calendar, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { jobRolesDatabase } from '../utils/jobDatabase'
+import { fetchJobs, type JobDoc } from '../lib/firestoreAdmin'
 
 const OUTDATED_DAYS = 180
 
@@ -20,19 +20,54 @@ function formatDate(dateStr: string): string {
   })
 }
 
-type RoleWithMeta = (typeof jobRolesDatabase)[0] & { daysAgo: number; isOutdated: boolean }
+type RoleWithMeta = JobDoc & {
+  title: string
+  category: string
+  requiredSkills: string[]
+  lastUpdated: string
+  daysAgo: number
+  isOutdated: boolean
+}
 
 export default function MarketDataMaintenance() {
-  const rolesWithMeta: RoleWithMeta[] = jobRolesDatabase.map((r) => {
-    const last = r.lastUpdated || '2024-01-01'
-    const daysAgo = getDaysAgo(last)
-    return { ...r, daysAgo, isOutdated: daysAgo > OUTDATED_DAYS }
-  })
+  const [loading, setLoading] = useState(true)
+  const [rolesWithMeta, setRolesWithMeta] = useState<RoleWithMeta[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    fetchJobs()
+      .then((jobs) => {
+        if (cancelled) return
+        const mapped: RoleWithMeta[] = jobs.map((r) => {
+          const title = (r.title ?? '').trim() || 'Untitled'
+          const category = (r.category ?? '').trim() || 'Other'
+          const requiredSkills = Array.isArray(r.requiredSkills) ? r.requiredSkills : []
+          const lastUpdated = r.lastUpdated ?? new Date().toISOString().slice(0, 10)
+          const daysAgo = getDaysAgo(lastUpdated)
+          return {
+            ...r,
+            title,
+            category,
+            requiredSkills,
+            lastUpdated,
+            daysAgo,
+            isOutdated: daysAgo > OUTDATED_DAYS,
+          }
+        })
+        setRolesWithMeta(mapped)
+      })
+      .catch(() => {
+        if (!cancelled) setRolesWithMeta([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   const outdated = rolesWithMeta.filter((r) => r.isOutdated)
   const upToDate = rolesWithMeta.filter((r) => !r.isOutdated)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-
   const totalRoles = rolesWithMeta.length
   const needUpdate = outdated.length
   const upToDateCount = upToDate.length
@@ -69,6 +104,14 @@ export default function MarketDataMaintenance() {
     'Update proficiency levels based on employer feedback',
     'Mark deprecated skills and add emerging technologies',
   ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-gray-500">Loading market data from Firestore…</div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -157,7 +200,7 @@ export default function MarketDataMaintenance() {
                     {r.requiredSkills.length} skills
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Last updated: {formatDate(r.lastUpdated!)}</p>
+                <p className="text-xs text-gray-500 mt-2">Last updated: {formatDate(r.lastUpdated)}</p>
                 <p className="text-sm text-orange-600 font-medium mt-1">Review needed</p>
               </div>
             ))}
@@ -192,7 +235,7 @@ export default function MarketDataMaintenance() {
                   {r.requiredSkills.length} skills
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Last updated: {formatDate(r.lastUpdated!)}</p>
+              <p className="text-xs text-gray-500 mt-2">Last updated: {formatDate(r.lastUpdated)}</p>
               <p className="text-sm text-green-600 font-medium mt-1">Current</p>
             </div>
           ))}
