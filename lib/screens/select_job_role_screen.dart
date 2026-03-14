@@ -364,6 +364,8 @@ class _JobCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1C1E),
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ),
                 if (isSelected)
@@ -378,6 +380,8 @@ class _JobCard extends StatelessWidget {
                 color: Colors.grey[700],
                 height: 1.35,
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 3,
             ),
             const SizedBox(height: 12),
             Row(
@@ -396,12 +400,16 @@ class _JobCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  job.salaryRange,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green[700],
+                Flexible(
+                  child: Text(
+                    job.salaryRange,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[700],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
                 Text(
@@ -437,6 +445,8 @@ class _JobCard extends StatelessWidget {
               fontWeight: FontWeight.w500,
               color: fg,
             ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ],
       ),

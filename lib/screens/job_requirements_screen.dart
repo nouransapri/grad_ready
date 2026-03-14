@@ -174,6 +174,8 @@ class JobRequirementsScreen extends StatelessWidget {
               fontSize: 26,
               fontWeight: FontWeight.bold,
             ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
           ),
           const SizedBox(height: 8),
           Text(
@@ -183,12 +185,15 @@ class JobRequirementsScreen extends StatelessWidget {
               fontSize: 15,
               height: 1.3,
             ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 3,
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
             children: [
               _headerTag(job.category, const Color(0xFFB0BEC5)),
-              const SizedBox(width: 10),
               if (job.isHighDemand)
                 _headerTag(
                   'High Demand',
@@ -263,28 +268,35 @@ class JobRequirementsScreen extends StatelessWidget {
   }
 
   Widget _headerTag(String label, Color bg, {bool isGreen = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isGreen ? const Color(0xFFC8E6C9) : bg,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isGreen) ...[
-            Icon(Icons.trending_up, size: 16, color: Colors.green[700]),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isGreen ? Colors.green[800] : Colors.white,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isGreen ? const Color(0xFFC8E6C9) : bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isGreen) ...[
+              Icon(Icons.trending_up, size: 16, color: Colors.green[700]),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isGreen ? Colors.green[800] : Colors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -337,12 +349,16 @@ class JobRequirementsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1A1C1E),
+              Expanded(
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1C1E),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               Text(

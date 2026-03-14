@@ -91,7 +91,12 @@ class _SkillMatchResultsScreenState extends State<SkillMatchResultsScreen> {
                   children: [
                     Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
                     const SizedBox(height: 16),
-                    Text(_error!, textAlign: TextAlign.center),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 5,
+                    ),
                     const SizedBox(height: 16),
                     TextButton.icon(
                       onPressed: _loadCsv,
@@ -166,7 +171,9 @@ class _SkillMatchResultsScreenState extends State<SkillMatchResultsScreen> {
                       setState(() => _recommendedOnly = v ?? false),
                   activeColor: const Color(0xFF2A6CFF),
                 ),
-                const Text('Recommended only (match ≥ 70%)'),
+                const Expanded(
+                  child: Text('Recommended only (match ≥ 70%)'),
+                ),
               ],
             ),
           ],

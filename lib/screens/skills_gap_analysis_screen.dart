@@ -531,6 +531,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1A1C1E),
                               ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
                             ),
                           ),
                           Text(
@@ -544,7 +546,9 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           Text(
                             item.isTechnical ? '💻 Technical' : '🤝 Soft Skill',
@@ -553,7 +557,6 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                               color: Colors.grey.shade600,
                             ),
                           ),
-                          const SizedBox(width: 8),
                           Text(
                             '• $level',
                             style: TextStyle(
@@ -1009,6 +1012,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -1026,6 +1031,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                     color: Colors.white.withValues(alpha: 0.9),
                     height: 1.4,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 4,
                 ),
                 const SizedBox(height: 12),
                 Text.rich(
@@ -1598,6 +1605,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             fontSize: 12,
             color: Colors.white.withValues(alpha: 0.95),
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
       ],
     );
@@ -1768,12 +1777,16 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1C1E),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1C1E),
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],

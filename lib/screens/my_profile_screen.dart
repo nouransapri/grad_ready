@@ -329,6 +329,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
           Row(
@@ -538,21 +541,30 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
-                _chip(type, _purple.withValues(alpha: 0.2)),
-                if (level.isNotEmpty)
-                  _chip(level, levelColor.withValues(alpha: 0.25)),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _chip(type, _purple.withValues(alpha: 0.2)),
+                    if (level.isNotEmpty)
+                      _chip(level, levelColor.withValues(alpha: 0.25)),
+                  ],
+                ),
               ],
             ),
           ),
@@ -571,6 +583,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       child: Text(
         label,
         style: const TextStyle(fontSize: 12, color: Colors.black87),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
       ),
     );
   }
@@ -598,12 +612,16 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ],
               ],

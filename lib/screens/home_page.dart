@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Column(
               children: [
-                _buildHeader(),
+                _buildHeader(null),
                 const Expanded(
                   child: Center(
                     child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> {
           if (snapshot.hasError) {
             return Column(
               children: [
-                _buildHeader(),
+                _buildHeader(null),
                 Expanded(
                   child: Center(
                     child: Text(
@@ -67,10 +67,11 @@ class _HomePageState extends State<HomePage> {
 
           final data = snapshot.data?.data();
           final stats = _DashboardStats.fromUserData(data);
+          final userName = data?['full_name']?.toString().trim();
 
           return Column(
             children: [
-              _buildHeader(),
+              _buildHeader(userName),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -168,9 +169,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --- 1. Header ---
-  Widget _buildHeader() {
+  Widget _buildHeader(String? userName) {
     return Container(
-      padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
+      padding: EdgeInsets.only(
+        top: 60,
+        left: 20,
+        right: 20,
+        bottom: userName != null && userName.isNotEmpty ? 20 : 30,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF2A6CFF), Color(0xFF9226FF)],
@@ -178,48 +184,124 @@ class _HomePageState extends State<HomePage> {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: SvgPicture.asset(
-              'assets/logo.svg',
-              width: 32,
-              height: 32,
-              placeholderBuilder: (context) =>
-                  const Icon(Icons.auto_graph, color: Colors.white),
-            ),
-          ),
-          const SizedBox(width: 15),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'GradReady',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: SvgPicture.asset(
+                  'assets/logo.svg',
+                  width: 32,
+                  height: 32,
+                  placeholderBuilder: (context) =>
+                      const Icon(Icons.auto_graph, color: Colors.white),
                 ),
               ),
-              Text(
-                'Turning Gaps into Growth',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+              const SizedBox(width: 15),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GradReady',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Turning Gaps into Growth',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => FirebaseAuth.instance.signOut(),
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
               ),
             ],
           ),
-          const Spacer(),
-          IconButton(
-            onPressed: () => FirebaseAuth.instance.signOut(),
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
-          ),
+          if (userName != null && userName.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildWelcomeBackBox(userName),
+          ],
         ],
       ),
     );
+  }
+
+  /// صندوق الترحيب للمستخدم العائد — بنفس تصميم الصورة (غراديان بنفسجي، تأثير زجاجي خفيف).
+  Widget _buildWelcomeBackBox(String name) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFD1C4E9), // lavender أيسر
+              const Color(0xFFB39DDB),
+              const Color(0xFF9575CD),
+              const Color(0xFF7E57C2), // بنفسجي أغمق أيمن
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.25),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Welcome back,',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _formatDisplayName(name),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatDisplayName(String fullName) {
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return fullName;
+    if (parts.length == 1) return fullName;
+    return parts.map((e) => e.isEmpty ? '' : '${e[0].toUpperCase()}${e.substring(1).toLowerCase()}').join(' ');
   }
 
   // --- 2. Stats Grid ---
@@ -306,10 +388,14 @@ class _HomePageState extends State<HomePage> {
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 Text(
                   label,
                   style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ],
             ),
@@ -342,7 +428,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 12),
-          _tipRow('Keep your profile updated with new skills and courses'),
+          _tipRow('Keep your profile updated with new skills '),
           _tipRow(
             'Analyze multiple job roles to explore different career paths',
           ),
@@ -438,6 +524,8 @@ class _HomePageState extends State<HomePage> {
       child: Text(
         'Error loading insights: $message',
         style: const TextStyle(color: Colors.red),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 3,
       ),
     );
   }
@@ -545,6 +633,8 @@ class _HomePageState extends State<HomePage> {
       child: Text(
         'Error loading trends: $message',
         style: const TextStyle(color: Colors.red),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 3,
       ),
     );
   }
@@ -646,11 +736,15 @@ class _HomePageState extends State<HomePage> {
                     fontSize: 16,
                     color: Color(0xFF1A1C1E),
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
               ],
             ),
@@ -846,9 +940,13 @@ class _AnimatedInsightBarState extends State<_AnimatedInsightBar>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              widget.skillName,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+            Expanded(
+              child: Text(
+                widget.skillName,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
             Text('$displayPercent%'),
           ],
