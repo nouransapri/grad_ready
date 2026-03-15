@@ -129,6 +129,45 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              // مسح كل الوظائف القديمة واستبدالها بـ 15 وظيفة جديدة (يحتاج صلاحية أدمن).
+              TextButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('مسح الوظائف القديمة وإضافة 15 وظيفة جديدة؟'),
+                      content: const Text(
+                        'سيتم حذف كل الوظائف الحالية من قاعدة البيانات واستبدالها بـ 15 وظيفة بالهيكل الجديد (مهارات تقنية وناعمة وأدوات لكل وظيفة). لا يمكن التراجع.',
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('نعم، مسح واستبدال')),
+                      ],
+                    ),
+                  );
+                  if (confirm != true || !context.mounted) return;
+                  try {
+                    await FirestoreService.clearAllJobsAndSeed();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم: مسح كل الوظائف واستبدالها بـ 15 وظيفة جديدة.')),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'فشل التحديث. تأكدي أنك مسجلة دخول كأدمن وأن حساب الأدمن فيه custom claim (admin). الخطأ: $e',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('مسح الوظائف القديمة وإضافة 15 وظيفة جديدة'),
+              ),
               const SizedBox(height: 18),
               // Search
               Container(
@@ -208,7 +247,10 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                   .map(
                     (job) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _JobRoleCard(job: job),
+                      child: _JobRoleCard(
+                        job: job,
+                        onEdit: () => _openEditJob(context, job),
+                      ),
                     ),
                   ),
               const SizedBox(height: 8),
@@ -223,6 +265,25 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openEditJob(BuildContext context, JobRole job) async {
+    final doc = await _firestore.getJobDocumentById(job.id);
+    if (!context.mounted) return;
+    if (doc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This job uses the legacy format. Edit is only supported for jobs created with the new format.'),
+        ),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AdminCreateJobRoleScreen(job: doc),
+      ),
     );
   }
 
@@ -291,15 +352,13 @@ class _JobsStatCard extends StatelessWidget {
 
 class _JobRoleCard extends StatelessWidget {
   final JobRole job;
+  final VoidCallback onEdit;
 
-  const _JobRoleCard({required this.job});
+  const _JobRoleCard({required this.job, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
-    final skillCount =
-        job.technicalSkillsWithLevel.length + job.softSkillsWithLevel.length;
-    final hasSkills = skillCount > 0;
-    final count = hasSkills ? skillCount : job.requiredSkills.length;
+    final count = job.requiredSkillsCount;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -330,11 +389,7 @@ class _JobRoleCard extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Edit ${job.title} – Coming soon')),
-                  );
-                },
+                onTap: onEdit,
                 child: Icon(
                   Icons.edit_outlined,
                   size: 20,

@@ -17,7 +17,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (kDebugMode) {
-    await FirestoreService().uploadHomeMockDataIfEmpty();
+    try {
+      await FirestoreService().uploadHomeMockDataIfEmpty();
+      await FirestoreService.seedCoursesIfEmpty();
+      await FirestoreService.seedJobsIfEmpty();
+      await FirestoreService.seedJobsUpsert();
+      debugPrint('Jobs seed completed successfully');
+    } catch (e, st) {
+      // لا توقف التطبيق إذا فشل البذر (مثلاً صلاحيات Firestore قبل تسجيل الدخول).
+      debugPrint('Debug seed/mock data skipped: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: st);
+    }
   }
   runApp(const MyApp());
 }

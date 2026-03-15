@@ -47,5 +47,12 @@ app.*.map.json
 # Firebase config with API keys — generate via FlutterFire CLI or CI; do not commit if repo is public
 lib/firebase_options.dart
 
+# Firebase Service Account key (used by scripts/set-admin-claim.js) — never commit
+*service*account*.json
+*firebase-adminsdk*.json
+
+# Node (scripts / Firebase admin SDK)
+node_modules/
+
 # Admin (Node) dependencies
 admin/node_modules/

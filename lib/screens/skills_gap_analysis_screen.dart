@@ -10,7 +10,7 @@ import '../models/skill.dart';
 import '../services/firestore_service.dart';
 import '../services/gap_analysis_service.dart';
 import '../utils/skill_utils.dart';
-import 'create_profile.dart';
+import 'recommendations_tab.dart';
 
 /// Single skill gap result: job requirement vs user level.
 class SkillGapItem {
@@ -1966,73 +1966,14 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 
   Widget _buildRecommendationsTab() {
-    final critical = _items.where((e) => e.isCriticalGap).toList();
-    final developing = _items.where((e) => e.isDeveloping).toList();
-    final prioritySkills = [...critical, ...developing];
-    final shortTerm = developing.length;
-    final mediumTerm = (critical.length * 0.4).round();
-    final longTerm = critical.length - mediumTerm;
+    final top3 = _gapResult?.missingSkillsByPriority.take(3).toList() ??
+        _gapResult?.missingSkills.take(3).toList() ??
+        [];
+    final criticalSet = _currentJob.criticalSkills.map((s) => s.trim()).toSet();
 
-    return Container(
-      color: const Color(0xFFF8FAFC),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _recommendationsIntroCard(),
-            const SizedBox(height: 24),
-            _buildPotentialScoreCard(),
-            if (_gapResult != null) ...[
-              const SizedBox(height: 24),
-              _buildGapSummaryCard(),
-            ],
-            const SizedBox(height: 24),
-            _buildPriorityFocusAreas(prioritySkills),
-            const SizedBox(height: 24),
-            _buildLearningResources(),
-            const SizedBox(height: 24),
-            _buildEstimatedTimeline(shortTerm, mediumTerm, longTerm),
-            const SizedBox(height: 24),
-            _buildSuggestedLearningRoadmap(),
-            const SizedBox(height: 24),
-            _buildRoadmapTipCard(),
-            const SizedBox(height: 24),
-            _buildStatusGuide(),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.center,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const CreateProfileScreen(isEditMode: true),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 24,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Update Your Skills Assessment'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return RecommendationsTab(
+      skillNames: top3,
+      criticalGapNames: criticalSet,
     );
   }
 

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../app_theme.dart';
+import '../../data/seed_skills_phase1.dart';
 import '../../services/firestore_service.dart';
 import 'admin_jobs_screen.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_market_screen.dart';
+import 'admin_skills_screen.dart';
 
 class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({super.key});
@@ -21,6 +23,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     (label: 'Jobs', icon: Icons.work_outline_rounded),
     (label: 'Analytics', icon: Icons.analytics_outlined),
     (label: 'Market', icon: Icons.storage_rounded),
+    (label: 'Skills', icon: Icons.school_rounded),
   ];
 
   @override
@@ -110,6 +113,16 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                     ),
                   ],
                 ),
+                if (FirebaseAuth.instance.currentUser?.uid != null) ...[
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    'UID حسابك (لإعداد الأدمن): ${FirebaseAuth.instance.currentUser!.uid}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 // التبويبات
                 Row(
@@ -174,6 +187,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // إعداد قاعدة البيانات (بذر البيانات الأولية)
+                        _DatabaseSetupCard(),
+                        const SizedBox(height: 20),
                         // بطاقات الملخص 2x2
                         Row(
                           children: [
@@ -265,6 +281,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                 ? const AdminAnalyticsContent()
                 : _selectedTabIndex == 3
                 ? const AdminMarketContent()
+                : _selectedTabIndex == 4
+                ? const AdminSkillsContent()
                 : Center(
                     child: Text(
                       '${_tabs[_selectedTabIndex].label} – Coming soon',
@@ -694,6 +712,100 @@ class _QuickInsightsCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// بطاقة واحدة لتشغيل كل عمليات البذر من لوحة الأدمن (بعد تسجيل الدخول كأدمن).
+class _DatabaseSetupCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    return _SectionCard(
+      title: 'إعداد قاعدة البيانات',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (uid.isNotEmpty) ...[
+            SelectableText(
+              'UID حسابك: $uid',
+              style: TextStyle(
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'إذا ظهر "permission-denied": من Firebase Console → Firestore أنشئي مجموعة باسم admins وأضيفي مستنداً واحداً فقط — رقم المستند (Document ID) = الـ UID أعلاه (اتركي الحقول فارغة). ثم سجّلي خروج ودخول وجرّبي مرة ثانية.',
+              style: TextStyle(fontSize: 12, height: 1.35, color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 14),
+          ],
+          const Text(
+            'تشغيل البذر الأولي: بيانات الصفحة الرئيسية (insights, market_trends)، الكورسات، الوظائف الـ 15، والمهارات الـ 10. يتم إضافة البيانات فقط إذا كانت المجموعة فاضية (لا يحذف بيانات موجودة).',
+            style: TextStyle(fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (ctx) => const Center(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('جاري إعداد قاعدة البيانات…'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                try {
+                  final firestore = FirestoreService();
+                  await firestore.uploadHomeMockDataIfEmpty();
+                  await FirestoreService.seedCoursesIfEmpty();
+                  await FirestoreService.seedJobsIfEmpty();
+                  await seedSkillsPhase1();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم إعداد قاعدة البيانات: الصفحة الرئيسية، الكورسات، الوظائف، والمهارات.'),
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('فشل الإعداد: $e'),
+                      backgroundColor: theme.colorScheme.error,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.storage_rounded, size: 20),
+              label: const Text('تشغيل إعداد قاعدة البيانات (بذر البيانات الأولية)'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ),

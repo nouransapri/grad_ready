@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
-import '../../models/job_role.dart';
+import '../../models/job_document.dart';
 import '../../services/firestore_service.dart';
 import '../login_screen.dart';
+import 'job_skills_editor.dart';
 
 // ألوان مطابقة للتصميم
 const Color _headerPurpleStart = Color(0xFF5B4B9E);
 const Color _headerPurpleEnd = Color(0xFF7B6BBE);
 const Color _tabSelectedBg = Color(0xFFE8E4F5);
-const Color _purple = Color(0xFF5B4B9E);
 const Color _saveButtonGrey = Color(0xFFE0E0E0);
 const Color _saveButtonText = Color(0xFF757575);
 
-/// شاشة إنشاء دور وظيفي جديد (تفتح عند الضغط على Add New Job Role).
+/// شاشة إنشاء أو تعديل دور وظيفي (تفتح من Add New Job Role أو Edit على بطاقة الوظيفة).
 class AdminCreateJobRoleScreen extends StatefulWidget {
-  const AdminCreateJobRoleScreen({super.key});
+  final JobDocument? job;
+
+  const AdminCreateJobRoleScreen({super.key, this.job});
 
   @override
   State<AdminCreateJobRoleScreen> createState() =>
@@ -26,15 +28,32 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
   final _descriptionController = TextEditingController();
   final _categoryController = TextEditingController();
   final _salaryController = TextEditingController();
-  final _skillNameController = TextEditingController();
-  final _proficiencyController = TextEditingController(text: '70');
 
-  String _demand = 'Medium'; // High, Medium, Low
-  bool _isTechnicalSkill = true;
-  final List<SkillProficiency> _technicalSkills = [];
-  final List<SkillProficiency> _softSkills = [];
+  String _demand = 'Medium';
+  List<JobSkillItem> _technicalSkills = [];
+  List<JobSkillItem> _softSkills = [];
+  List<JobSkillItem> _tools = [];
   final FirestoreService _firestore = FirestoreService();
   bool _saving = false;
+  JobDocument? get _editingJob => widget.job;
+
+  @override
+  void initState() {
+    super.initState();
+    final job = widget.job;
+    if (job != null) {
+      _titleController.text = job.title;
+      _descriptionController.text = job.description;
+      _categoryController.text = job.category;
+      _salaryController.text = job.salary.maximum > 0
+          ? '\$${(job.salary.minimum / 1000).round()}K - \$${(job.salary.maximum / 1000).round()}K'
+          : '';
+      _demand = job.isActive ? 'High' : 'Medium';
+      _technicalSkills = List.from(job.technicalSkills);
+      _softSkills = List.from(job.softSkills);
+      _tools = List.from(job.tools);
+    }
+  }
 
   @override
   void dispose() {
@@ -42,8 +61,6 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     _descriptionController.dispose();
     _categoryController.dispose();
     _salaryController.dispose();
-    _skillNameController.dispose();
-    _proficiencyController.dispose();
     super.dispose();
   }
 
@@ -199,9 +216,9 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
           children: [
             Row(
               children: [
-                const Text(
-                  'Create New Job Role',
-                  style: TextStyle(
+                Text(
+                  _editingJob != null ? 'Edit Job' : 'Create New Job Role',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -299,190 +316,13 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
               hint: 'e.g., \$70K - \$110K',
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Required Skills',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Add technical and soft skills with required proficiency levels (0-100%).',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Material(
-                    color: _isTechnicalSkill ? _purple : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
-                      onTap: () => setState(() => _isTechnicalSkill = true),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Center(
-                          child: Text(
-                            'Technical',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _isTechnicalSkill
-                                  ? Colors.white
-                                  : Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Material(
-                    color: !_isTechnicalSkill ? _purple : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
-                      onTap: () => setState(() => _isTechnicalSkill = false),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Center(
-                          child: Text(
-                            'Soft Skills',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: !_isTechnicalSkill
-                                  ? Colors.white
-                                  : Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: TextField(
-                      controller: _skillNameController,
-                      decoration: const InputDecoration(
-                        hintText: 'Skill name...',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 56,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: TextField(
-                      controller: _proficiencyController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Material(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    onTap: _addSkill,
-                    borderRadius: BorderRadius.circular(10),
-                    child: const SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Icon(Icons.add, color: Colors.black87, size: 24),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Technical Skills: ${_technicalSkills.length}   Soft Skills: ${_softSkills.length}',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: _technicalSkills.isEmpty && _softSkills.isEmpty
-                  ? Column(
-                      children: [
-                        const Text(
-                          'No skills added yet',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Add skills using the form above',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ..._technicalSkills.asMap().entries.map(
-                          (e) => _skillChip(
-                            e.value.name,
-                            e.value.percent,
-                            true,
-                            e.key,
-                          ),
-                        ),
-                        ..._softSkills.asMap().entries.map(
-                          (e) => _skillChip(
-                            e.value.name,
-                            e.value.percent,
-                            false,
-                            e.key,
-                          ),
-                        ),
-                      ],
-                    ),
+            JobSkillsEditor(
+              technicalSkills: _technicalSkills,
+              softSkills: _softSkills,
+              tools: _tools,
+              onTechnicalChanged: (v) => setState(() => _technicalSkills = v),
+              onSoftChanged: (v) => setState(() => _softSkills = v),
+              onToolsChanged: (v) => setState(() => _tools = v),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -565,62 +405,6 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     );
   }
 
-  Widget _skillChip(String name, int percent, bool isTechnical, int index) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: _purple.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('$name ($percent%)', style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      if (isTechnical) {
-                        _technicalSkills.removeAt(index);
-                      } else {
-                        _softSkills.removeAt(index);
-                      }
-                    });
-                  },
-                  child: const Icon(
-                    Icons.close,
-                    size: 16,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _addSkill() {
-    final name = _skillNameController.text.trim();
-    if (name.isEmpty) return;
-    final percent = int.tryParse(_proficiencyController.text) ?? 70;
-    final clamped = percent.clamp(0, 100);
-    setState(() {
-      if (_isTechnicalSkill) {
-        _technicalSkills.add(SkillProficiency(name: name, percent: clamped));
-      } else {
-        _softSkills.add(SkillProficiency(name: name, percent: clamped));
-      }
-      _skillNameController.clear();
-      _proficiencyController.text = '70';
-    });
-  }
-
   Future<void> _saveJobRole() async {
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
@@ -629,6 +413,16 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill Job Title, Description, and Category'),
+        ),
+      );
+      return;
+    }
+
+    final totalSkills = _technicalSkills.length + _softSkills.length + _tools.length;
+    if (totalSkills < 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add at least 5 skills (Technical, Soft, or Tools)'),
         ),
       );
       return;
@@ -644,38 +438,68 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
       salaryMaxK = int.tryParse(salaryMatch.group(2) ?? '100') ?? 100;
     }
 
-    final requiredSkills = [
-      ..._technicalSkills.map((s) => s.name),
-      ..._softSkills.map((s) => s.name),
-    ];
-
-    final job = JobRole(
-      id: '',
-      title: title,
-      description: description,
-      category: category,
-      isHighDemand: _demand == 'High',
-      salaryMinK: salaryMinK,
-      salaryMaxK: salaryMaxK,
-      requiredSkills: requiredSkills,
-      technicalSkillsWithLevel: _technicalSkills,
-      softSkillsWithLevel: _softSkills,
-      criticalSkills: [],
-    );
+    final allSkills = [..._technicalSkills, ..._softSkills, ..._tools];
+    final avgLevel = allSkills.fold<int>(0, (a, s) => a + s.requiredLevel) / allSkills.length;
 
     setState(() => _saving = true);
     try {
-      await _firestore.addJob(job);
+      final doc = _editingJob;
+      if (doc != null) {
+        final updated = JobDocument(
+          id: doc.id,
+          jobId: doc.jobId,
+          title: title,
+          category: category,
+          industry: doc.industry,
+          experienceLevel: doc.experienceLevel,
+          description: description,
+          technicalSkills: _technicalSkills,
+          softSkills: _softSkills,
+          tools: _tools,
+          certifications: doc.certifications,
+          education: doc.education,
+          experience: doc.experience,
+          salary: SalaryInfo(currency: 'USD', minimum: salaryMinK * 1000, maximum: salaryMaxK * 1000, period: 'Yearly'),
+          createdAt: doc.createdAt,
+          updatedAt: DateTime.now(),
+          isActive: _demand == 'High',
+          totalSkillsCount: totalSkills,
+          averageRequiredLevel: avgLevel,
+        );
+        await _firestore.updateJobDocument(updated);
+      } else {
+        final jobId = '${title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}-${DateTime.now().millisecondsSinceEpoch % 100000}';
+        final newDoc = JobDocument(
+          id: '',
+          jobId: jobId,
+          title: title,
+          category: category,
+          industry: '',
+          experienceLevel: 'Mid-Level',
+          description: description,
+          technicalSkills: _technicalSkills,
+          softSkills: _softSkills,
+          tools: _tools,
+          certifications: const [],
+          education: const EducationRequirement(),
+          experience: const ExperienceRequirement(),
+          salary: SalaryInfo(currency: 'USD', minimum: salaryMinK * 1000, maximum: salaryMaxK * 1000, period: 'Yearly'),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isActive: _demand == 'High',
+          totalSkillsCount: totalSkills,
+          averageRequiredLevel: avgLevel,
+        );
+        await _firestore.addJobDocument(newDoc);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Job role saved successfully')),
+        SnackBar(content: Text(doc != null ? 'تم تحديث الوظيفة' : 'تم حفظ الوظيفة')),
       );
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
