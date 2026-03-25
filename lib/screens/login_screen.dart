@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'create_account.dart';
+import '../widgets/password_reset_dialog.dart';
 
 const Color _gradientTop = Color(0xFF2A6CFF);
 const Color _gradientBottom = Color(0xFF9226FF);
@@ -90,6 +91,23 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
+
+  Future<void> _showPasswordResetDialog() async {
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (_) => PasswordResetDialog(initialEmail: emailController.text),
+    );
+    if (!mounted) return;
+    if (sent == true) {
+      _showSuccess('تم إرسال رابط إعادة التعيين لبريدك الإلكتروني');
+    }
   }
 
   @override
@@ -226,6 +244,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                         'Login',
                                         style: TextStyle(
                                           fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextButton(
+                                      onPressed: _showPasswordResetDialog,
+                                      child: const Text(
+                                        'نسيت كلمة المرور؟',
+                                        style: TextStyle(
+                                          color: Colors.white,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
