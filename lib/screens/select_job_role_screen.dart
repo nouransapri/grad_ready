@@ -19,6 +19,7 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
 
   final _firestoreService = FirestoreService();
   late final Stream<List<JobRole>> _jobsStream = _firestoreService.getJobs();
+  bool _refreshing = false;
 
   List<JobRole> _filterJobs(List<JobRole> jobs, String query) {
     final q = query.trim().toLowerCase();
@@ -73,50 +74,54 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
           body: Column(
             children: [
               Expanded(
-                child: CustomScrollView(
-                  slivers: [
-                    _buildHeader(),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSearchCard(),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'Popular Job Roles',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1C1E),
+                child: RefreshIndicator(
+                  onRefresh: _refreshData,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      _buildHeader(),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSearchCard(),
+                              const SizedBox(height: 24),
+                              const Text(
+                                'Popular Job Roles',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1C1E),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
+                              const SizedBox(height: 12),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final job = filteredJobs[index];
-                          final isSelected = _selectedJob?.id == job.id;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _JobCard(
-                              job: job,
-                              isSelected: isSelected,
-                              onSelect: () =>
-                                  setState(() => _selectedJob = job),
-                            ),
-                          );
-                        }, childCount: filteredJobs.length),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate((context, index) {
+                            final job = filteredJobs[index];
+                            final isSelected = _selectedJob?.id == job.id;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _JobCard(
+                                job: job,
+                                isSelected: isSelected,
+                                onSelect: () =>
+                                    setState(() => _selectedJob = job),
+                              ),
+                            );
+                          }, childCount: filteredJobs.length),
+                        ),
                       ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                  ],
+                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                    ],
+                  ),
                 ),
               ),
               Padding(
@@ -183,6 +188,16 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
         );
       },
     );
+  }
+
+  Future<void> _refreshData() async {
+    if (_refreshing) return;
+    _refreshing = true;
+    if (mounted) setState(() {});
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    _refreshing = false;
+    if (!mounted) return;
+    setState(() {});
   }
 
   Widget _buildHeader() {

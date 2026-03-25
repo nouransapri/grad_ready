@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'create_profile.dart';
@@ -259,6 +260,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+          IconButton(
+            onPressed: _shareProfile,
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
           ),
           IconButton(
             onPressed: () async {
@@ -653,5 +658,29 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     ).then((_) {
       if (mounted) _refreshProfile();
     });
+  }
+
+  Future<void> _shareProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    final data = snap.data();
+    final name = data?['full_name']?.toString().trim();
+    final major = data?['major']?.toString().trim();
+    final uni = data?['university']?.toString().trim();
+    final text = [
+      if (name != null && name.isNotEmpty) name,
+      if (major != null && major.isNotEmpty) 'Major: $major',
+      if (uni != null && uni.isNotEmpty) 'University: $uni',
+      'Shared from GradReady',
+    ].join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile copied to clipboard')));
   }
 }

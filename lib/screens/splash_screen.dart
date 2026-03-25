@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
+  Future<void> _goNext(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('onboarding_completed') ?? false;
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            completed ? const LoginScreen() : const OnboardingScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // الـ Container الأساسي بخلفية التدرج
+      // Root container with gradient background
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -20,7 +35,7 @@ class SplashScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          // الحل السحري لمشكلة الـ Overflow: SingleChildScrollView
+          // Avoid overflow: SingleChildScrollView
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Column(
@@ -87,8 +102,8 @@ class SplashScreen extends StatelessWidget {
                   subtitle: 'Find your best fit',
                 ),
 
-                const SizedBox(height: 20), // مسافة بديلة للـ Spacer
-                // زرار Get Started
+                const SizedBox(height: 20), // spacer substitute
+                // Get Started button
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 30,
@@ -106,14 +121,7 @@ class SplashScreen extends StatelessWidget {
                         ),
                         elevation: 5,
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => _goNext(context),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -139,7 +147,7 @@ class SplashScreen extends StatelessWidget {
     );
   }
 
-  // دالة بناء الكروت بتصميم الـ Glassmorphism
+  // Builds glass-style cards
   Widget _buildGlassCard({
     required IconData icon,
     required String title,
@@ -158,7 +166,7 @@ class SplashScreen extends StatelessWidget {
           Icon(icon, color: Colors.white, size: 30),
           const SizedBox(width: 15),
           Expanded(
-            // عشان لو النص طويل ميعملش overflow برضه
+            // Long text still won't overflow
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

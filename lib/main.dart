@@ -16,6 +16,9 @@ import 'screens/admin/admin_overview_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
   if (kDebugMode) {
     try {
       await FirestoreService().uploadHomeMockDataIfEmpty();
