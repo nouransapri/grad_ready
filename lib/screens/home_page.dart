@@ -19,6 +19,12 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   final FirestoreService _firestore = FirestoreService();
 
+  Future<void> _refreshData() async {
+    if (!mounted) return;
+    setState(() {});
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -73,13 +79,16 @@ class _HomePageState extends State<HomePage> {
             children: [
               _buildHeader(userName),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 25),
-                      const Row(
+                child: RefreshIndicator(
+                  onRefresh: _refreshData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 25),
+                        const Row(
                         children: [
                           Icon(
                             Icons.bar_chart_rounded,
@@ -124,8 +133,9 @@ class _HomePageState extends State<HomePage> {
                       _buildInsightsSection(),
                       const SizedBox(height: 25),
                       _buildMarketTrendsSection(),
-                      const SizedBox(height: 120),
-                    ],
+                        const SizedBox(height: 120),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -237,7 +247,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// صندوق الترحيب للمستخدم العائد — بنفس تصميم الصورة (غراديان بنفسجي، تأثير زجاجي خفيف).
+  /// Welcome box for returning users (purple gradient, light glass effect).
   Widget _buildWelcomeBackBox(String name) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -247,10 +257,10 @@ class _HomePageState extends State<HomePage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFD1C4E9), // lavender أيسر
+              const Color(0xFFD1C4E9), // lavender left
               const Color(0xFFB39DDB),
               const Color(0xFF9575CD),
-              const Color(0xFF7E57C2), // بنفسجي أغمق أيمن
+              const Color(0xFF7E57C2), // deeper purple right
             ],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
@@ -754,7 +764,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- 6. Bottom Navigation Bar (ألوان ثابتة تماماً) ---
+  // --- 6. Bottom Navigation Bar (fixed colors) ---
   Widget _buildBottomNav() {
     return Container(
       margin: const EdgeInsets.fromLTRB(25, 0, 25, 30),
@@ -824,7 +834,7 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: itemColor, // اللون ثابت دائماً كما طلبتِ
+              color: itemColor, // color stays fixed per design
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(icon, color: Colors.white, size: 28),

@@ -1,6 +1,8 @@
+import '../models/course.dart';
 import '../models/job_role.dart';
 import '../models/skill.dart';
 import '../utils/skill_utils.dart';
+import 'package:flutter/foundation.dart';
 
 /// One step in a learning path: a missing skill with priority and suggested resources.
 class LearningStep {
@@ -8,12 +10,15 @@ class LearningStep {
   final String skillName;
   final int priority;
   final List<String> suggestedCourses;
+  /// Courses with URLs (from `courses` collection); preferred over [suggestedCourses] for taps.
+  final List<Course> suggestedCourseLinks;
 
   const LearningStep({
     required this.stepNumber,
     required this.skillName,
     required this.priority,
     required this.suggestedCourses,
+    this.suggestedCourseLinks = const [],
   });
 }
 
@@ -48,6 +53,7 @@ class MarketInsights {
 /// Result of gap analysis: skills only (no course fields). Includes recommendations and visualization data.
 class GapAnalysisResult {
   final List<String> matchedSkills;
+  /// Skills where the user is below the job requirement (missing entirely or lower level).
   final List<String> missingSkills;
   final double matchPercentage;
   final double weightedMatchPercentage;
@@ -58,6 +64,8 @@ class GapAnalysisResult {
   final SkillMatchDistribution skillMatchDistribution;
   final List<String> prioritySkills;
   final List<String> missingSkillsByPriority;
+  /// Same keys as [skillRecommendations]; full course rows for opening URLs in UI.
+  final Map<String, List<Course>> skillCourseResources;
 
   const GapAnalysisResult({
     required this.matchedSkills,
@@ -71,6 +79,7 @@ class GapAnalysisResult {
     required this.skillMatchDistribution,
     required this.prioritySkills,
     required this.missingSkillsByPriority,
+    this.skillCourseResources = const <String, List<Course>>{},
   });
 
   bool isHighPriority(String skillName) {
@@ -82,6 +91,61 @@ class GapAnalysisResult {
 /// Service for gap analysis between user profile and job requirements. Skills only.
 /// Uses level-based weighted scoring when job has [JobRequiredSkill] and skills catalog is provided.
 class GapAnalysisService {
+  /// Resolves a skill from the catalog when keys differ by slug style (`-` vs `_`) or casing.
+  static Skill? _catalogSkill(Map<String, Skill> catalog, String skillId) {
+    final c = canonicalSkillId(skillId);
+    final byKey = catalog[c] ?? catalog[skillId];
+    if (byKey != null) return byKey;
+    for (final s in catalog.values) {
+      if (canonicalSkillId(s.id) == c) return s;
+    }
+    return null;
+  }
+
+  static int _userLevelFor(Map<String, int> userLevels, String skillId) {
+    final c = canonicalSkillId(skillId);
+    return userLevels[c] ?? userLevels[skillId] ?? 0;
+  }
+
+  static int _legacyUserLevelByName(
+    Map<String, dynamic> userData,
+    String requiredSkillName,
+  ) {
+    final skills = userData['skills'] as List?;
+    if (skills == null || requiredSkillName.trim().isEmpty) return 0;
+    final target = normalizeSkillName(requiredSkillName);
+    int best = 0;
+    for (final s in skills) {
+      if (s is! Map) continue;
+      final m = Map<String, dynamic>.from(
+        s.map((k, v) => MapEntry(k.toString(), v)),
+      );
+      final name = m['name']?.toString().trim() ?? '';
+      if (name.isEmpty) continue;
+      final n = normalizeSkillName(name);
+      if (!(n == target || n.contains(target) || target.contains(n))) continue;
+      int level = 0;
+      if (m['level'] is int) {
+        level = (m['level'] as int).clamp(0, 100);
+      } else if (m['points'] is int) {
+        level = (m['points'] as int).clamp(0, 100);
+      } else {
+        final str = m['level']?.toString().trim().toLowerCase() ?? '';
+        if (str == 'advanced' || str == 'expert') {
+          level = 95;
+        } else if (str == 'intermediate' || str == 'intermidiate' || str == 'mid') {
+          level = 65;
+        } else if (str == 'basic' || str == 'beginner') {
+          level = 35;
+        } else {
+          level = (int.tryParse(str) ?? 35).clamp(0, 100);
+        }
+      }
+      if (level > best) best = level;
+    }
+    return best;
+  }
+
   /// Level-based skill score: min(userLevel / requiredLevel, 1). Same formula used in UI.
   static double skillScoreForLevel(int userLevel, int requiredLevel) {
     if (requiredLevel <= 0) return 1.0;
@@ -118,7 +182,8 @@ class GapAnalysisService {
       final us = UserSkill.fromFirestore(s);
       if (us != null) {
         final level = us.level.clamp(0, 100);
-        if (level > (result[us.skillId] ?? 0)) result[us.skillId] = level;
+        final cid = canonicalSkillId(us.skillId);
+        if (level > (result[cid] ?? 0)) result[cid] = level;
         continue;
       }
       if (s is! Map) continue;
@@ -134,11 +199,11 @@ class GapAnalysisService {
         level = (m['points'] as int).clamp(0, 100);
       } else {
         final str = m['level']?.toString().trim().toLowerCase() ?? '';
-        if (str == 'advanced') {
+        if (str == 'advanced' || str == 'expert') {
           level = 95;
-        } else if (str == 'intermediate')
+        } else if (str == 'intermediate' || str == 'intermidiate' || str == 'mid')
           level = 65;
-        else if (str == 'basic')
+        else if (str == 'basic' || str == 'beginner')
           level = 35;
         else
           level = (int.tryParse(str) ?? 35).clamp(0, 100);
@@ -147,7 +212,8 @@ class GapAnalysisService {
         final n = normalizeSkillName(name);
         for (final skill in skillsCatalog.values) {
           if (normalizeSkillName(skill.name) == n) {
-            if (level > (result[skill.id] ?? 0)) result[skill.id] = level;
+            final cid = canonicalSkillId(skill.id);
+            if (level > (result[cid] ?? 0)) result[cid] = level;
             break;
           }
         }
@@ -257,6 +323,53 @@ class GapAnalysisService {
     return (normalized: normalizedSet, displayNames: displayNames);
   }
 
+  /// Readable label from a job/user skill id slug (e.g. `power-bi` → `Power Bi`).
+  static String displayNameFromSkillId(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) {
+      return raw;
+    }
+    final parts = s
+        .replaceAll('_', '-')
+        .split(RegExp(r'[-\s]+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) {
+      return s;
+    }
+    return parts
+        .map(
+          (p) => p.length == 1
+              ? p.toUpperCase()
+              : '${p[0].toUpperCase()}${p.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
+  /// Merges Firestore [skills] cache with synthetic [Skill] rows for every [JobRequiredSkill] so
+  /// level-based analysis always runs when the job lists structured requirements, even if the
+  /// catalog is empty or still loading.
+  static Map<String, Skill> mergeJobRequiredSkillsCatalog(
+    JobRole job,
+    Map<String, Skill>? catalog,
+  ) {
+    final out = <String, Skill>{
+      if (catalog != null) ...catalog,
+    };
+    for (final req in job.requiredSkillsWithLevel) {
+      if (_catalogSkill(out, req.skillId) != null) {
+        continue;
+      }
+      final cid = canonicalSkillId(req.skillId);
+      out[cid] = Skill(
+        id: cid,
+        name: displayNameFromSkillId(req.skillId),
+        category: 'Technical',
+      );
+    }
+    return out;
+  }
+
   static List<String> getRequiredSkillNames(JobRole job) {
     final fromLevels = <String>[
       ...job.technicalSkillsWithLevel.map((s) => s.name),
@@ -281,27 +394,36 @@ class GapAnalysisService {
   }
 
   /// Runs gap analysis (skills only). If [fetchRecommendations] is provided, uses it to load suggested courses per skill (e.g. from Firestore).
-  /// When [skillsCatalog] is provided and job has [requiredSkillsWithLevel], uses level-based weighted formula:
+  /// When the job has [requiredSkillsWithLevel], uses level-based weighted formula:
   /// skillScore = min(userLevel/requiredLevel, 1), matchScore = sum(skillScore×importance)/sum(importance).
-  /// Otherwise uses legacy binary match.
+  /// [skillsCatalog] is merged with placeholder [Skill] rows for any required id missing from cache
+  /// (see [mergeJobRequiredSkillsCatalog]) so analysis still runs if Firestore skills are empty.
+  /// Otherwise uses legacy binary / tech-soft level match.
   static Future<GapAnalysisResult> runGapAnalysis(
     Map<String, dynamic> userData,
     JobRole job, {
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
+    Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
+    fetchCourseDetails,
     Map<String, Skill>? skillsCatalog,
   }) async {
-    if (job.requiredSkillsWithLevel.isNotEmpty &&
-        skillsCatalog != null &&
-        skillsCatalog.isNotEmpty) {
+    if (job.requiredSkillsWithLevel.isNotEmpty) {
+      final merged = mergeJobRequiredSkillsCatalog(job, skillsCatalog);
       return _runLevelBasedGapAnalysis(
         userData,
         job,
-        skillsCatalog,
+        merged,
         fetchRecommendations,
+        fetchCourseDetails,
       );
     }
-    return _runLegacyGapAnalysis(userData, job, fetchRecommendations);
+    return _runLegacyGapAnalysis(
+      userData,
+      job,
+      fetchRecommendations,
+      fetchCourseDetails,
+    );
   }
 
   static Future<GapAnalysisResult> _runLevelBasedGapAnalysis(
@@ -310,6 +432,8 @@ class GapAnalysisService {
     Map<String, Skill> skillsCatalog,
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
+    Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
+    fetchCourseDetails,
   ) async {
     final userLevels = collectUserLevelsBySkillId(userData, skillsCatalog);
     final requiredList = job.requiredSkillsWithLevel;
@@ -320,9 +444,12 @@ class GapAnalysisService {
         <({String skillId, String name, int importance, double score})>[];
 
     for (final req in requiredList) {
-      final skill = skillsCatalog[req.skillId];
+      final skill = _catalogSkill(skillsCatalog, req.skillId);
       final name = skill?.name ?? req.skillId;
-      final userLevel = userLevels[req.skillId] ?? 0;
+      int userLevel = _userLevelFor(userLevels, req.skillId);
+      if (userLevel == 0) {
+        userLevel = _legacyUserLevelByName(userData, name);
+      }
       final score = skillScoreForLevel(userLevel, req.requiredLevel);
       final imp = req.importance.clamp(1, 3);
       skillScores.add(score);
@@ -354,7 +481,7 @@ class GapAnalysisService {
     final skillPriorityRanking = <String, int>{};
     for (var i = 0; i < requiredList.length; i++) {
       final req = requiredList[i];
-      final skill = skillsCatalog[req.skillId];
+      final skill = _catalogSkill(skillsCatalog, req.skillId);
       final name = skill?.name ?? req.skillId;
       final imp = req.importance.clamp(1, 3);
       skillPriorityRanking[name] = imp * 500 + (requiredList.length - i);
@@ -364,7 +491,18 @@ class GapAnalysisService {
     if (fetchRecommendations != null && missingSkills.isNotEmpty) {
       try {
         skillRecommendations = await fetchRecommendations(missingSkills);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Gap analysis recommendations error: $e');
+      }
+    }
+
+    Map<String, List<Course>> skillCourseResources = {};
+    if (fetchCourseDetails != null && missingSkills.isNotEmpty) {
+      try {
+        skillCourseResources = await fetchCourseDetails(missingSkills);
+      } catch (e) {
+        debugPrint('Gap analysis course details error: $e');
+      }
     }
 
     final learningPath = <LearningStep>[];
@@ -376,6 +514,7 @@ class GapAnalysisService {
           skillName: m.name,
           priority: skillPriorityRanking[m.name] ?? 0,
           suggestedCourses: skillRecommendations[m.name] ?? [],
+          suggestedCourseLinks: skillCourseResources[m.name] ?? const [],
         ),
       );
     }
@@ -389,7 +528,7 @@ class GapAnalysisService {
 
     final technicalIds = skillsCatalog.values
         .where((s) => s.isTechnical)
-        .map((s) => s.id)
+        .map((s) => canonicalSkillId(s.id))
         .toSet();
     int technicalMatched = 0,
         technicalTotal = 0,
@@ -397,7 +536,7 @@ class GapAnalysisService {
         softTotal = 0;
     for (var i = 0; i < requiredList.length; i++) {
       final req = requiredList[i];
-      final isTech = technicalIds.contains(req.skillId);
+      final isTech = technicalIds.contains(canonicalSkillId(req.skillId));
       if (isTech) {
         technicalTotal++;
         if (skillScores[i] >= 1.0) technicalMatched++;
@@ -430,6 +569,7 @@ class GapAnalysisService {
       skillMatchDistribution: skillMatchDistribution,
       prioritySkills: prioritySkills,
       missingSkillsByPriority: List.from(missingSkills),
+      skillCourseResources: skillCourseResources,
     );
   }
 
@@ -438,6 +578,8 @@ class GapAnalysisService {
     JobRole job,
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
+    Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
+    fetchCourseDetails,
   ) async {
     final user = collectAllUserSkillNames(userData);
     final requiredSkills = getRequiredSkillNames(job);
@@ -452,12 +594,42 @@ class GapAnalysisService {
         .toList();
     final softNormalized = softSkills.map((s) => normalize(s)).toList();
 
-    int technicalMatchCount = technicalNormalized
-        .where((s) => userSkillNormalized.contains(s))
-        .length;
-    int softMatchCount = softNormalized
-        .where((s) => userSkillNormalized.contains(s))
-        .length;
+    final useTechSoftLevels = job.technicalSkillsWithLevel.isNotEmpty ||
+        job.softSkillsWithLevel.isNotEmpty;
+    final Map<String, int> requiredPctByNorm = {};
+    if (useTechSoftLevels) {
+      void addPct(SkillProficiency s) {
+        final n = normalize(s.name);
+        if (n.isEmpty) return;
+        final p = s.percent.clamp(0, 100);
+        if (p > (requiredPctByNorm[n] ?? 0)) requiredPctByNorm[n] = p;
+      }
+      for (final s in job.technicalSkillsWithLevel) addPct(s);
+      for (final s in job.softSkillsWithLevel) addPct(s);
+    }
+
+    int technicalMatchCount;
+    int softMatchCount;
+    if (useTechSoftLevels && requiredPctByNorm.isNotEmpty) {
+      bool meets(SkillProficiency s) {
+        final n = normalize(s.name);
+        final need = requiredPctByNorm[n] ?? s.percent.clamp(0, 100);
+        final u = _legacyUserLevelByName(userData, s.name);
+        if (need <= 0) return userSkillNormalized.contains(n);
+        return skillScoreForLevel(u, need) >= 1.0;
+      }
+
+      technicalMatchCount =
+          job.technicalSkillsWithLevel.where(meets).length;
+      softMatchCount = job.softSkillsWithLevel.where(meets).length;
+    } else {
+      technicalMatchCount = technicalNormalized
+          .where((s) => userSkillNormalized.contains(s))
+          .length;
+      softMatchCount = softNormalized
+          .where((s) => userSkillNormalized.contains(s))
+          .length;
+    }
 
     final criticalNormalized = job.criticalSkills
         .map((s) => normalize(s))
@@ -480,10 +652,26 @@ class GapAnalysisService {
     for (final skill in requiredSkills) {
       final n = normalize(skill);
       if (n.isEmpty) continue;
-      if (userSkillNormalized.contains(n)) {
-        matchedSkills.add(skill);
+      if (useTechSoftLevels && requiredPctByNorm.isNotEmpty) {
+        final need = requiredPctByNorm[n] ?? 0;
+        final userLevel = _legacyUserLevelByName(userData, skill);
+        if (need <= 0) {
+          if (userSkillNormalized.contains(n)) {
+            matchedSkills.add(skill);
+          } else {
+            missingSkills.add(skill);
+          }
+        } else if (skillScoreForLevel(userLevel, need) >= 1.0) {
+          matchedSkills.add(skill);
+        } else {
+          missingSkills.add(skill);
+        }
       } else {
-        missingSkills.add(skill);
+        if (userSkillNormalized.contains(n)) {
+          matchedSkills.add(skill);
+        } else {
+          missingSkills.add(skill);
+        }
       }
     }
     missingSkills.sort(
@@ -492,18 +680,53 @@ class GapAnalysisService {
       ),
     );
 
-    // Match score = (matched skills / total required skills) * 100. Based on required job skills only; missing skills => score < 100%.
     final int requiredCount = requiredSkills.length;
-    double matchPercentage = requiredCount > 0
-        ? (matchedSkills.length / requiredCount) * 100
-        : 0.0;
-    double weightedMatchPercentage = matchPercentage;
+    double matchPercentage;
+    double weightedMatchPercentage;
+    if (useTechSoftLevels &&
+        requiredPctByNorm.isNotEmpty &&
+        requiredCount > 0) {
+      final scores = <double>[];
+      final imps = <int>[];
+      for (final skill in requiredSkills) {
+        final n = normalize(skill);
+        if (n.isEmpty) continue;
+        final need = requiredPctByNorm[n] ?? 0;
+        final userLevel = _legacyUserLevelByName(userData, skill);
+        if (need <= 0) {
+          scores.add(userSkillNormalized.contains(n) ? 1.0 : 0.0);
+        } else {
+          scores.add(skillScoreForLevel(userLevel, need));
+        }
+        imps.add(1);
+      }
+      final m = weightedMatchScore(scores, imps);
+      matchPercentage = m * 100;
+      weightedMatchPercentage = matchPercentage;
+    } else {
+      // Match score = (matched skills / total required skills) * 100.
+      matchPercentage = requiredCount > 0
+          ? (matchedSkills.length / requiredCount) * 100
+          : 0.0;
+      weightedMatchPercentage = matchPercentage;
+    }
 
     Map<String, List<String>> skillRecommendations = {};
     if (fetchRecommendations != null && missingSkills.isNotEmpty) {
       try {
         skillRecommendations = await fetchRecommendations(missingSkills);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Gap analysis recommendations error: $e');
+      }
+    }
+
+    Map<String, List<Course>> skillCourseResources = {};
+    if (fetchCourseDetails != null && missingSkills.isNotEmpty) {
+      try {
+        skillCourseResources = await fetchCourseDetails(missingSkills);
+      } catch (e) {
+        debugPrint('Gap analysis course details error: $e');
+      }
     }
 
     final learningPath = <LearningStep>[];
@@ -515,6 +738,7 @@ class GapAnalysisService {
           skillName: skill,
           priority: skillPriorityRanking[skill] ?? 0,
           suggestedCourses: skillRecommendations[skill] ?? [],
+          suggestedCourseLinks: skillCourseResources[skill] ?? const [],
         ),
       );
     }
@@ -567,6 +791,7 @@ class GapAnalysisService {
       skillMatchDistribution: skillMatchDistribution,
       prioritySkills: prioritySkills,
       missingSkillsByPriority: List.from(missingSkills),
+      skillCourseResources: skillCourseResources,
     );
   }
 }

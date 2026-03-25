@@ -24,7 +24,7 @@ void main() async {
       await FirestoreService.seedJobsUpsert();
       debugPrint('Jobs seed completed successfully');
     } catch (e, st) {
-      // لا توقف التطبيق إذا فشل البذر (مثلاً صلاحيات Firestore قبل تسجيل الدخول).
+      // Do not crash if seed fails (e.g. Firestore rules before sign-in).
       debugPrint('Debug seed/mock data skipped: $e');
       if (kDebugMode) debugPrintStack(stackTrace: st);
     }
@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // لو المستخدم مش مسجل دخول → Splash
+          // Not signed in → Splash
           if (!snapshot.hasData) {
             return const SplashScreen();
           }
@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
             return const SplashScreen();
           }
 
-          // لو مسجل دخول → نشيك profile_completed في Firestore
+          // Signed in → check profile_completed in Firestore
           return _ProfileGate(user: user);
         },
       ),
@@ -75,6 +75,7 @@ class _ProfileGate extends StatefulWidget {
 
 class _ProfileGateState extends State<_ProfileGate> {
   late Future<DocumentSnapshot> _profileFuture;
+  late Future<bool> _isAdminFuture;
 
   @override
   void initState() {
@@ -83,6 +84,7 @@ class _ProfileGateState extends State<_ProfileGate> {
         .collection('users')
         .doc(widget.user.uid)
         .get();
+    _isAdminFuture = _isAdminUser();
   }
 
   void _retry() {
@@ -91,33 +93,19 @@ class _ProfileGateState extends State<_ProfileGate> {
           .collection('users')
           .doc(widget.user.uid)
           .get();
+      _isAdminFuture = _isAdminUser();
     });
   }
 
-  static bool _isAdminEmail(String? email) {
-    if (email == null || email.isEmpty) return false;
-    final e = email.trim().toLowerCase();
-    return e == 'admin@gradready' || e == 'admin@gradready.com';
-  }
-
-  Future<void> _createAdminDocAndRefresh() async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.user.uid)
-        .set({
-          'uid': widget.user.uid,
-          'email': widget.user.email,
-          'role': 'admin',
-          'profile_completed': true,
-          'created_at': FieldValue.serverTimestamp(),
-        });
-    if (!mounted) return;
-    setState(() {
-      _profileFuture = FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.user.uid)
-          .get();
-    });
+  Future<bool> _isAdminUser() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+      final token = await user.getIdTokenResult(true);
+      return token.claims?['admin'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -175,15 +163,20 @@ class _ProfileGateState extends State<_ProfileGate> {
           return const CreateProfileScreen();
         }
 
-        // لا يوجد مستند مستخدم: إنشاء مستند أدمن إذا كان الإيميل أدمن
-        if (profileSnapshot.hasData &&
-            !profileSnapshot.data!.exists &&
-            _isAdminEmail(widget.user.email)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _createAdminDocAndRefresh();
-          });
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+        if (profileSnapshot.hasData && !profileSnapshot.data!.exists) {
+          return FutureBuilder<bool>(
+            future: _isAdminFuture,
+            builder: (context, adminSnapshot) {
+              if (adminSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (adminSnapshot.data == true) {
+                return const AdminOverviewScreen();
+              }
+              return const CreateProfileScreen();
+            },
           );
         }
 

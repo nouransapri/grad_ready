@@ -26,9 +26,9 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // دالة تسجيل الدخول عبر Firebase
+  // Firebase sign-in
   Future<void> _login() async {
-    // التأكد أن الخانات ليست فارغة
+    // Validate non-empty fields
     if (emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty) {
       _showError("Please enter your email and password");
@@ -38,9 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    // تسجيل الدخول عبر Firebase (بما فيه حساب الأدمن: أنشئ مستخدم admin@gradready في Firebase Auth)
+    // Firebase sign-in (including admin: create admin@gradready in Firebase Auth)
     try {
-      // إظهار دائرة تحميل
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -48,19 +48,19 @@ class _LoginScreenState extends State<LoginScreen> {
             const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
 
-      // تنفيذ عملية تسجيل الدخول
+      // Run sign-in
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // إغلاق دائرة التحميل
-      // العودة للشاشة الأولى (الـ StreamBuilder يعيد البناء ويوجّه حسب البروفايل/الأدمن)
+      _closeLoadingDialog();
+      // StreamBuilder rebuilds and routes by profile/admin
       Navigator.of(context).popUntil((route) => route.isFirst);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // إغلاق دائرة التحميل
+      _closeLoadingDialog();
 
       String message = "Login Failed";
       if (e.code == 'user-not-found') {
@@ -72,6 +72,17 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       _showError(message);
+    } catch (_) {
+      if (!mounted) return;
+      _closeLoadingDialog();
+      _showError('Unexpected issue. Please try again.');
+    }
+  }
+
+  void _closeLoadingDialog() {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
     }
   }
 

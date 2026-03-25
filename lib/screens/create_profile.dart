@@ -85,6 +85,23 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     if (widget.isEditMode) _loadExistingProfile();
   }
 
+  @override
+  void dispose() {
+    nameController.dispose();
+    universityController.dispose();
+    majorController.dispose();
+    gpaController.dispose();
+    customSkillController.dispose();
+    internTitleController.dispose();
+    internCompanyController.dispose();
+    internDurationController.dispose();
+    clubNameController.dispose();
+    clubRoleController.dispose();
+    projectNameController.dispose();
+    projectDescController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadExistingProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;

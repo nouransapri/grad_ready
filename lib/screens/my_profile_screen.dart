@@ -32,6 +32,23 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     setState(() => _profileFuture = _loadProfileFuture());
   }
 
+  Future<void> _refreshData() async {
+    _refreshProfile();
+    await _profileFuture;
+  }
+
+  List<Map<String, dynamic>> _safeMapList(dynamic raw) {
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map(
+          (e) => Map<String, dynamic>.from(
+            e.map((k, v) => MapEntry(k.toString(), v)),
+          ),
+        )
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -67,52 +84,46 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final major = data?['major'] as String? ?? '';
     final academicYear = data?['academic_year'] as String? ?? '';
     final gpa = data?['gpa'] as String? ?? '';
-    final skills = List<Map<String, dynamic>>.from(
-      (data?['skills'] as List?)?.map((e) => e as Map<String, dynamic>) ?? [],
-    );
-    final internships = List<Map<String, dynamic>>.from(
-      (data?['internships'] as List?)?.map((e) => e as Map<String, dynamic>) ??
-          [],
-    );
-    final clubs = List<Map<String, dynamic>>.from(
-      (data?['clubs'] as List?)?.map((e) => e as Map<String, dynamic>) ?? [],
-    );
-    final projects = List<Map<String, dynamic>>.from(
-      (data?['projects'] as List?)?.map((e) => e as Map<String, dynamic>) ?? [],
-    );
+    final skills = _safeMapList(data?['skills']);
+    final internships = _safeMapList(data?['internships']);
+    final clubs = _safeMapList(data?['clubs']);
+    final projects = _safeMapList(data?['projects']);
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(child: _buildHeader(context)),
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildProfileCard(context, name, university),
-              const SizedBox(height: 20),
-              _buildSection(
-                context,
-                title: 'Academic Information',
-                icon: Icons.school_rounded,
-                iconColor: const Color(0xFF2A6CFF),
-                onEdit: () => _openEditProfile(context),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildInfoRow('Full Name', name),
-                    _buildInfoRow('University', university),
-                    _buildInfoRow('Major', major),
-                    _buildInfoRow(
-                      'Academic Year',
-                      academicYear.isEmpty || academicYear == 'Select year'
-                          ? '—'
-                          : academicYear,
-                    ),
-                    _buildInfoRow('GPA', gpa.isEmpty ? '—' : gpa),
-                  ],
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _buildHeader(context)),
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildProfileCard(context, name, university),
+                const SizedBox(height: 20),
+                _buildSection(
+                  context,
+                  title: 'Academic Information',
+                  icon: Icons.school_rounded,
+                  iconColor: const Color(0xFF2A6CFF),
+                  onEdit: () => _openEditProfile(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInfoRow('Full Name', name),
+                      _buildInfoRow('University', university),
+                      _buildInfoRow('Major', major),
+                      _buildInfoRow(
+                        'Academic Year',
+                        academicYear.isEmpty || academicYear == 'Select year'
+                            ? '—'
+                            : academicYear,
+                      ),
+                      _buildInfoRow('GPA', gpa.isEmpty ? '—' : gpa),
+                    ],
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 20),
               _buildSection(
@@ -204,11 +215,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             .toList(),
                       ),
               ),
-              const SizedBox(height: 40),
-            ]),
+                const SizedBox(height: 40),
+              ]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

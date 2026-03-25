@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'create_profile.dart'; // تعديل المسار
+import 'create_profile.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -56,16 +56,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // إغلاق التحميل
+      _closeLoadingDialog();
 
-      // بعد التسجيل → روح CreateProfileScreen
+      // After sign-up → CreateProfileScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const CreateProfileScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      Navigator.pop(context);
+      _closeLoadingDialog();
 
       String errorMsg = "An error occurred";
       if (e.code == 'weak-password') errorMsg = "The password is too weak.";
@@ -77,10 +77,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }
 
       _showError(errorMsg);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      Navigator.pop(context);
-      _showError("Unexpected error: $e");
+      _closeLoadingDialog();
+      _showError("Unexpected issue. Please try again.");
+    }
+  }
+
+  void _closeLoadingDialog() {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
     }
   }
 
