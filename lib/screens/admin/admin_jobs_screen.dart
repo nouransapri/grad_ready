@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
@@ -16,7 +18,7 @@ const Color _chipSalaryBg = Color(0xFFE8F5E9);
 const Color _chipSalaryText = Color(0xFF1B5E20);
 const Color _marketingPinkBg = Color(0xFFFCE4EC);
 
-/// محتوى تبويب Jobs في لوحة الأدمن (بطاقات إحصائية + زر إضافة + بحث + قائمة الأدوار).
+/// Admin Jobs tab: stat cards, add button, search, and role list.
 class AdminJobsContent extends StatefulWidget {
   const AdminJobsContent({super.key});
 
@@ -26,13 +28,24 @@ class AdminJobsContent extends StatefulWidget {
 
 class _AdminJobsContentState extends State<AdminJobsContent> {
   final FirestoreService _firestore = FirestoreService();
+  /// Stable stream so [StreamBuilder] does not reset subscription every build.
+  late final Stream<List<JobRole>> _jobsStream = _firestore.getJobs();
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All Categories';
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _scheduleSearchRebuild() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -41,8 +54,20 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
     const horizontalPadding = 16.0;
 
     return StreamBuilder<List<JobRole>>(
-      stream: _firestore.getJobs(),
+      stream: _jobsStream,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'Could not load jobs.\n${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          );
+        }
         final theme = Theme.of(context);
         final jobs = snapshot.data ?? [];
         final categories =
@@ -55,214 +80,265 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
         final highDemandCount = jobs.where((j) => j.isHighDemand).length;
         final filtered = _filterJobs(jobs);
         const displayCount = 15;
+        final listCount =
+            filtered.length < displayCount ? filtered.length : displayCount;
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            14,
-            horizontalPadding,
-            20 + bottomPadding,
+        return CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // بطاقات الملخص (3 أفقية)
-              Row(
-                children: [
-                  Expanded(
-                    child: _JobsStatCard(
-                      value: '${jobs.length}',
-                      label: 'Total Roles',
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _JobsStatCard(
-                      value: '$highDemandCount',
-                      label: 'High Demand',
-                      color: _red,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _JobsStatCard(
-                      value: '${categories.isEmpty ? 0 : categories.length}',
-                      label: 'Categories',
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                ],
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                14,
+                horizontalPadding,
+                8,
               ),
-              const SizedBox(height: 18),
-              // زر Add New Job Role — يفتح نموذج إنشاء الدور، والحفظ يتم من زر Save Job Role داخل النموذج.
-              Material(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminCreateJobRoleScreen(),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_rounded, color: Colors.white, size: 22),
-                        SizedBox(width: 8),
-                        Text(
-                          'Add New Job Role',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // مسح كل الوظائف القديمة واستبدالها بـ 15 وظيفة جديدة (يحتاج صلاحية أدمن).
-              TextButton.icon(
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('مسح الوظائف القديمة وإضافة 15 وظيفة جديدة؟'),
-                      content: const Text(
-                        'سيتم حذف كل الوظائف الحالية من قاعدة البيانات واستبدالها بـ 15 وظيفة بالهيكل الجديد (مهارات تقنية وناعمة وأدوات لكل وظيفة). لا يمكن التراجع.',
-                      ),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-                        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('نعم، مسح واستبدال')),
-                      ],
-                    ),
-                  );
-                  if (confirm != true || !context.mounted) return;
-                  try {
-                    await FirestoreService.clearAllJobsAndSeed();
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم: مسح كل الوظائف واستبدالها بـ 15 وظيفة جديدة.')),
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'فشل التحديث. تأكدي أنك مسجلة دخول كأدمن وأن حساب الأدمن فيه custom claim (admin). الخطأ: $e',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('مسح الوظائف القديمة وإضافة 15 وظيفة جديدة'),
-              ),
-              const SizedBox(height: 18),
-              // Search
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: 'Search job roles...',
-                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: Colors.grey[600],
-                      size: 22,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Category dropdown
-              PopupMenuButton<String>(
-                initialValue: _selectedCategory,
-                onSelected: (v) => setState(() => _selectedCategory = v),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'All Categories',
-                    child: Text('All Categories'),
-                  ),
-                  ...categories.map(
-                    (c) => PopupMenuItem(value: c, child: Text(c)),
-                  ),
-                ],
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Row(
                     children: [
-                      Text(
-                        _selectedCategory,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: _JobsStatCard(
+                          value: '${jobs.length}',
+                          label: 'Total Roles',
+                          color: theme.colorScheme.primary,
                         ),
                       ),
-                      const Spacer(),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: Colors.grey[700],
-                        size: 24,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _JobsStatCard(
+                          value: '$highDemandCount',
+                          label: 'High Demand',
+                          color: _red,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _JobsStatCard(
+                          value: '${categories.isEmpty ? 0 : categories.length}',
+                          label: 'Categories',
+                          color: theme.colorScheme.secondary,
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // قائمة الأدوار
-              ...filtered
-                  .take(displayCount)
-                  .map(
-                    (job) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _JobRoleCard(
-                        job: job,
-                        onEdit: () => _openEditJob(context, job),
+                  const SizedBox(height: 18),
+                  Material(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(14),
+                    elevation: 0,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const AdminCreateJobRoleScreen(),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Add New Job Role',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-              const SizedBox(height: 8),
-              // Footer
-              Center(
-                child: Text(
-                  'Showing first ${filtered.length > displayCount ? displayCount : filtered.length} of ${filtered.length} roles',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text(
+                              'Replace all jobs with 15 new roles?',
+                            ),
+                            content: const Text(
+                              'This deletes every job in the database and replaces them with 15 new roles (technical, soft skills, and tools per role). This cannot be undone.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Yes, replace'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm != true || !context.mounted) return;
+                        try {
+                          await FirestoreService.clearAllJobsAndSeed();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Done: all jobs replaced with 15 new roles.',
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Update failed. Sign in as admin and ensure the admin account has the custom claim (admin). Error: $e',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Replace all jobs with 15 new roles'),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => _scheduleSearchRebuild(),
+                      decoration: InputDecoration(
+                        hintText: 'Search job roles…',
+                        hintStyle:
+                            TextStyle(color: Colors.grey[500], fontSize: 14),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: Colors.grey[600],
+                          size: 22,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  PopupMenuButton<String>(
+                    onSelected: (v) => setState(() => _selectedCategory = v),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'All Categories',
+                        child: Text('All Categories'),
+                      ),
+                      ...categories.map(
+                        (c) => PopupMenuItem(value: c, child: Text(c)),
+                      ),
+                    ],
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            _selectedCategory,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey[700],
+                            size: 24,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ]),
+              ),
+            ),
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                jobs.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  0,
+                  horizontalPadding,
+                  8,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) {
+                      final job = filtered[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _JobRoleCard(
+                          job: job,
+                          onEdit: () => _openEditJob(context, job),
+                        ),
+                      );
+                    },
+                    childCount: listCount,
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  0,
+                  horizontalPadding,
+                  20 + bottomPadding,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: Center(
+                    child: Text(
+                      'Showing first $listCount of ${filtered.length} roles',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ),
                 ),
               ),
             ],
-          ),
+          ],
         );
       },
     );

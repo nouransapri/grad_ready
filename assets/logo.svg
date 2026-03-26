@@ -1,22 +1,21 @@
-<svg width="64" height="64"
-     viewBox="0 0 48 48"
-     xmlns="http://www.w3.org/2000/svg"
-     fill="none">
-
-  <rect x="4"  y="24" width="8" height="20" rx="2.5" fill="#60A5FA"/>
-  <rect x="14" y="16" width="8" height="28" rx="2.5" fill="#3B82F6"/>
-  <rect x="24" y="10" width="8" height="34" rx="2.5" fill="#2563EB"/>
-  <rect x="34" y="4"  width="8" height="40" rx="2.5" fill="#7C3AED"/>
-
-  <path d="M2 38 L14 26 L26 30 L42 14"
-        stroke="white"
-        stroke-width="3"
-        stroke-linecap="round"
-        stroke-linejoin="round"/>
-
-  <path d="M36 14 H42 V20"
-        stroke="white"
-        stroke-width="3"
-        stroke-linecap="round"
-        stroke-linejoin="round"/>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GradReady logo — G #61A6F9, arrow #7D3AEC, R gradient white→#DCDCDC; tight viewBox for circular frames -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg"
+     viewBox="72 138 656 448" xml:space="preserve">
+<g id="Logo_Content">
+	<radialGradient id="SVGID_Logo_Gradient" cx="480.5641" cy="389.0483" r="141.6852" gradientUnits="userSpaceOnUse">
+		<stop offset="0" stop-color="#FFFFFF"/>
+		<stop offset="1" stop-color="#DCDCDC"/>
+	</radialGradient>
+	<path fill="url(#SVGID_Logo_Gradient)" d="M594.37,371.91
+		c0-68.29-54.16-126.32-129.72-147.78l-13.13,40.36c58.45,15.88,100.37,58.01,100.37,107.42c0,28.71-14.33,50.55-26.34,63.81
+		l-17.86,19.71l16.64,41.38c0,0-75.38-15.16-75.78-15.23c-4.19-0.84-14.37-1.09-24.39-1.04c-8.44,0.06-16.74,0.34-21.26,0.69
+		c4.53-0.36,23.29-6.9,23.29-6.9l41.48-127.35l-19.02-6.2l-19.06-6.21l-62.83,192.92c15.35,1.08,30.31,0.1,45.52-1.96
+		c8.5-1.14,19.35-4.44,27.88-2.31c0.01,0.01,152.96,30.74,152.96,30.74l-36.09-89.72C580.49,438.35,594.37,406.45,594.37,371.91z"/>
+	<path fill="#61A6F9" d="M327.75,348.32l-19.04-6.2l-30.22,92.77c0.57,0.09,8.7,18.18,13.72,22.53c5.63,4.87-11.37-9.44-16.24-14.8
+		c-17.39-19.15-27.56-43.52-27.56-70.71c0-57.51,56.8-105.16,130.37-112.99l14.18-43.53c-103.93,3.06-187.03,71.93-187.03,156.52
+		c0,45.23,20.56,86.6,55.5,115.39c5.34,4.4,17.43,13.45,34.9,22.13l50.44-154.9L327.75,348.32z"/>
+	<path fill="#7D3AEC" d="M469.11,198.31l-16.49-51.23l-44.93,31.21l12.16,4.34c0,0-108.49,333.14-108.5,333.17
+		c-0.27,1.01,38.38,11.47,38.89,9.89c0.01-0.02,107.04-328.72,107.04-328.72l-12.75-9.14L469.11,198.31z"/>
+</g>
 </svg>

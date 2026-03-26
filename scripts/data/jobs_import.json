@@ -1,0 +1,1992 @@
+{
+  "jobs": [
+    {
+      "jobId": "data-analyst-001",
+      "title": "Data Analyst",
+      "category": "Data",
+      "industry": "Technology",
+      "experienceLevel": "Junior",
+      "description": "Analyze business data and build dashboards for decision making.",
+      "technicalSkills": [
+        { "name": "SQL", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Python", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Statistics", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Communication", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Problem Solving", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Power BI", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Excel", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "education": {
+        "minimumDegree": "Bachelor",
+        "preferredFields": ["Computer Science", "Statistics", "Business Analytics"]
+      },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Internship experience is a plus." },
+      "salary": { "minimum": 9000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "frontend-developer-001",
+      "title": "Frontend Developer",
+      "category": "Engineering",
+      "industry": "Software",
+      "experienceLevel": "Junior",
+      "description": "Build responsive user interfaces and integrate APIs.",
+      "technicalSkills": [
+        { "name": "JavaScript", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "React", "requiredLevel": 80, "priority": "Critical", "weight": 9 },
+        { "name": "HTML/CSS", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Teamwork", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Git", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Figma", "requiredLevel": 55, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": {
+        "minimumDegree": "Bachelor",
+        "preferredFields": ["Computer Science", "Software Engineering"]
+      },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 11000, "maximum": 20000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "digital-marketing-specialist-001",
+      "title": "Digital Marketing Specialist",
+      "category": "Marketing",
+      "industry": "Media",
+      "experienceLevel": "Junior",
+      "description": "Plan and execute digital campaigns across social and paid channels.",
+      "technicalSkills": [
+        { "name": "SEO", "requiredLevel": 75, "priority": "Critical", "weight": 8 },
+        { "name": "Content Marketing", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Email Marketing", "requiredLevel": 65, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Creativity", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Google Analytics", "requiredLevel": 70, "priority": "Critical", "weight": 8 },
+        { "name": "Meta Ads Manager", "requiredLevel": 65, "priority": "Important", "weight": 6 }
+      ],
+      "education": {
+        "minimumDegree": "Bachelor",
+        "preferredFields": ["Marketing", "Business Administration"]
+      },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Portfolio is preferred." },
+      "salary": { "minimum": 8000, "maximum": 15000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "financial-analyst-001",
+      "title": "Financial Analyst",
+      "category": "Finance",
+      "industry": "Banking",
+      "experienceLevel": "Junior",
+      "description": "Support budgeting, forecasting, and financial reporting.",
+      "technicalSkills": [
+        { "name": "Financial Modeling", "requiredLevel": 80, "priority": "Critical", "weight": 9 },
+        { "name": "Accounting Fundamentals", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Data Analysis", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Excel", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Power BI", "requiredLevel": 60, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": {
+        "minimumDegree": "Bachelor",
+        "preferredFields": ["Finance", "Accounting", "Economics"]
+      },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "ui-ux-designer-001",
+      "title": "UI/UX Designer",
+      "category": "Design",
+      "industry": "Software",
+      "experienceLevel": "Junior",
+      "description": "Design user-centered digital product experiences.",
+      "technicalSkills": [
+        { "name": "User Research", "requiredLevel": 70, "priority": "Important", "weight": 7 },
+        { "name": "Wireframing", "requiredLevel": 75, "priority": "Critical", "weight": 8 },
+        { "name": "Prototyping", "requiredLevel": 75, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Empathy", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Figma", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Adobe XD", "requiredLevel": 60, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": {
+        "minimumDegree": "Bachelor",
+        "preferredFields": ["Design", "Computer Science", "Media"]
+      },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Strong portfolio is required." },
+      "salary": { "minimum": 9000, "maximum": 17000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "backend-developer-001",
+      "title": "Backend Developer",
+      "category": "Engineering",
+      "industry": "Software",
+      "experienceLevel": "Junior",
+      "description": "Build secure APIs and backend services.",
+      "technicalSkills": [
+        { "name": "Node.js", "requiredLevel": 80, "priority": "Critical", "weight": 9 },
+        { "name": "REST APIs", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "SQL", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Problem Solving", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Collaboration", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Postman", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Git", "requiredLevel": 75, "priority": "Critical", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Software Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 12000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "mobile-developer-001",
+      "title": "Mobile Developer",
+      "category": "Engineering",
+      "industry": "Software",
+      "experienceLevel": "Junior",
+      "description": "Develop and maintain mobile apps for Android and iOS.",
+      "technicalSkills": [
+        { "name": "Flutter", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Dart", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "State Management", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Debugging", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Firebase", "requiredLevel": 75, "priority": "Critical", "weight": 8 },
+        { "name": "Git", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Published app is a plus." },
+      "salary": { "minimum": 11000, "maximum": 21000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "devops-engineer-001",
+      "title": "DevOps Engineer",
+      "category": "Engineering",
+      "industry": "Cloud",
+      "experienceLevel": "Junior",
+      "description": "Automate deployment pipelines and manage cloud infrastructure.",
+      "technicalSkills": [
+        { "name": "CI/CD", "requiredLevel": 75, "priority": "Critical", "weight": 8 },
+        { "name": "Linux", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Docker", "requiredLevel": 80, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Ownership", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Problem Solving", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "AWS", "requiredLevel": 70, "priority": "Important", "weight": 7 },
+        { "name": "Kubernetes", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Information Technology"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 14000, "maximum": 26000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "qa-engineer-001",
+      "title": "QA Engineer",
+      "category": "Engineering",
+      "industry": "Software",
+      "experienceLevel": "Junior",
+      "description": "Ensure software quality through testing and defect analysis.",
+      "technicalSkills": [
+        { "name": "Test Case Design", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "API Testing", "requiredLevel": 70, "priority": "Important", "weight": 7 },
+        { "name": "Automation Testing", "requiredLevel": 65, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Postman", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Jira", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 9000, "maximum": 17000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "cybersecurity-analyst-001",
+      "title": "Cybersecurity Analyst",
+      "category": "Security",
+      "industry": "Technology",
+      "experienceLevel": "Junior",
+      "description": "Monitor threats, manage vulnerabilities, and improve security posture.",
+      "technicalSkills": [
+        { "name": "Network Security", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "SIEM", "requiredLevel": 70, "priority": "Important", "weight": 7 },
+        { "name": "Incident Response", "requiredLevel": 75, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Critical Thinking", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Splunk", "requiredLevel": 65, "priority": "Important", "weight": 6 },
+        { "name": "Wireshark", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Cybersecurity", "Computer Science"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 13000, "maximum": 24000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "ai-ml-engineer-001",
+      "title": "AI/ML Engineer",
+      "category": "Data",
+      "industry": "Technology",
+      "experienceLevel": "Junior",
+      "description": "Develop machine learning models and deploy intelligent features.",
+      "technicalSkills": [
+        { "name": "Python", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Machine Learning", "requiredLevel": 80, "priority": "Critical", "weight": 9 },
+        { "name": "Data Preprocessing", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Analytical Thinking", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Problem Solving", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "TensorFlow", "requiredLevel": 70, "priority": "Important", "weight": 7 },
+        { "name": "Jupyter", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Data Science"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Strong projects required." },
+      "salary": { "minimum": 15000, "maximum": 28000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "data-engineer-001",
+      "title": "Data Engineer",
+      "category": "Data",
+      "industry": "Technology",
+      "experienceLevel": "Junior",
+      "description": "Build data pipelines and maintain analytics infrastructure.",
+      "technicalSkills": [
+        { "name": "SQL", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "ETL", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Data Warehousing", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Problem Solving", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Airflow", "requiredLevel": 65, "priority": "Important", "weight": 6 },
+        { "name": "BigQuery", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Information Systems"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 14000, "maximum": 25000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "product-manager-001",
+      "title": "Product Manager",
+      "category": "Product",
+      "industry": "Technology",
+      "experienceLevel": "Mid-Level",
+      "description": "Define product roadmap and align cross-functional teams.",
+      "technicalSkills": [
+        { "name": "Product Strategy", "requiredLevel": 80, "priority": "Critical", "weight": 9 },
+        { "name": "Requirement Gathering", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Data Analysis", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Jira", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Notion", "requiredLevel": 70, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Engineering"] },
+      "experience": { "minYears": 2, "maxYears": 5, "notes": "" },
+      "salary": { "minimum": 18000, "maximum": 32000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "project-manager-001",
+      "title": "Project Manager",
+      "category": "Management",
+      "industry": "Cross-Industry",
+      "experienceLevel": "Mid-Level",
+      "description": "Plan project scope, timeline, and execution delivery.",
+      "technicalSkills": [
+        { "name": "Project Planning", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Risk Management", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Budget Management", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Negotiation", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Microsoft Project", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Trello", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business Administration", "Engineering"] },
+      "experience": { "minYears": 2, "maxYears": 5, "notes": "" },
+      "salary": { "minimum": 17000, "maximum": 30000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "hr-specialist-001",
+      "title": "HR Specialist",
+      "category": "Human Resources",
+      "industry": "Corporate",
+      "experienceLevel": "Junior",
+      "description": "Support recruitment, onboarding, and employee experience.",
+      "technicalSkills": [
+        { "name": "Recruitment", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Interviewing", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "HR Policies", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Empathy", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "LinkedIn Recruiter", "requiredLevel": 65, "priority": "Important", "weight": 6 },
+        { "name": "Excel", "requiredLevel": 60, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["HR", "Business Administration"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 8000, "maximum": 15000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "business-analyst-001",
+      "title": "Business Analyst",
+      "category": "Business",
+      "industry": "Corporate",
+      "experienceLevel": "Junior",
+      "description": "Bridge business requirements with technical solutions.",
+      "technicalSkills": [
+        { "name": "Requirement Analysis", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Process Mapping", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Data Analysis", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Critical Thinking", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Excel", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Power BI", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Information Systems"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "accountant-001",
+      "title": "Accountant",
+      "category": "Finance",
+      "industry": "Corporate",
+      "experienceLevel": "Junior",
+      "description": "Prepare financial records and ensure accounting compliance.",
+      "technicalSkills": [
+        { "name": "Bookkeeping", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Financial Reporting", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Tax Basics", "requiredLevel": 65, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Integrity", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Excel", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "ERP Systems", "requiredLevel": 65, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Accounting", "Finance"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 8500, "maximum": 15500, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "sales-executive-001",
+      "title": "Sales Executive",
+      "category": "Sales",
+      "industry": "Cross-Industry",
+      "experienceLevel": "Junior",
+      "description": "Drive customer acquisition and revenue growth.",
+      "technicalSkills": [
+        { "name": "Lead Qualification", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Sales Pipeline", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Negotiation", "requiredLevel": 80, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Persuasion", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "CRM", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Excel", "requiredLevel": 60, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Marketing"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 7000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "customer-success-specialist-001",
+      "title": "Customer Success Specialist",
+      "category": "Customer Success",
+      "industry": "SaaS",
+      "experienceLevel": "Junior",
+      "description": "Help customers achieve outcomes and improve retention.",
+      "technicalSkills": [
+        { "name": "Customer Onboarding", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Product Knowledge", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Issue Resolution", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Empathy", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Zendesk", "requiredLevel": 65, "priority": "Important", "weight": 6 },
+        { "name": "CRM", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Communications"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 8500, "maximum": 16500, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "content-writer-001",
+      "title": "Content Writer",
+      "category": "Marketing",
+      "industry": "Media",
+      "experienceLevel": "Junior",
+      "description": "Create high-quality content for digital channels.",
+      "technicalSkills": [
+        { "name": "Copywriting", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "SEO Writing", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Content Strategy", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Creativity", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Research", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Google Docs", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Grammarly", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Media", "Marketing", "Literature"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Portfolio required." },
+      "salary": { "minimum": 7000, "maximum": 14000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "graphic-designer-001",
+      "title": "Graphic Designer",
+      "category": "Design",
+      "industry": "Creative",
+      "experienceLevel": "Junior",
+      "description": "Design visual assets for brand and marketing campaigns.",
+      "technicalSkills": [
+        { "name": "Visual Design", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Branding", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Typography", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Creativity", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Attention to Detail", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Adobe Photoshop", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Adobe Illustrator", "requiredLevel": 80, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Design", "Arts"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Portfolio required." },
+      "salary": { "minimum": 8000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "operations-specialist-001",
+      "title": "Operations Specialist",
+      "category": "Operations",
+      "industry": "Cross-Industry",
+      "experienceLevel": "Junior",
+      "description": "Improve operational processes and service delivery.",
+      "technicalSkills": [
+        { "name": "Process Optimization", "requiredLevel": 75, "priority": "Critical", "weight": 8 },
+        { "name": "Reporting", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "KPI Tracking", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Organization", "requiredLevel": 80, "priority": "Critical", "weight": 7 },
+        { "name": "Problem Solving", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Excel", "requiredLevel": 80, "priority": "Critical", "weight": 7 },
+        { "name": "Power BI", "requiredLevel": 60, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 9000, "maximum": 17000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "supply-chain-analyst-001",
+      "title": "Supply Chain Analyst",
+      "category": "Operations",
+      "industry": "Logistics",
+      "experienceLevel": "Junior",
+      "description": "Analyze and optimize end-to-end supply chain performance.",
+      "technicalSkills": [
+        { "name": "Supply Chain Planning", "requiredLevel": 75, "priority": "Critical", "weight": 8 },
+        { "name": "Demand Forecasting", "requiredLevel": 70, "priority": "Important", "weight": 7 },
+        { "name": "Inventory Analysis", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Analytical Thinking", "requiredLevel": 80, "priority": "Critical", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Excel", "requiredLevel": 80, "priority": "Critical", "weight": 7 },
+        { "name": "ERP Systems", "requiredLevel": 65, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Logistics", "Business", "Industrial Engineering"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 18500, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "cloud-engineer-001",
+      "title": "Cloud Engineer",
+      "category": "Engineering",
+      "industry": "Cloud",
+      "experienceLevel": "Mid-Level",
+      "description": "Design and maintain cloud-native infrastructure.",
+      "technicalSkills": [
+        { "name": "Cloud Architecture", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Infrastructure as Code", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Networking", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Problem Solving", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Ownership", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "AWS", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Terraform", "requiredLevel": 70, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Computer Science", "Information Technology"] },
+      "experience": { "minYears": 2, "maxYears": 5, "notes": "" },
+      "salary": { "minimum": 18000, "maximum": 32000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "seo-specialist-001",
+      "title": "SEO Specialist",
+      "category": "Marketing",
+      "industry": "Media",
+      "experienceLevel": "Junior",
+      "description": "Improve website ranking and organic growth.",
+      "technicalSkills": [
+        { "name": "SEO", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Keyword Research", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Technical SEO", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Research", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Analytical Thinking", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Google Search Console", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "SEMrush", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Marketing", "Media", "Business"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 9000, "maximum": 17000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "social-media-manager-001",
+      "title": "Social Media Manager",
+      "category": "Marketing",
+      "industry": "Media",
+      "experienceLevel": "Junior",
+      "description": "Plan social strategy and grow engagement across platforms.",
+      "technicalSkills": [
+        { "name": "Social Media Strategy", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Campaign Management", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Content Planning", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Creativity", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 80, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Meta Ads Manager", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Canva", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Marketing", "Media"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Portfolio is preferred." },
+      "salary": { "minimum": 8500, "maximum": 16500, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "general-practitioner-doctor-001",
+      "title": "General Practitioner Doctor",
+      "category": "Healthcare",
+      "industry": "Medical",
+      "experienceLevel": "Junior",
+      "description": "Provide primary care, diagnosis, and treatment plans for patients.",
+      "technicalSkills": [
+        { "name": "Clinical Assessment", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Diagnosis", "requiredLevel": 88, "priority": "Critical", "weight": 10 },
+        { "name": "Patient Management", "requiredLevel": 85, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Empathy", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Communication", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Electronic Medical Records", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Medical Guidelines", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Medicine"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "Valid medical license required." },
+      "salary": { "minimum": 18000, "maximum": 35000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "registered-nurse-001",
+      "title": "Registered Nurse",
+      "category": "Healthcare",
+      "industry": "Medical",
+      "experienceLevel": "Junior",
+      "description": "Deliver nursing care, monitor patients, and support medical teams.",
+      "technicalSkills": [
+        { "name": "Patient Monitoring", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Medication Administration", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Clinical Documentation", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Compassion", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Teamwork", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Hospital Information System", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Vital Signs Equipment", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Nursing"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Nursing license required." },
+      "salary": { "minimum": 9000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "clinical-pharmacist-001",
+      "title": "Clinical Pharmacist",
+      "category": "Healthcare",
+      "industry": "Pharmaceutical",
+      "experienceLevel": "Junior",
+      "description": "Review prescriptions, counsel patients, and ensure safe medication use.",
+      "technicalSkills": [
+        { "name": "Pharmacology", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Prescription Review", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Drug Interaction Analysis", "requiredLevel": 85, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Patient Communication", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Pharmacy Management System", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Drug Databases", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Pharmacy"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "Professional license required." },
+      "salary": { "minimum": 12000, "maximum": 23000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "analytical-chemist-001",
+      "title": "Analytical Chemist",
+      "category": "Science",
+      "industry": "Laboratory",
+      "experienceLevel": "Junior",
+      "description": "Perform chemical analysis and maintain laboratory quality standards.",
+      "technicalSkills": [
+        { "name": "Analytical Chemistry", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Laboratory Techniques", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Quality Control", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Documentation", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "HPLC", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "GC-MS", "requiredLevel": 70, "priority": "Nice-to-have", "weight": 5 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Chemistry", "Pharmaceutical Sciences"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 19000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "tour-guide-001",
+      "title": "Tour Guide",
+      "category": "Tourism",
+      "industry": "Hospitality",
+      "experienceLevel": "Junior",
+      "description": "Lead tourists, explain historical sites, and deliver cultural experiences.",
+      "technicalSkills": [
+        { "name": "Tour Planning", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Cultural Knowledge", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Safety Procedures", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "softSkills": [
+        { "name": "Public Speaking", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Customer Service", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Maps and Navigation", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Tour Booking Systems", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Tourism", "History", "Languages"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "Tour guide license may be required." },
+      "salary": { "minimum": 7000, "maximum": 15000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "professional-translator-001",
+      "title": "Professional Translator",
+      "category": "Languages",
+      "industry": "Media",
+      "experienceLevel": "Junior",
+      "description": "Translate written content accurately while preserving meaning and tone.",
+      "technicalSkills": [
+        { "name": "Written Translation", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Terminology Management", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Proofreading", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Language Accuracy", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Time Management", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "CAT Tools", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Glossary Tools", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Translation", "Linguistics", "Languages"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Portfolio of translated work is preferred." },
+      "salary": { "minimum": 8000, "maximum": 17000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "medical-lab-specialist-001",
+      "title": "Medical Lab Specialist",
+      "category": "Healthcare",
+      "industry": "Laboratory",
+      "experienceLevel": "Junior",
+      "description": "Conduct laboratory testing and produce accurate diagnostic reports.",
+      "technicalSkills": [
+        { "name": "Specimen Analysis", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Lab Quality Assurance", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Microbiology Basics", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Documentation", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Laboratory Information System", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Diagnostic Analyzers", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Medical Laboratory Science", "Biology"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 9000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "dentist-001",
+      "title": "Dentist",
+      "category": "Healthcare",
+      "industry": "Dental",
+      "experienceLevel": "Junior",
+      "description": "Diagnose oral diseases and provide preventive and restorative treatments.",
+      "technicalSkills": [
+        { "name": "Oral Diagnosis", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Dental Procedures", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Infection Control", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Patient Communication", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Precision", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Dental Imaging Systems", "requiredLevel": 75, "priority": "Important", "weight": 7 },
+        { "name": "Dental Instruments", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Dentistry"] },
+      "experience": { "minYears": 1, "maxYears": 4, "notes": "Valid dental license required." },
+      "salary": { "minimum": 16000, "maximum": 32000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "physiotherapist-001",
+      "title": "Physiotherapist",
+      "category": "Healthcare",
+      "industry": "Rehabilitation",
+      "experienceLevel": "Junior",
+      "description": "Assess movement issues and deliver rehabilitation programs.",
+      "technicalSkills": [
+        { "name": "Physical Assessment", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Rehabilitation Planning", "requiredLevel": 82, "priority": "Critical", "weight": 8 },
+        { "name": "Therapeutic Exercises", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Motivation Skills", "requiredLevel": 82, "priority": "Important", "weight": 7 },
+        { "name": "Empathy", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Rehab Equipment", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Patient Tracking System", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Physical Therapy"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Professional license required." },
+      "salary": { "minimum": 10000, "maximum": 20000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "veterinarian-001",
+      "title": "Veterinarian",
+      "category": "Healthcare",
+      "industry": "Veterinary",
+      "experienceLevel": "Junior",
+      "description": "Diagnose and treat animal diseases and provide preventive care.",
+      "technicalSkills": [
+        { "name": "Animal Diagnosis", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Veterinary Procedures", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Preventive Care", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Compassion", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Veterinary Imaging Tools", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Medical Records", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Veterinary Medicine"] },
+      "experience": { "minYears": 1, "maxYears": 3, "notes": "Veterinary license required." },
+      "salary": { "minimum": 12000, "maximum": 24000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "biotechnology-specialist-001",
+      "title": "Biotechnology Specialist",
+      "category": "Science",
+      "industry": "Biotech",
+      "experienceLevel": "Junior",
+      "description": "Support biotech research, laboratory workflows, and product development.",
+      "technicalSkills": [
+        { "name": "Molecular Biology", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Lab Experiment Design", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Data Interpretation", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Research Skills", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Documentation", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "PCR Systems", "requiredLevel": 72, "priority": "Important", "weight": 6 },
+        { "name": "Laboratory Information System", "requiredLevel": 68, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Biotechnology", "Biology", "Biochemistry"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 11000, "maximum": 21000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "corporate-lawyer-001",
+      "title": "Corporate Lawyer",
+      "category": "Law",
+      "industry": "Legal Services",
+      "experienceLevel": "Mid-Level",
+      "description": "Advise on corporate transactions, contracts, and regulatory compliance.",
+      "technicalSkills": [
+        { "name": "Contract Law", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Corporate Governance", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Legal Research", "requiredLevel": 88, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Negotiation", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Analytical Thinking", "requiredLevel": 90, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "Legal Databases", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Document Management", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Law"] },
+      "experience": { "minYears": 2, "maxYears": 6, "notes": "Bar license required where applicable." },
+      "salary": { "minimum": 20000, "maximum": 45000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "legal-advisor-001",
+      "title": "Legal Advisor",
+      "category": "Law",
+      "industry": "Corporate",
+      "experienceLevel": "Junior",
+      "description": "Provide internal legal guidance and support business decisions.",
+      "technicalSkills": [
+        { "name": "Regulatory Compliance", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Risk Assessment", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Policy Drafting", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Communication", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Ethics", "requiredLevel": 90, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "Case Management Software", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Microsoft Word", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Law", "Legal Studies"] },
+      "experience": { "minYears": 1, "maxYears": 4, "notes": "" },
+      "salary": { "minimum": 12000, "maximum": 25000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "paralegal-001",
+      "title": "Paralegal",
+      "category": "Law",
+      "industry": "Legal Services",
+      "experienceLevel": "Junior",
+      "description": "Support attorneys with filings, research, and case documentation.",
+      "technicalSkills": [
+        { "name": "Legal Documentation", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Case Preparation", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Legal Research", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Organization", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "E-Filing Systems", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Microsoft Office", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Law", "Paralegal Studies"] },
+      "experience": { "minYears": 0, "maxYears": 2, "notes": "" },
+      "salary": { "minimum": 7000, "maximum": 14000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "compliance-officer-001",
+      "title": "Compliance Officer",
+      "category": "Law",
+      "industry": "Corporate",
+      "experienceLevel": "Mid-Level",
+      "description": "Ensure organizational adherence to laws, policies, and industry standards.",
+      "technicalSkills": [
+        { "name": "Regulatory Frameworks", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Audit Procedures", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Risk Management", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Integrity", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Communication", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "GRC Software", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Excel", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Law", "Business", "Finance"] },
+      "experience": { "minYears": 2, "maxYears": 5, "notes": "" },
+      "salary": { "minimum": 14000, "maximum": 28000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "intellectual-property-lawyer-001",
+      "title": "Intellectual Property Lawyer",
+      "category": "Law",
+      "industry": "Legal Services",
+      "experienceLevel": "Mid-Level",
+      "description": "Protect patents, trademarks, and copyrights for clients.",
+      "technicalSkills": [
+        { "name": "IP Law", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Patent Analysis", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Licensing Agreements", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Persuasion", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Analytical Thinking", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "IP Databases", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Document Review Tools", "requiredLevel": 72, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Law", "Engineering"] },
+      "experience": { "minYears": 3, "maxYears": 8, "notes": "" },
+      "salary": { "minimum": 22000, "maximum": 48000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "primary-school-teacher-001",
+      "title": "Primary School Teacher",
+      "category": "Education",
+      "industry": "Schools",
+      "experienceLevel": "Junior",
+      "description": "Teach foundational subjects and support child development in primary grades.",
+      "technicalSkills": [
+        { "name": "Lesson Planning", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Classroom Management", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Student Assessment", "requiredLevel": 82, "priority": "Important", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Patience", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Communication", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Learning Management System", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Interactive Whiteboard", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Education", "Primary Education"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Teaching license may be required." },
+      "salary": { "minimum": 6000, "maximum": 12000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "university-lecturer-001",
+      "title": "University Lecturer",
+      "category": "Education",
+      "industry": "Higher Education",
+      "experienceLevel": "Mid-Level",
+      "description": "Deliver lectures, supervise students, and contribute to academic programs.",
+      "technicalSkills": [
+        { "name": "Subject Expertise", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Academic Research", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Curriculum Design", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Public Speaking", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Mentorship", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Lecture Recording Tools", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Reference Managers", "requiredLevel": 72, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Master", "preferredFields": ["Relevant Academic Discipline"] },
+      "experience": { "minYears": 2, "maxYears": 8, "notes": "PhD preferred in many institutions." },
+      "salary": { "minimum": 12000, "maximum": 28000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "curriculum-developer-001",
+      "title": "Curriculum Developer",
+      "category": "Education",
+      "industry": "EdTech",
+      "experienceLevel": "Mid-Level",
+      "description": "Design learning outcomes, syllabi, and instructional materials.",
+      "technicalSkills": [
+        { "name": "Instructional Design", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Learning Objectives Mapping", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Assessment Design", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Collaboration", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Creativity", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Authoring Tools", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "LMS Platforms", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Education", "Instructional Design"] },
+      "experience": { "minYears": 2, "maxYears": 6, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "esl-teacher-001",
+      "title": "ESL Teacher",
+      "category": "Education",
+      "industry": "Language Schools",
+      "experienceLevel": "Junior",
+      "description": "Teach English as a second language to diverse learner groups.",
+      "technicalSkills": [
+        { "name": "ESL Methodology", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Grammar Instruction", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Pronunciation Coaching", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Cultural Sensitivity", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Patience", "requiredLevel": 90, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "Language Learning Apps", "requiredLevel": 70, "priority": "Important", "weight": 6 },
+        { "name": "Video Conferencing", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["English", "Linguistics", "TESOL"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "CELTA/TEFL certification is a plus." },
+      "salary": { "minimum": 7000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "journalist-001",
+      "title": "Journalist",
+      "category": "Media",
+      "industry": "News",
+      "experienceLevel": "Junior",
+      "description": "Research stories, conduct interviews, and publish accurate news content.",
+      "technicalSkills": [
+        { "name": "Investigative Reporting", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Fact Checking", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "News Writing", "requiredLevel": 88, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Ethics", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Communication", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "CMS Publishing", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Social Media", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Journalism", "Media", "Communications"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Portfolio of clips preferred." },
+      "salary": { "minimum": 7000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "video-editor-001",
+      "title": "Video Editor",
+      "category": "Media",
+      "industry": "Production",
+      "experienceLevel": "Junior",
+      "description": "Edit footage, color grade, and deliver polished video for broadcast or online.",
+      "technicalSkills": [
+        { "name": "Non-linear Editing", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Storytelling Through Edit", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Color Grading", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Creativity", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Time Management", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Adobe Premiere Pro", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "DaVinci Resolve", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Film", "Media", "Communications"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Showreel required." },
+      "salary": { "minimum": 8000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "professional-photographer-001",
+      "title": "Professional Photographer",
+      "category": "Media",
+      "industry": "Creative",
+      "experienceLevel": "Junior",
+      "description": "Capture high-quality images for events, brands, or editorial use.",
+      "technicalSkills": [
+        { "name": "Composition", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Lighting", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Post-Processing", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Creativity", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Client Communication", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Adobe Lightroom", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Adobe Photoshop", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Photography", "Fine Arts", "Media"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Portfolio required." },
+      "salary": { "minimum": 6000, "maximum": 20000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "broadcast-producer-001",
+      "title": "Broadcast Producer",
+      "category": "Media",
+      "industry": "Television",
+      "experienceLevel": "Mid-Level",
+      "description": "Coordinate production schedules, crews, and on-air content delivery.",
+      "technicalSkills": [
+        { "name": "Production Planning", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Live Broadcast Operations", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Script Coordination", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Stress Management", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Broadcast Automation", "requiredLevel": 72, "priority": "Important", "weight": 6 },
+        { "name": "Project Management Tools", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Media", "Communications", "Film"] },
+      "experience": { "minYears": 3, "maxYears": 8, "notes": "" },
+      "salary": { "minimum": 14000, "maximum": 30000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "architect-001",
+      "title": "Architect",
+      "category": "Architecture",
+      "industry": "Construction",
+      "experienceLevel": "Mid-Level",
+      "description": "Design buildings and oversee compliance with codes and sustainability goals.",
+      "technicalSkills": [
+        { "name": "Architectural Design", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Building Codes", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Structural Coordination", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Visualization", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Client Presentation", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "AutoCAD", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Revit", "requiredLevel": 82, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Architecture"] },
+      "experience": { "minYears": 2, "maxYears": 6, "notes": "Professional license may be required." },
+      "salary": { "minimum": 15000, "maximum": 35000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "interior-designer-001",
+      "title": "Interior Designer",
+      "category": "Architecture",
+      "industry": "Design",
+      "experienceLevel": "Junior",
+      "description": "Plan interior layouts, materials, and aesthetics for residential or commercial spaces.",
+      "technicalSkills": [
+        { "name": "Space Planning", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Material Selection", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Lighting Design", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Aesthetics Sense", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Client Collaboration", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "SketchUp", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "AutoCAD", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Interior Design", "Architecture"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Portfolio required." },
+      "salary": { "minimum": 9000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "urban-planner-001",
+      "title": "Urban Planner",
+      "category": "Architecture",
+      "industry": "Public Sector",
+      "experienceLevel": "Mid-Level",
+      "description": "Plan land use, transportation, and sustainable urban development.",
+      "technicalSkills": [
+        { "name": "Urban Policy", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "GIS Analysis", "requiredLevel": 82, "priority": "Critical", "weight": 8 },
+        { "name": "Stakeholder Engagement", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Systems Thinking", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "ArcGIS", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "CAD Tools", "requiredLevel": 72, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Urban Planning", "Architecture", "Geography"] },
+      "experience": { "minYears": 2, "maxYears": 6, "notes": "" },
+      "salary": { "minimum": 12000, "maximum": 26000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "bim-specialist-001",
+      "title": "BIM Specialist",
+      "category": "Architecture",
+      "industry": "Construction",
+      "experienceLevel": "Mid-Level",
+      "description": "Develop and maintain building information models for multidisciplinary teams.",
+      "technicalSkills": [
+        { "name": "BIM Modeling", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Clash Detection", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Model Coordination", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Collaboration", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Attention to Detail", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Revit", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Navisworks", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Architecture", "Civil Engineering", "MEP"] },
+      "experience": { "minYears": 2, "maxYears": 6, "notes": "" },
+      "salary": { "minimum": 14000, "maximum": 28000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "agronomist-001",
+      "title": "Agronomist",
+      "category": "Agriculture",
+      "industry": "Farming",
+      "experienceLevel": "Junior",
+      "description": "Optimize crop yields through soil science, nutrition, and pest management.",
+      "technicalSkills": [
+        { "name": "Crop Science", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Soil Analysis", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Integrated Pest Management", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Field Observation", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Problem Solving", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Soil Testing Kits", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Farm Management Software", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Agriculture", "Agronomy", "Plant Science"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 8000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "farm-manager-001",
+      "title": "Farm Manager",
+      "category": "Agriculture",
+      "industry": "Farming",
+      "experienceLevel": "Mid-Level",
+      "description": "Oversee daily farm operations, labor, equipment, and production targets.",
+      "technicalSkills": [
+        { "name": "Agricultural Operations", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Resource Planning", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Yield Optimization", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Decision Making", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Irrigation Systems", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Fleet and Equipment Tracking", "requiredLevel": 70, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Agriculture", "Agribusiness"] },
+      "experience": { "minYears": 3, "maxYears": 8, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "food-safety-officer-001",
+      "title": "Food Safety Officer",
+      "category": "Agriculture",
+      "industry": "Food Industry",
+      "experienceLevel": "Junior",
+      "description": "Ensure food processing meets hygiene standards and regulatory requirements.",
+      "technicalSkills": [
+        { "name": "HACCP", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Food Microbiology Basics", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Audit Inspection", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Communication", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "Temperature Monitoring Systems", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Quality Documentation", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Food Science", "Microbiology", "Nutrition"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 8000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "irrigation-engineer-001",
+      "title": "Irrigation Engineer",
+      "category": "Agriculture",
+      "industry": "Water Resources",
+      "experienceLevel": "Mid-Level",
+      "description": "Design and optimize irrigation systems for farms and large-scale agriculture.",
+      "technicalSkills": [
+        { "name": "Hydraulics", "requiredLevel": 85, "priority": "Critical", "weight": 9 },
+        { "name": "Irrigation System Design", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Water Efficiency", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Problem Solving", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Project Coordination", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "CAD", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Hydraulic Simulation Tools", "requiredLevel": 72, "priority": "Nice-to-have", "weight": 5 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Agricultural Engineering", "Civil Engineering"] },
+      "experience": { "minYears": 2, "maxYears": 6, "notes": "" },
+      "salary": { "minimum": 11000, "maximum": 23000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "commercial-pilot-001",
+      "title": "Commercial Pilot",
+      "category": "Aviation",
+      "industry": "Airlines",
+      "experienceLevel": "Mid-Level",
+      "description": "Operate aircraft safely on scheduled routes according to aviation regulations.",
+      "technicalSkills": [
+        { "name": "Flight Operations", "requiredLevel": 95, "priority": "Critical", "weight": 10 },
+        { "name": "Navigation", "requiredLevel": 92, "priority": "Critical", "weight": 10 },
+        { "name": "Emergency Procedures", "requiredLevel": 95, "priority": "Critical", "weight": 10 }
+      ],
+      "softSkills": [
+        { "name": "Situational Awareness", "requiredLevel": 95, "priority": "Critical", "weight": 10 },
+        { "name": "Decision Making Under Pressure", "requiredLevel": 95, "priority": "Critical", "weight": 10 }
+      ],
+      "tools": [
+        { "name": "Flight Management System", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Aviation Weather Tools", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Aviation", "Aerospace"] },
+      "experience": { "minYears": 3, "maxYears": 10, "notes": "ATPL and medical certification required." },
+      "salary": { "minimum": 25000, "maximum": 60000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "flight-attendant-001",
+      "title": "Flight Attendant",
+      "category": "Aviation",
+      "industry": "Airlines",
+      "experienceLevel": "Junior",
+      "description": "Ensure passenger safety, comfort, and service quality during flights.",
+      "technicalSkills": [
+        { "name": "Safety Demonstrations", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Emergency Response", "requiredLevel": 92, "priority": "Critical", "weight": 10 },
+        { "name": "Cabin Procedures", "requiredLevel": 88, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Customer Service", "requiredLevel": 92, "priority": "Critical", "weight": 9 },
+        { "name": "Calm Under Pressure", "requiredLevel": 90, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "In-flight Service Systems", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Safety Equipment", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Hospitality", "Tourism", "Languages"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Airline training certification required." },
+      "salary": { "minimum": 9000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "aircraft-maintenance-engineer-001",
+      "title": "Aircraft Maintenance Engineer",
+      "category": "Aviation",
+      "industry": "MRO",
+      "experienceLevel": "Mid-Level",
+      "description": "Inspect, troubleshoot, and repair aircraft systems to maintain airworthiness.",
+      "technicalSkills": [
+        { "name": "Airframe Systems", "requiredLevel": 90, "priority": "Critical", "weight": 10 },
+        { "name": "Avionics Basics", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Maintenance Documentation", "requiredLevel": 85, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Attention to Detail", "requiredLevel": 95, "priority": "Critical", "weight": 10 },
+        { "name": "Safety Mindset", "requiredLevel": 95, "priority": "Critical", "weight": 10 }
+      ],
+      "tools": [
+        { "name": "Maintenance Manuals", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Diagnostic Tools", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Aerospace Engineering", "Mechanical Engineering"] },
+      "experience": { "minYears": 2, "maxYears": 8, "notes": "Licensed aircraft maintenance certification required." },
+      "salary": { "minimum": 16000, "maximum": 32000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "air-traffic-controller-001",
+      "title": "Air Traffic Controller",
+      "category": "Aviation",
+      "industry": "Aviation Authority",
+      "experienceLevel": "Mid-Level",
+      "description": "Manage aircraft separation and flow in controlled airspace and airports.",
+      "technicalSkills": [
+        { "name": "Radar Operations", "requiredLevel": 92, "priority": "Critical", "weight": 10 },
+        { "name": "ATC Procedures", "requiredLevel": 95, "priority": "Critical", "weight": 10 },
+        { "name": "Radio Communication", "requiredLevel": 92, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Multitasking", "requiredLevel": 95, "priority": "Critical", "weight": 10 },
+        { "name": "Calm Under Pressure", "requiredLevel": 95, "priority": "Critical", "weight": 10 }
+      ],
+      "tools": [
+        { "name": "ATC Systems", "requiredLevel": 92, "priority": "Critical", "weight": 9 },
+        { "name": "Weather Displays", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Aviation", "Engineering"] },
+      "experience": { "minYears": 2, "maxYears": 8, "notes": "National ATC certification required." },
+      "salary": { "minimum": 20000, "maximum": 45000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "civil-engineer-001",
+      "title": "Civil Engineer",
+      "category": "Engineering",
+      "industry": "Construction",
+      "experienceLevel": "Junior",
+      "description": "Design and supervise infrastructure projects such as roads, bridges, and buildings.",
+      "technicalSkills": [
+        { "name": "Structural Analysis", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Geotechnical Basics", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Project Specifications", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Problem Solving", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Teamwork", "requiredLevel": 82, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "AutoCAD Civil 3D", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "STAAD Pro", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Civil Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "Professional engineer license is a plus." },
+      "salary": { "minimum": 10000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "electrical-engineer-001",
+      "title": "Electrical Engineer",
+      "category": "Engineering",
+      "industry": "Industrial",
+      "experienceLevel": "Junior",
+      "description": "Design electrical systems, power distribution, and control circuits.",
+      "technicalSkills": [
+        { "name": "Circuit Design", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Power Systems", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Control Systems", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Analytical Thinking", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Safety Awareness", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "MATLAB", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "ETAP", "requiredLevel": 72, "priority": "Nice-to-have", "weight": 5 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Electrical Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 11000, "maximum": 24000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "mechanical-engineer-001",
+      "title": "Mechanical Engineer",
+      "category": "Engineering",
+      "industry": "Manufacturing",
+      "experienceLevel": "Junior",
+      "description": "Design mechanical systems, perform analysis, and support manufacturing quality.",
+      "technicalSkills": [
+        { "name": "Thermodynamics", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "CAD Modeling", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Manufacturing Processes", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Problem Solving", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Collaboration", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "SolidWorks", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "ANSYS", "requiredLevel": 75, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Mechanical Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 11000, "maximum": 23000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "clinical-psychologist-001",
+      "title": "Clinical Psychologist",
+      "category": "Healthcare",
+      "industry": "Mental Health",
+      "experienceLevel": "Mid-Level",
+      "description": "Assess and treat mental health conditions using evidence-based therapies.",
+      "technicalSkills": [
+        { "name": "Psychological Assessment", "requiredLevel": 92, "priority": "Critical", "weight": 10 },
+        { "name": "Cognitive Behavioral Therapy", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Case Formulation", "requiredLevel": 90, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Empathy", "requiredLevel": 95, "priority": "Critical", "weight": 10 },
+        { "name": "Active Listening", "requiredLevel": 92, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "Clinical Notes Systems", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Assessment Tools", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Master", "preferredFields": ["Psychology", "Clinical Psychology"] },
+      "experience": { "minYears": 2, "maxYears": 8, "notes": "Licensed practice required." },
+      "salary": { "minimum": 14000, "maximum": 30000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "social-worker-001",
+      "title": "Social Worker",
+      "category": "Social Services",
+      "industry": "NGO",
+      "experienceLevel": "Junior",
+      "description": "Support vulnerable individuals and families with case management and referrals.",
+      "technicalSkills": [
+        { "name": "Case Management", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Needs Assessment", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Community Resources", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Empathy", "requiredLevel": 92, "priority": "Critical", "weight": 9 },
+        { "name": "Conflict De-escalation", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Case Management Software", "requiredLevel": 72, "priority": "Important", "weight": 6 },
+        { "name": "Microsoft Office", "requiredLevel": 78, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Social Work", "Sociology"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 7000, "maximum": 14000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "librarian-001",
+      "title": "Librarian",
+      "category": "Education",
+      "industry": "Libraries",
+      "experienceLevel": "Junior",
+      "description": "Organize collections, support research, and manage information services.",
+      "technicalSkills": [
+        { "name": "Information Organization", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Cataloging", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Research Assistance", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Patience", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Library Management System", "requiredLevel": 80, "priority": "Critical", "weight": 8 },
+        { "name": "Digital Archives", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Library Science", "Information Science"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 6000, "maximum": 12000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "museum-curator-001",
+      "title": "Museum Curator",
+      "category": "Culture",
+      "industry": "Museums",
+      "experienceLevel": "Mid-Level",
+      "description": "Develop exhibitions, manage collections, and interpret cultural heritage.",
+      "technicalSkills": [
+        { "name": "Collection Management", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Exhibition Design", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Conservation Awareness", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Storytelling", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Research", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Collection Databases", "requiredLevel": 78, "priority": "Important", "weight": 7 },
+        { "name": "3D Scanning Tools", "requiredLevel": 65, "priority": "Nice-to-have", "weight": 4 }
+      ],
+      "education": { "minimumDegree": "Master", "preferredFields": ["History", "Archaeology", "Museum Studies"] },
+      "experience": { "minYears": 3, "maxYears": 10, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "executive-chef-001",
+      "title": "Executive Chef",
+      "category": "Hospitality",
+      "industry": "Restaurants",
+      "experienceLevel": "Mid-Level",
+      "description": "Lead kitchen operations, menu development, and food quality standards.",
+      "technicalSkills": [
+        { "name": "Culinary Techniques", "requiredLevel": 92, "priority": "Critical", "weight": 10 },
+        { "name": "Menu Engineering", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Food Cost Control", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Stress Management", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Kitchen Equipment", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Inventory Systems", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Culinary Arts", "Hospitality"] },
+      "experience": { "minYears": 5, "maxYears": 15, "notes": "" },
+      "salary": { "minimum": 15000, "maximum": 35000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "hotel-manager-001",
+      "title": "Hotel Manager",
+      "category": "Hospitality",
+      "industry": "Hotels",
+      "experienceLevel": "Mid-Level",
+      "description": "Oversee hotel operations, guest experience, and revenue performance.",
+      "technicalSkills": [
+        { "name": "Hospitality Operations", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Revenue Management Basics", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Quality Standards", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Guest Relations", "requiredLevel": 92, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "PMS Hotel Software", "requiredLevel": 82, "priority": "Critical", "weight": 8 },
+        { "name": "CRM", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Hospitality Management", "Tourism"] },
+      "experience": { "minYears": 4, "maxYears": 12, "notes": "" },
+      "salary": { "minimum": 14000, "maximum": 32000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "real-estate-agent-001",
+      "title": "Real Estate Agent",
+      "category": "Real Estate",
+      "industry": "Property",
+      "experienceLevel": "Junior",
+      "description": "Represent buyers and sellers, negotiate deals, and manage property listings.",
+      "technicalSkills": [
+        { "name": "Property Valuation Basics", "requiredLevel": 82, "priority": "Important", "weight": 8 },
+        { "name": "Sales Closing", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Market Analysis", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Negotiation", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Networking", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "MLS Platforms", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "CRM", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Real Estate"] },
+      "experience": { "minYears": 0, "maxYears": 4, "notes": "Broker license may be required." },
+      "salary": { "minimum": 8000, "maximum": 25000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "insurance-underwriter-001",
+      "title": "Insurance Underwriter",
+      "category": "Finance",
+      "industry": "Insurance",
+      "experienceLevel": "Junior",
+      "description": "Evaluate risk and determine policy terms and pricing.",
+      "technicalSkills": [
+        { "name": "Risk Assessment", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Actuarial Basics", "requiredLevel": 78, "priority": "Important", "weight": 7 },
+        { "name": "Policy Terms", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "softSkills": [
+        { "name": "Analytical Thinking", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Attention to Detail", "requiredLevel": 90, "priority": "Critical", "weight": 9 }
+      ],
+      "tools": [
+        { "name": "Underwriting Software", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Excel", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Finance", "Actuarial Science", "Business"] },
+      "experience": { "minYears": 1, "maxYears": 4, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 20000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "relationship-banker-001",
+      "title": "Relationship Banker",
+      "category": "Finance",
+      "industry": "Banking",
+      "experienceLevel": "Junior",
+      "description": "Serve retail banking clients with accounts, loans, and financial guidance.",
+      "technicalSkills": [
+        { "name": "Retail Banking Products", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Credit Basics", "requiredLevel": 78, "priority": "Important", "weight": 7 },
+        { "name": "KYC Procedures", "requiredLevel": 88, "priority": "Critical", "weight": 9 }
+      ],
+      "softSkills": [
+        { "name": "Trust Building", "requiredLevel": 90, "priority": "Critical", "weight": 9 },
+        { "name": "Communication", "requiredLevel": 88, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Core Banking System", "requiredLevel": 78, "priority": "Important", "weight": 7 },
+        { "name": "CRM", "requiredLevel": 75, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Finance", "Business", "Economics"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 9000, "maximum": 18000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "logistics-coordinator-001",
+      "title": "Logistics Coordinator",
+      "category": "Operations",
+      "industry": "Supply Chain",
+      "experienceLevel": "Junior",
+      "description": "Coordinate shipments, carriers, and customs documentation.",
+      "technicalSkills": [
+        { "name": "Freight Coordination", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Import Export Documentation", "requiredLevel": 82, "priority": "Critical", "weight": 8 },
+        { "name": "Inventory Tracking", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Organization", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "TMS Software", "requiredLevel": 72, "priority": "Important", "weight": 6 },
+        { "name": "Excel", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Supply Chain", "Business", "International Trade"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 8000, "maximum": 16000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "environmental-engineer-001",
+      "title": "Environmental Engineer",
+      "category": "Engineering",
+      "industry": "Sustainability",
+      "experienceLevel": "Junior",
+      "description": "Design solutions for pollution control, waste management, and environmental compliance.",
+      "technicalSkills": [
+        { "name": "Environmental Impact Assessment", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Water Treatment Basics", "requiredLevel": 82, "priority": "Important", "weight": 7 },
+        { "name": "Air Quality Monitoring", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Ethics", "requiredLevel": 85, "priority": "Important", "weight": 7 },
+        { "name": "Stakeholder Communication", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "tools": [
+        { "name": "GIS", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Simulation Software", "requiredLevel": 70, "priority": "Nice-to-have", "weight": 5 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Environmental Engineering", "Civil Engineering"] },
+      "experience": { "minYears": 0, "maxYears": 3, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 21000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "ngo-program-officer-001",
+      "title": "NGO Program Officer",
+      "category": "Social Services",
+      "industry": "NGO",
+      "experienceLevel": "Mid-Level",
+      "description": "Design and monitor development programs, grants, and field partnerships.",
+      "technicalSkills": [
+        { "name": "Program Design", "requiredLevel": 88, "priority": "Critical", "weight": 9 },
+        { "name": "Monitoring and Evaluation", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Grant Reporting", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Stakeholder Management", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Cultural Sensitivity", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Project Management Tools", "requiredLevel": 78, "priority": "Important", "weight": 7 },
+        { "name": "Survey Tools", "requiredLevel": 72, "priority": "Nice-to-have", "weight": 5 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["International Development", "Social Sciences"] },
+      "experience": { "minYears": 2, "maxYears": 8, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 22000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "civil-servant-001",
+      "title": "Civil Servant",
+      "category": "Public Sector",
+      "industry": "Government",
+      "experienceLevel": "Junior",
+      "description": "Deliver public services, manage citizen requests, and follow government procedures.",
+      "technicalSkills": [
+        { "name": "Public Policy Awareness", "requiredLevel": 80, "priority": "Important", "weight": 7 },
+        { "name": "Administrative Procedures", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Document Processing", "requiredLevel": 82, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Impartiality", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Communication", "requiredLevel": 85, "priority": "Critical", "weight": 8 }
+      ],
+      "tools": [
+        { "name": "Government Portals", "requiredLevel": 75, "priority": "Important", "weight": 6 },
+        { "name": "Microsoft Office", "requiredLevel": 80, "priority": "Important", "weight": 6 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Public Administration", "Law", "Social Sciences"] },
+      "experience": { "minYears": 0, "maxYears": 4, "notes": "" },
+      "salary": { "minimum": 7000, "maximum": 15000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    },
+    {
+      "jobId": "call-center-supervisor-001",
+      "title": "Call Center Supervisor",
+      "category": "Customer Service",
+      "industry": "BPO",
+      "experienceLevel": "Mid-Level",
+      "description": "Lead call center teams, monitor KPIs, and improve service quality.",
+      "technicalSkills": [
+        { "name": "Quality Assurance", "requiredLevel": 85, "priority": "Critical", "weight": 8 },
+        { "name": "Workforce Scheduling", "requiredLevel": 82, "priority": "Important", "weight": 7 },
+        { "name": "KPI Analysis", "requiredLevel": 80, "priority": "Important", "weight": 7 }
+      ],
+      "softSkills": [
+        { "name": "Leadership", "requiredLevel": 88, "priority": "Critical", "weight": 8 },
+        { "name": "Conflict Resolution", "requiredLevel": 85, "priority": "Important", "weight": 7 }
+      ],
+      "tools": [
+        { "name": "Call Center Software", "requiredLevel": 82, "priority": "Critical", "weight": 8 },
+        { "name": "CRM", "requiredLevel": 78, "priority": "Important", "weight": 7 }
+      ],
+      "education": { "minimumDegree": "Bachelor", "preferredFields": ["Business", "Communications"] },
+      "experience": { "minYears": 3, "maxYears": 8, "notes": "" },
+      "salary": { "minimum": 10000, "maximum": 20000, "currency": "EGP", "period": "monthly" },
+      "isActive": true
+    }
+  ]
+}

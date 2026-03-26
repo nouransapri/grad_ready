@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -5,12 +7,15 @@ import '../../app_theme.dart';
 import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
 import '../../services/gap_analysis_service.dart';
+import '../../widgets/error_boundary.dart';
 
-// ألوان من الثيم + ثابتة للعناصر
+// Theme colors + fixed accent colors (mock-aligned)
+const Color _pageBg = Color(0xFFF5F7F9);
 const Color _segmentSelectedBg = Color(0xFF5B4B9E);
-const Color _segmentUnselectedBg = Color(0xFFF5F5F5);
-const Color _trendBoxBg = Color(0xFFE8E4F5);
+const Color _segmentUnselectedBg = Color(0xFFF0F0F0);
+const Color _trendBoxBg = Color(0xFFE8EEF9);
 const Color _chartPrimary = Color(0xFF5B4B9E);
+const Color _lineChartBlue = Color(0xFF2196F3);
 const Color _pdfBlue = Color(0xFF2196F3);
 
 /// Fixed palette for academic level segments (by index).
@@ -24,20 +29,21 @@ const _academicColors = [
 
 // --- Dynamic analytics from Firestore (no hardcoded values) ---
 
-/// 1. Most Selected Job Roles: count users whose last_analysis matches each job title.
+/// 1. Most Selected Job Roles: count users by [last_analysis] title (any value, not only catalog jobs).
 List<(String, double)> computeMostSelectedJobRoles(
   List<Map<String, dynamic>> users,
   List<JobRole> jobs, {
   int top = 7,
 }) {
   final countByTitle = <String, int>{};
-  for (final j in jobs) {
-    countByTitle[j.title] = 0;
-  }
   for (final u in users) {
     final last = u['last_analysis']?.toString().trim();
-    if (last != null && last.isNotEmpty && countByTitle.containsKey(last)) {
-      countByTitle[last] = (countByTitle[last] ?? 0) + 1;
+    if (last == null || last.isEmpty) continue;
+    countByTitle[last] = (countByTitle[last] ?? 0) + 1;
+  }
+  if (countByTitle.isEmpty && jobs.isNotEmpty) {
+    for (final j in jobs) {
+      countByTitle[j.title] = 0;
     }
   }
   final sorted = countByTitle.entries.toList()
@@ -89,9 +95,17 @@ List<(String, int)> computeMostFrequentSkills(
     final skills = u['skills'] as List<dynamic>?;
     if (skills == null) continue;
     for (final s in skills) {
-      final name = s is String
-          ? s.toString().trim()
-          : (s is Map ? (s['name']?.toString() ?? '').trim() : '');
+      String name;
+      if (s is String) {
+        name = s.trim();
+      } else if (s is Map) {
+        name = (s['name']?.toString() ?? '').trim();
+        if (name.isEmpty) {
+          name = (s['skillId']?.toString() ?? '').trim();
+        }
+      } else {
+        continue;
+      }
       if (name.isEmpty) continue;
       final norm = GapAnalysisService.normalize(name);
       if (norm.isEmpty) continue;
@@ -117,50 +131,111 @@ List<(String, int)> computeCategoryDistribution(List<JobRole> jobs) {
     ..sort((a, b) => b.$2.compareTo(a.$2));
 }
 
-/// 5. Assessment Activity Trend: count users per week by last_analysis_at (last 4 weeks).
-List<FlSpot> computeActivitySpots(
-  List<Map<String, dynamic>> users, {
-  int weeks = 4,
-}) {
+DateTime? _analysisAt(Map<String, dynamic> u) {
+  final t = u['last_analysis_at'];
+  if (t is Timestamp) return t.toDate();
+  return null;
+}
+
+/// 5. Assessment activity buckets by period: 0=week (8 buckets), 1=month (6), 2=year (12 months).
+({List<FlSpot> spots, List<String> labels}) computeActivityTrendSeries(
+  List<Map<String, dynamic>> users,
+  int periodIndex,
+) {
   final now = DateTime.now();
-  final buckets = List<int>.filled(weeks, 0);
-  for (final u in users) {
-    final t = u['last_analysis_at'];
-    if (t == null) continue;
-    DateTime? dt;
-    if (t is Timestamp) dt = t.toDate();
-    if (dt == null) continue;
-    final diff = now.difference(dt).inDays;
-    if (diff < 0) continue;
-    final weekIndex = (diff / 7).floor();
-    if (weekIndex >= weeks) continue;
-    buckets[weeks - 1 - weekIndex]++;
+  if (periodIndex == 0) {
+    const weeks = 8;
+    final buckets = List<int>.filled(weeks, 0);
+    for (final u in users) {
+      final dt = _analysisAt(u);
+      if (dt == null) continue;
+      final diff = now.difference(dt).inDays;
+      if (diff < 0) continue;
+      final weekIndex = (diff / 7).floor();
+      if (weekIndex >= weeks) continue;
+      buckets[weeks - 1 - weekIndex]++;
+    }
+    final spots = List.generate(
+      weeks,
+      (i) => FlSpot(i.toDouble(), buckets[i].toDouble()),
+    );
+    final labels = List.generate(weeks, (i) => 'Week ${i + 1}');
+    return (spots: spots, labels: labels);
   }
-  return buckets
-      .asMap()
-      .entries
-      .map((e) => FlSpot(e.key.toDouble(), e.value.toDouble()))
-      .toList();
+  if (periodIndex == 1) {
+    const months = 6;
+    final buckets = List<int>.filled(months, 0);
+    for (final u in users) {
+      final dt = _analysisAt(u);
+      if (dt == null) continue;
+      final diffMonth = (now.year - dt.year) * 12 + now.month - dt.month;
+      if (diffMonth < 0 || diffMonth >= months) continue;
+      buckets[months - 1 - diffMonth]++;
+    }
+    final spots = List.generate(
+      months,
+      (i) => FlSpot(i.toDouble(), buckets[i].toDouble()),
+    );
+    final labels = List.generate(months, (i) {
+      final d = DateTime(now.year, now.month - (months - 1 - i), 1);
+      return '${d.month}/${d.year % 100}';
+    });
+    return (spots: spots, labels: labels);
+  }
+  final buckets = List<int>.filled(12, 0);
+  for (final u in users) {
+    final dt = _analysisAt(u);
+    if (dt == null) continue;
+    final diffMonth = (now.year - dt.year) * 12 + now.month - dt.month;
+    if (diffMonth < 0 || diffMonth >= 12) continue;
+    buckets[11 - diffMonth]++;
+  }
+  final spots = List.generate(
+    12,
+    (i) => FlSpot(i.toDouble(), buckets[i].toDouble()),
+  );
+  final labels = List.generate(12, (i) {
+    final d = DateTime(now.year, now.month - (11 - i), 1);
+    return _monthShort(d.month);
+  });
+  return (spots: spots, labels: labels);
+}
+
+String _monthShort(int m) {
+  const names = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return names[(m - 1).clamp(0, 11)];
 }
 
 String computeActivityTrendMessage(
   List<Map<String, dynamic>> users,
-  int weeks,
+  int periodIndex,
 ) {
-  final spots = computeActivitySpots(users, weeks: weeks);
-  if (spots.length < 2) return 'Not enough data for trend.';
-  final firstHalf = spots
-      .take(spots.length ~/ 2)
-      .fold<double>(0, (s, sp) => s + sp.y);
-  final secondHalf = spots
-      .skip(spots.length ~/ 2)
-      .fold<double>(0, (s, sp) => s + sp.y);
-  if (firstHalf == 0) return 'Assessment activity is growing.';
+  final series = computeActivityTrendSeries(users, periodIndex);
+  final spots = series.spots;
+  if (spots.length < 2) {
+    return 'Trend: Add more activity data to see trends.';
+  }
+  final firstHalf = spots.take(spots.length ~/ 2).fold<double>(0, (s, sp) => s + sp.y);
+  final secondHalf = spots.skip(spots.length ~/ 2).fold<double>(0, (s, sp) => s + sp.y);
+  final span = periodIndex == 0
+      ? '${spots.length} weeks'
+      : periodIndex == 1
+          ? '${spots.length} months'
+          : '12 months';
+  if (firstHalf == 0 && secondHalf == 0) {
+    return 'Trend: No assessment activity in this period yet.';
+  }
+  if (firstHalf == 0) {
+    return 'Trend: Assessment activity increased over the last $span.';
+  }
   final pct = ((secondHalf - firstHalf) / firstHalf * 100).round();
   if (pct >= 0) {
-    return 'Assessment activity increased by $pct% over the last $weeks weeks.';
+    return 'Trend: Assessment activity increased by $pct% over the last $span.';
   }
-  return 'Assessment activity decreased by ${-pct}% over the last $weeks weeks.';
+  return 'Trend: Assessment activity decreased by ${-pct}% over the last $span.';
 }
 
 /// 6. Key Insights Summary: generated from real analytics.
@@ -203,7 +278,7 @@ List<String> computeKeyInsights({
   return insights;
 }
 
-/// محتوى تبويب Analytics في لوحة الأدمن.
+/// Admin Analytics tab content.
 class AdminAnalyticsContent extends StatefulWidget {
   const AdminAnalyticsContent({super.key});
 
@@ -211,28 +286,63 @@ class AdminAnalyticsContent extends StatefulWidget {
   State<AdminAnalyticsContent> createState() => _AdminAnalyticsContentState();
 }
 
-class _AdminAnalyticsContentState extends State<AdminAnalyticsContent>
-    with SingleTickerProviderStateMixin {
+class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
   int _periodIndex = 0; // 0=Week, 1=Month, 2=Year
-  late AnimationController _chartAnimController;
-  late Animation<double> _chartAnim;
+
+  final FirestoreService _firestore = FirestoreService();
+  List<Map<String, dynamic>>? _users;
+  List<JobRole>? _jobs;
+  Object? _usersError;
+  Object? _jobsError;
+
+  StreamSubscription<List<Map<String, dynamic>>>? _usersSub;
+  StreamSubscription<List<JobRole>>? _jobsSub;
 
   @override
   void initState() {
     super.initState();
-    _chartAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
+    _usersSub = _firestore.streamUsersForAnalytics().listen(
+      (list) {
+        if (mounted) {
+          setState(() {
+            _users = list;
+            _usersError = null;
+          });
+        }
+      },
+      onError: (Object e) {
+        if (mounted) {
+          setState(() {
+            _users = <Map<String, dynamic>>[];
+            _usersError = e;
+          });
+        }
+      },
     );
-    _chartAnim = CurvedAnimation(
-      parent: _chartAnimController,
-      curve: Curves.easeOutCubic,
+    _jobsSub = _firestore.getJobs().listen(
+      (list) {
+        if (mounted) {
+          setState(() {
+            _jobs = list;
+            _jobsError = null;
+          });
+        }
+      },
+      onError: (Object e) {
+        if (mounted) {
+          setState(() {
+            _jobs = <JobRole>[];
+            _jobsError = e;
+          });
+        }
+      },
     );
   }
 
   @override
   void dispose() {
-    _chartAnimController.dispose();
+    _usersSub?.cancel();
+    _jobsSub?.cancel();
     super.dispose();
   }
 
@@ -241,131 +351,196 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent>
     final screenWidth = MediaQuery.of(context).size.width;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     const horizontalPadding = 16.0;
-    final firestore = FirestoreService();
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        horizontalPadding,
-        14,
-        horizontalPadding,
-        20 + bottomPadding,
+    if (_users == null || _jobs == null) {
+      return const ColoredBox(
+        color: _pageBg,
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: CircularProgressIndicator(color: AppTheme.primary),
+          ),
+        ),
+      );
+    }
+
+    final users = _users!;
+    final jobs = _jobs!;
+
+    final jobRolesBarData = computeMostSelectedJobRoles(users, jobs);
+    final totalSelections = computeTotalSelections(users);
+    final academicSegments = computeAcademicSegments(users);
+    final topSkills = computeMostFrequentSkills(users);
+    Object? categoryDistributionError;
+    List<(String, int)> categoryDistribution;
+    try {
+      categoryDistribution = computeCategoryDistribution(jobs);
+    } catch (e) {
+      categoryDistributionError = e;
+      categoryDistribution = [];
+    }
+    final activitySeries = computeActivityTrendSeries(users, _periodIndex);
+    final activityTrendMessage = computeActivityTrendMessage(users, _periodIndex);
+    final keyInsights = computeKeyInsights(
+      users: users,
+      jobs: jobs,
+      jobRolesBarData: jobRolesBarData,
+      totalSelections: totalSelections,
+      academicSegments: academicSegments,
+      topSkills: topSkills,
+      categoryDistribution: categoryDistribution,
+      activityTrendMessage: activityTrendMessage,
+    );
+
+    return ColoredBox(
+      color: _pageBg,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          14,
+          horizontalPadding,
+          20 + bottomPadding,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_usersError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _AnalyticsPermissionBanner(
+                  label: 'Users',
+                  error: _usersError,
+                ),
+              ),
+            if (_jobsError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _AnalyticsPermissionBanner(
+                  label: 'Jobs',
+                  error: _jobsError,
+                ),
+              ),
+            _AnalyticsPeriodFilterCard(
+              periodIndex: _periodIndex,
+              onPeriodChanged: (i) => setState(() => _periodIndex = i),
+            ),
+            const SizedBox(height: 16),
+            _MostSelectedJobRolesAnalyticsCard(
+              screenWidth: screenWidth,
+              barData: jobRolesBarData,
+              totalSelections: totalSelections,
+            ),
+            const SizedBox(height: 16),
+            _AssessmentActivityTrendCard(
+              screenWidth: screenWidth,
+              spots: activitySeries.spots,
+              bottomLabels: activitySeries.labels,
+              trendMessage: activityTrendMessage,
+            ),
+            const SizedBox(height: 16),
+            _UsersByAcademicLevelAnalyticsCard(
+              screenWidth: screenWidth,
+              segments: academicSegments,
+            ),
+            const SizedBox(height: 16),
+            _MostFrequentlyAddedSkillsCard(topSkills: topSkills),
+            const SizedBox(height: 16),
+            ErrorBoundary(
+              error: categoryDistributionError,
+              errorBuilder: (_) => Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Data loading...',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ),
+              ),
+              child: _JobCategoryDistributionCard(
+                distribution: categoryDistribution,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _KeyInsightsSummaryCard(insights: keyInsights),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the users or jobs stream fails; partial analytics may still load.
+class _AnalyticsPermissionBanner extends StatelessWidget {
+  final String label;
+  final Object? error;
+
+  const _AnalyticsPermissionBanner({
+    required this.label,
+    required this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final msg = error?.toString() ?? 'Unknown error';
+    final isPermission =
+        msg.contains('permission-denied') || msg.contains('PERMISSION_DENIED');
+    final border = theme.colorScheme.error.withValues(alpha: 0.4);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // All analytics from Firestore: users (with academic_year, last_analysis, last_analysis_at, skills) + jobs
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: firestore.streamUsersForAnalytics(),
-            builder: (context, usersSnap) {
-              if (!usersSnap.hasData) {
-                return const _AnalyticsCard(
-                  title: 'Analytics',
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(color: AppTheme.primary),
-                    ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline_rounded, color: theme.colorScheme.error, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isPermission
+                      ? 'Cannot load $label (Firestore permission denied)'
+                      : 'Could not load $label',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: theme.colorScheme.error,
                   ),
-                );
-              }
-              return StreamBuilder<List<JobRole>>(
-                stream: firestore.getJobs(),
-                builder: (context, jobsSnap) {
-                  if (!jobsSnap.hasData) {
-                    return const _AnalyticsCard(
-                      title: 'Analytics',
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  final users = usersSnap.data!;
-                  final jobs = jobsSnap.data!;
-
-                  // Compute all 6 analytics from Firestore (no hardcoded values)
-                  final jobRolesBarData = computeMostSelectedJobRoles(
-                    users,
-                    jobs,
-                  );
-                  final totalSelections = computeTotalSelections(users);
-                  final academicSegments = computeAcademicSegments(users);
-                  final topSkills = computeMostFrequentSkills(users);
-                  final categoryDistribution = computeCategoryDistribution(
-                    jobs,
-                  );
-                  final activitySpots = computeActivitySpots(users);
-                  final activityTrendMessage = computeActivityTrendMessage(
-                    users,
-                    4,
-                  );
-                  final keyInsights = computeKeyInsights(
-                    users: users,
-                    jobs: jobs,
-                    jobRolesBarData: jobRolesBarData,
-                    totalSelections: totalSelections,
-                    academicSegments: academicSegments,
-                    topSkills: topSkills,
-                    categoryDistribution: categoryDistribution,
-                    activityTrendMessage: activityTrendMessage,
-                  );
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SkillsGapAnalyticsSection(
-                        users: users,
-                        jobs: jobs,
-                        screenWidth: screenWidth,
-                        chartAnim: _chartAnim,
-                        onChartReady: () {
-                          if (!_chartAnimController.isAnimating &&
-                              !_chartAnimController.isCompleted) {
-                            _chartAnimController.forward();
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _AnalyticsOverviewCard(
-                        periodIndex: _periodIndex,
-                        onPeriodChanged: (i) =>
-                            setState(() => _periodIndex = i),
-                      ),
-                      const SizedBox(height: 16),
-                      _MostSelectedJobRolesAnalyticsCard(
-                        screenWidth: screenWidth,
-                        barData: jobRolesBarData,
-                        totalSelections: totalSelections,
-                      ),
-                      const SizedBox(height: 16),
-                      _AssessmentActivityTrendCard(
-                        screenWidth: screenWidth,
-                        spots: activitySpots,
-                        trendMessage: activityTrendMessage,
-                      ),
-                      const SizedBox(height: 16),
-                      _UsersByAcademicLevelAnalyticsCard(
-                        screenWidth: screenWidth,
-                        segments: academicSegments,
-                      ),
-                      const SizedBox(height: 16),
-                      _MostFrequentlyAddedSkillsCard(topSkills: topSkills),
-                      const SizedBox(height: 16),
-                      _JobCategoryDistributionCard(
-                        distribution: categoryDistribution,
-                      ),
-                      const SizedBox(height: 16),
-                      _KeyInsightsSummaryCard(insights: keyInsights),
-                    ],
-                  );
-                },
-              );
-            },
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            msg.length > 320 ? '${msg.substring(0, 320)}…' : msg,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (isPermission) ...[
+            const SizedBox(height: 12),
+            Text(
+              'To fix admin access:\n'
+              '• In Firebase Console → Firestore, create collection `admins` and a document whose ID is your user UID (from Authentication).\n'
+              '• Deploy rules: `firebase deploy --only firestore:rules`\n'
+              '• Sign out and sign in so the client refreshes. Or use the `makeAdmin` callable function if another admin exists.',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.45,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -385,11 +560,11 @@ class _AnalyticsCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
@@ -402,7 +577,7 @@ class _AnalyticsCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Color(0xFF1A1C1E),
             ),
           ),
           const SizedBox(height: 14),
@@ -413,392 +588,12 @@ class _AnalyticsCard extends StatelessWidget {
   }
 }
 
-/// Match % for one user vs one job: (matchedSkills / requiredSkills.length) * 100.
-double _matchPercent(List<dynamic> userSkills, List<String> requiredSkills) {
-  if (requiredSkills.isEmpty) return 100.0;
-  final userSet = userSkills
-      .map(
-        (s) => GapAnalysisService.normalize(
-          s is String
-              ? s
-              : s is Map
-              ? (s['name']?.toString() ?? '')
-              : '',
-        ),
-      )
-      .where((s) => s.isNotEmpty)
-      .toSet();
-  int matched = 0;
-  for (final r in requiredSkills) {
-    if (userSet.contains(GapAnalysisService.normalize(r))) matched++;
-  }
-  return (matched / requiredSkills.length) * 100.0;
-}
-
-List<String> _userSkillStrings(Map<String, dynamic> user) {
-  final raw = user['skills'] as List?;
-  if (raw == null) return [];
-  return raw
-      .map(
-        (s) => s is String
-            ? s
-            : (s is Map ? (s['name']?.toString() ?? '') : '').toString().trim(),
-      )
-      .where((s) => s.isNotEmpty)
-      .toList();
-}
-
-/// Real-time Skills Gap Analytics: average match %, most missing skill, users per job.
-class _SkillsGapAnalyticsSection extends StatefulWidget {
-  final List<Map<String, dynamic>> users;
-  final List<JobRole> jobs;
-  final double screenWidth;
-  final Animation<double> chartAnim;
-  final VoidCallback onChartReady;
-
-  const _SkillsGapAnalyticsSection({
-    required this.users,
-    required this.jobs,
-    required this.screenWidth,
-    required this.chartAnim,
-    required this.onChartReady,
-  });
-
-  @override
-  State<_SkillsGapAnalyticsSection> createState() =>
-      _SkillsGapAnalyticsSectionState();
-}
-
-class _SkillsGapAnalyticsSectionState
-    extends State<_SkillsGapAnalyticsSection> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onChartReady());
-  }
-
-  @override
-  void didUpdateWidget(covariant _SkillsGapAnalyticsSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.users != widget.users || oldWidget.jobs != widget.jobs) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => widget.onChartReady(),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-    final secondary = theme.colorScheme.secondary;
-
-    // Average match % across users (average of each user's average match across all jobs)
-    double totalMatch = 0;
-    int pairCount = 0;
-    for (final user in widget.users) {
-      final skills = _userSkillStrings(user);
-      for (final job in widget.jobs) {
-        totalMatch += _matchPercent(skills, job.requiredSkills);
-        pairCount++;
-      }
-    }
-    final avgMatch = pairCount > 0 ? totalMatch / pairCount : 0.0;
-
-    // Most missing skill: among all required skills, which is missing for the most users
-    final allRequired = <String>{};
-    for (final job in widget.jobs) {
-      for (final s in job.requiredSkills) {
-        final n = GapAnalysisService.normalize(s);
-        if (n.isNotEmpty) allRequired.add(n);
-      }
-    }
-    final displayNames = <String, String>{};
-    for (final job in widget.jobs) {
-      for (final s in job.requiredSkills) {
-        final n = GapAnalysisService.normalize(s);
-        if (n.isNotEmpty) displayNames[n] = s.trim();
-      }
-    }
-    int maxMissing = 0;
-    String mostMissingSkill = '—';
-    for (final skillNorm in allRequired) {
-      int missing = 0;
-      for (final user in widget.users) {
-        final userSet = _userSkillStrings(
-          user,
-        ).map((s) => GapAnalysisService.normalize(s)).toSet();
-        if (!userSet.contains(skillNorm)) missing++;
-      }
-      if (missing > maxMissing) {
-        maxMissing = missing;
-        mostMissingSkill = displayNames[skillNorm] ?? skillNorm;
-      }
-    }
-
-    // Number of users matching each job (match % > 0)
-    final usersPerJob = <String, int>{};
-    for (final job in widget.jobs) {
-      int count = 0;
-      for (final user in widget.users) {
-        final skills = _userSkillStrings(user);
-        if (_matchPercent(skills, job.requiredSkills) > 0) count++;
-      }
-      usersPerJob[job.title] = count;
-    }
-    final jobTitles = widget.jobs.map((j) => j.title).toList();
-    final sortedByCount = List<String>.from(jobTitles)
-      ..sort((a, b) => (usersPerJob[b] ?? 0).compareTo(usersPerJob[a] ?? 0));
-    final topJobs = sortedByCount.take(8).toList();
-    final maxUsers = widget.users.isEmpty ? 1 : widget.users.length.toDouble();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _AnalyticsCard(
-          title: 'Skills Gap Analytics (live)',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: widget.chartAnim,
-                      builder: (_, __) {
-                        final v = avgMatch * widget.chartAnim.value;
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: primary.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.percent_rounded,
-                                    color: primary,
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Avg match %',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${v.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: primary,
-                                ),
-                              ),
-                              Text(
-                                'across ${widget.users.length} users',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: widget.chartAnim,
-                      builder: (_, __) => Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warning.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.warning.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: AppTheme.warning,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Most missing skill',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              mostMissingSkill,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1C1E),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              '$maxMissing users missing',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Users matching each job',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-              const SizedBox(height: 12),
-              AnimatedBuilder(
-                animation: widget.chartAnim,
-                builder: (_, __) {
-                  return SizedBox(
-                    height: 200,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: (maxUsers * 1.1 * widget.chartAnim.value).clamp(
-                          1.0,
-                          double.infinity,
-                        ),
-                        barTouchData: BarTouchData(enabled: false),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 28,
-                              getTitlesWidget: (value, meta) => Text(
-                                value.toInt().toString(),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 10,
-                                ),
-                              ),
-                              interval: (maxUsers / 4).clamp(1.0, 1e6),
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 44,
-                              getTitlesWidget: (value, meta) {
-                                final i = value.toInt();
-                                if (i >= 0 && i < topJobs.length) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Transform.rotate(
-                                      angle: -0.5,
-                                      child: Text(
-                                        topJobs[i].length > 12
-                                            ? '${topJobs[i].substring(0, 12)}…'
-                                            : topJobs[i],
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 9,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          getDrawingHorizontalLine: (value) => FlLine(
-                            color: Colors.grey.withValues(alpha: 0.2),
-                            strokeWidth: 1,
-                          ),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: topJobs.asMap().entries.map((e) {
-                          final count =
-                              (usersPerJob[e.value] ?? 0).toDouble() *
-                              widget.chartAnim.value;
-                          return BarChartGroupData(
-                            x: e.key,
-                            barRods: [
-                              BarChartRodData(
-                                toY: count,
-                                color: secondary,
-                                width: 18,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(6),
-                                ),
-                              ),
-                            ],
-                            showingTooltipIndicators: [],
-                          );
-                        }).toList(),
-                      ),
-                      duration: Duration.zero,
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AnalyticsOverviewCard extends StatelessWidget {
+/// Week / Month / Year filter (mock: white bar, purple selected).
+class _AnalyticsPeriodFilterCard extends StatelessWidget {
   final int periodIndex;
   final ValueChanged<int> onPeriodChanged;
 
-  const _AnalyticsOverviewCard({
+  const _AnalyticsPeriodFilterCard({
     required this.periodIndex,
     required this.onPeriodChanged,
   });
@@ -810,107 +605,41 @@ class _AnalyticsOverviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Row(
-            children: [
-              Text(
-                'Analytics Overview',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              Spacer(),
-              _DownloadChip(
-                label: 'CSV',
-                color: AppTheme.success,
-                icon: Icons.download_rounded,
-              ),
-              SizedBox(width: 8),
-              _DownloadChip(
-                label: 'PDF',
-                color: _pdfBlue,
-                icon: Icons.download_rounded,
-              ),
-            ],
+          Expanded(
+            child: _PeriodSegment(
+              label: 'Week',
+              isSelected: periodIndex == 0,
+              onTap: () => onPeriodChanged(0),
+            ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _PeriodSegment(
-                label: 'Week',
-                isSelected: periodIndex == 0,
-                onTap: () => onPeriodChanged(0),
-              ),
-              const SizedBox(width: 8),
-              _PeriodSegment(
-                label: 'Month',
-                isSelected: periodIndex == 1,
-                onTap: () => onPeriodChanged(1),
-              ),
-              const SizedBox(width: 8),
-              _PeriodSegment(
-                label: 'Year',
-                isSelected: periodIndex == 2,
-                onTap: () => onPeriodChanged(2),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PeriodSegment(
+              label: 'Month',
+              isSelected: periodIndex == 1,
+              onTap: () => onPeriodChanged(1),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PeriodSegment(
+              label: 'Year',
+              isSelected: periodIndex == 2,
+              onTap: () => onPeriodChanged(2),
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DownloadChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  const _DownloadChip({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1128,11 +857,13 @@ class _MostSelectedJobRolesAnalyticsCard extends StatelessWidget {
 class _AssessmentActivityTrendCard extends StatelessWidget {
   final double screenWidth;
   final List<FlSpot> spots;
+  final List<String> bottomLabels;
   final String trendMessage;
 
   const _AssessmentActivityTrendCard({
     required this.screenWidth,
     required this.spots,
+    required this.bottomLabels,
     required this.trendMessage,
   });
 
@@ -1140,9 +871,9 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final maxY = spots.isEmpty
         ? 10.0
-        : (spots.map((s) => s.y).fold<double>(0, (a, b) => a > b ? a : b) * 1.2)
+        : (spots.map((s) => s.y).fold<double>(0, (a, b) => a > b ? a : b) * 1.15)
               .clamp(10.0, 500.0);
-    final labels = List.generate(spots.length, (i) => 'Week ${i + 1}');
+    final interval = maxY > 0 ? (maxY / 4).clamp(1.0, 1e6) : 1.0;
 
     return _AnalyticsCard(
       title: 'Assessment Activity Trend',
@@ -1150,14 +881,14 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
           ? const Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                'No assessment activity by week yet. Data from users\' last_analysis_at (last 4 weeks).',
+                'No assessment activity in this period. Data uses users\' last_analysis_at.',
                 style: TextStyle(color: Colors.grey),
               ),
             )
           : Column(
               children: [
                 SizedBox(
-                  height: 180,
+                  height: 200,
                   child: LineChart(
                     LineChartData(
                       minY: 0,
@@ -1167,7 +898,7 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 28,
+                            reservedSize: 32,
                             getTitlesWidget: (value, meta) => Text(
                               value.toInt().toString(),
                               style: TextStyle(
@@ -1175,7 +906,7 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                                 fontSize: 10,
                               ),
                             ),
-                            interval: maxY / 4,
+                            interval: interval,
                           ),
                         ),
                         bottomTitles: AxisTitles(
@@ -1184,12 +915,17 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                             reservedSize: 28,
                             getTitlesWidget: (value, meta) {
                               final i = value.toInt();
-                              if (i >= 0 && i < labels.length) {
-                                return Text(
-                                  labels[i],
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 10,
+                              if (i >= 0 &&
+                                  i < bottomLabels.length &&
+                                  i < spots.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    bottomLabels[i],
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 10,
+                                    ),
                                   ),
                                 );
                               }
@@ -1207,10 +943,11 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
-                        horizontalInterval: maxY / 4,
+                        horizontalInterval: interval,
                         getDrawingHorizontalLine: (value) => FlLine(
-                          color: Colors.grey.withValues(alpha: 0.2),
+                          color: Colors.grey.withValues(alpha: 0.25),
                           strokeWidth: 1,
+                          dashArray: [4, 4],
                         ),
                       ),
                       borderData: FlBorderData(show: false),
@@ -1218,10 +955,20 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                         LineChartBarData(
                           spots: spots,
                           isCurved: true,
-                          color: _chartPrimary,
-                          barWidth: 2.5,
+                          color: _lineChartBlue,
+                          barWidth: 3,
                           isStrokeCapRound: true,
-                          dotData: const FlDotData(show: true),
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (s, p, bar, i) {
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: _lineChartBlue,
+                                strokeWidth: 2,
+                                strokeColor: Colors.white,
+                              );
+                            },
+                          ),
                           belowBarData: BarAreaData(show: false),
                         ),
                       ],
@@ -1233,24 +980,55 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+                    horizontal: 14,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: _trendBoxBg,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Text(
-                    trendMessage,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF3E3A6E),
-                    ),
-                  ),
+                  child: _TrendRichText(message: trendMessage),
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _TrendRichText extends StatelessWidget {
+  final String message;
+
+  const _TrendRichText({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    const prefix = 'Trend:';
+    if (message.startsWith(prefix)) {
+      final rest = message.substring(prefix.length).trimLeft();
+      return RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            color: Color(0xFF1565C0),
+          ),
+          children: [
+            const TextSpan(
+              text: '$prefix ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextSpan(text: rest),
+        ],
+        ),
+      );
+    }
+    return Text(
+      message,
+      style: const TextStyle(
+        fontSize: 13,
+        height: 1.4,
+        color: Color(0xFF1565C0),
+      ),
     );
   }
 }
@@ -1297,35 +1075,66 @@ class _UsersByAcademicLevelAnalyticsCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 10,
-                  children: segments.map((s) {
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
+                ...List.generate((segments.length / 2).ceil(), (row) {
+                  final i0 = row * 2;
+                  final i1 = i0 + 1;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: s.color,
-                            shape: BoxShape.circle,
-                          ),
+                        Expanded(
+                          child: _AcademicLegendItem(segment: segments[i0]),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${s.label}: ${s.count}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black87,
-                          ),
-                        ),
+                        if (i1 < segments.length)
+                          Expanded(
+                            child: _AcademicLegendItem(segment: segments[i1]),
+                          )
+                        else
+                          const Expanded(child: SizedBox()),
                       ],
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  );
+                }),
               ],
             ),
+    );
+  }
+}
+
+class _AcademicLegendItem extends StatelessWidget {
+  final ({String label, double percent, int count, Color color}) segment;
+
+  const _AcademicLegendItem({required this.segment});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: segment.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '${segment.label}: ${segment.percent.toStringAsFixed(0)}% (${segment.count})',
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.3,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1357,63 +1166,60 @@ class _MostFrequentlyAddedSkillsCard extends StatelessWidget {
                 final count = e.value.$2;
                 final progress = count / maxCount;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Row(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: _chartPrimary,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '${e.key + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              _chartPrimary,
+                      Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              color: _chartPrimary,
+                              shape: BoxShape.circle,
                             ),
-                            minHeight: 8,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${e.key + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '$count',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: _chartPrimary,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          '$count',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: _chartPrimary,
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            _chartPrimary,
                           ),
-                          textAlign: TextAlign.right,
+                          minHeight: 10,
                         ),
                       ),
                     ],
@@ -1437,11 +1243,12 @@ class _JobCategoryDistributionCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1454,7 +1261,7 @@ class _JobCategoryDistributionCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Color(0xFF1A1C1E),
             ),
           ),
           const SizedBox(height: 14),

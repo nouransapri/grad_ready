@@ -139,11 +139,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                               width: 2,
                             ),
                           ),
-                          child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(3),
                             child: SvgPicture.asset(
                               'assets/logo.svg',
-                              width: 80,
-                              height: 80,
+                              width: 114,
+                              height: 114,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
                             ),
                           ),
                         ),

@@ -11,6 +11,8 @@ import '../models/skill_document.dart';
 import '../models/trend_model.dart';
 import '../data/seed_jobs_data.dart';
 import '../utils/skill_utils.dart';
+import 'analysis_refresh_scheduler.dart';
+import 'cached_data_service.dart';
 import 'gap_analysis_service.dart';
 
 class FirestoreService {
@@ -35,15 +37,25 @@ class FirestoreService {
   }
 
   /// One-time fetch of all jobs. Used when recalculating gap analysis for all roles after skill updates.
+  /// Cached in memory for [CachedDataService.ttl] to avoid hammering Firestore during analysis refreshes.
   Future<List<JobRole>> getJobsOnce() async {
-    final snapshot = await _db.collection('jobs').get();
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      if (JobDocument.isNewFormat(data)) {
-        return JobDocument.fromFirestore(doc.id, data).toJobRole();
-      }
-      return JobRole.fromFirestore(doc.id, data);
-    }).toList();
+    return CachedDataService.getCached<List<JobRole>>(
+      CachedDataService.keyJobsOnce,
+      () async {
+        final snapshot = await _db.collection('jobs').get();
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          if (JobDocument.isNewFormat(data)) {
+            return JobDocument.fromFirestore(doc.id, data).toJobRole();
+          }
+          return JobRole.fromFirestore(doc.id, data);
+        }).toList();
+      },
+    );
+  }
+
+  static void _invalidateJobsCache() {
+    CachedDataService.invalidate(CachedDataService.keyJobsOnce);
   }
 
   /// Stream of full job documents (for admin panel). Only parses new-format docs as JobDocument.
@@ -100,30 +112,15 @@ class FirestoreService {
   }
 
   /// Stream of all users with fields needed for admin analytics: id, skills, academic_year, last_analysis, last_analysis_at.
+  /// [skills] is the raw Firestore list (strings and/or maps) so analytics can count names/skillIds correctly.
   Stream<List<Map<String, dynamic>>> streamUsersForAnalytics() {
     return _db.collection('users').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
         final skillsRaw = data['skills'] as List?;
-        final skills = <String>[];
-        if (skillsRaw != null) {
-          for (final s in skillsRaw) {
-            if (s is String && s.toString().trim().isNotEmpty) {
-              skills.add(s.toString().trim());
-            } else if (s is Map) {
-              final name = s['name']?.toString().trim();
-              final skillId = s['skillId']?.toString().trim();
-              if (name != null && name.isNotEmpty) {
-                skills.add(name);
-              } else if (skillId != null && skillId.isNotEmpty) {
-                skills.add(skillId);
-              }
-            }
-          }
-        }
         return <String, dynamic>{
           'id': doc.id,
-          'skills': skills,
+          'skills': skillsRaw ?? <dynamic>[],
           'academic_year': data['academic_year'],
           'last_analysis': data['last_analysis'],
           'last_analysis_at': data['last_analysis_at'],
@@ -150,13 +147,15 @@ class FirestoreService {
   Future<String> addJob(JobRole job) async {
     final ref = _db.collection('jobs').doc();
     await ref.set(job.toFirestore());
+    _invalidateJobsCache();
     return ref.id;
   }
 
-  /// Update an existing job role in Firestore by id. Used for bulk "Update Selected" in Market.
+  /// Update an existing job role in Firestore by id.
   Future<void> updateJob(JobRole job) async {
     if (job.id.isEmpty) return;
     await _db.collection('jobs').doc(job.id).set(job.toFirestore());
+    _invalidateJobsCache();
   }
 
   /// Add a new job document (comprehensive format). Uses [job.jobId] as doc id if provided, else auto-generates.
@@ -164,6 +163,7 @@ class FirestoreService {
     final id = job.jobId.trim().isNotEmpty ? job.jobId : _db.collection('jobs').doc().id;
     final ref = _db.collection('jobs').doc(id);
     await ref.set(job.toFirestore());
+    _invalidateJobsCache();
     return ref.id;
   }
 
@@ -192,6 +192,7 @@ class FirestoreService {
       averageRequiredLevel: job.averageRequiredLevel,
     );
     await _db.collection('jobs').doc(job.id).set(updated.toFirestore());
+    _invalidateJobsCache();
   }
 
   /// Soft-delete job: set isActive = false.
@@ -222,6 +223,7 @@ class FirestoreService {
       averageRequiredLevel: j.averageRequiredLevel,
     );
     await _db.collection('jobs').doc(jobId).set(updated.toFirestore());
+    _invalidateJobsCache();
   }
 
   /// Deletes all documents in the jobs collection (batches of 500). Use with caution (e.g. debug or admin).
@@ -241,6 +243,7 @@ class FirestoreService {
       await batch.commit();
       if (snapshot.docs.length < batchSize) done = true;
     }
+    _invalidateJobsCache();
     debugPrint('clearAllJobs: all job documents deleted');
   }
 
@@ -266,6 +269,7 @@ class FirestoreService {
     for (final job in jobs) {
       await db.collection('jobs').doc(job.jobId).set(job.toFirestore());
     }
+    CachedDataService.invalidate(CachedDataService.keyJobsOnce);
     debugPrint('clearAllJobsAndSeed: deleted all jobs and seeded ${jobs.length} jobs');
   }
 
@@ -278,6 +282,7 @@ class FirestoreService {
     for (final job in jobs) {
       await db.collection('jobs').doc(job.jobId).set(job.toFirestore());
     }
+    CachedDataService.invalidate(CachedDataService.keyJobsOnce);
     debugPrint('seedJobsIfEmpty: seeded ${jobs.length} jobs');
   }
 
@@ -289,6 +294,7 @@ class FirestoreService {
     for (final job in jobs) {
       await db.collection('jobs').doc(job.jobId).set(job.toFirestore());
     }
+    CachedDataService.invalidate(CachedDataService.keyJobsOnce);
     debugPrint('seedJobsUpsert: upserted ${jobs.length} jobs');
   }
 
@@ -306,7 +312,9 @@ class FirestoreService {
       final data = doc.data();
       if (data.isEmpty) continue;
       final skill = Skill.fromFirestore(doc.id, data);
-      if (skill.name.isNotEmpty) map[skill.id] = skill;
+      if (skill.name.isNotEmpty) {
+        map[canonicalSkillId(skill.id)] = skill;
+      }
     }
     _skillsCache = map;
     _skillsCacheTime = now;
@@ -386,14 +394,69 @@ class FirestoreService {
     return SkillDocument.fromFirestore(doc.data(), doc.id);
   }
 
-  /// Search skills by name or alias (for autocomplete). Returns up to [limit] results.
+  /// Search skills by name prefix (indexed) with legacy alias/substring fallback.
   Future<List<SkillDocument>> searchSkillDocuments({
     required String query,
     String? type,
     int limit = 20,
   }) async {
-    if (query.trim().isEmpty) return [];
-    final q = query.trim().toLowerCase();
+    final q = query.trim();
+    if (q.isEmpty) return [];
+    try {
+      final prefix = q;
+      final end = '$prefix\uf8ff';
+      Query<Map<String, dynamic>> coll = _db.collection('skills');
+      if (type != null && type.isNotEmpty && type != 'All') {
+        coll = coll
+            .where('type', isEqualTo: type)
+            .where('skillName', isGreaterThanOrEqualTo: prefix)
+            .where('skillName', isLessThanOrEqualTo: end)
+            .orderBy('skillName')
+            .limit(limit);
+      } else {
+        coll = coll
+            .where('skillName', isGreaterThanOrEqualTo: prefix)
+            .where('skillName', isLessThanOrEqualTo: end)
+            .orderBy('skillName')
+            .limit(limit);
+      }
+      final snapshot = await coll.get();
+      var list = snapshot.docs
+          .map((doc) => SkillDocument.fromFirestore(doc.data(), doc.id))
+          .whereType<SkillDocument>()
+          .toList();
+      if (list.length < limit && q.length >= 2) {
+        final extra = await _searchSkillDocumentsLegacy(
+          query: q,
+          type: type,
+          limit: limit - list.length,
+          excludeIds: list.map((s) => s.skillId).toSet(),
+        );
+        list = [...list, ...extra];
+      }
+      list.sort((a, b) => a.skillName.compareTo(b.skillName));
+      return list.take(limit).toList();
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        debugPrint('searchSkillDocuments: prefix query failed ($e), using legacy scan');
+      }
+      return _searchSkillDocumentsLegacy(
+        query: q,
+        type: type,
+        limit: limit,
+        excludeIds: const {},
+      );
+    }
+  }
+
+  /// Full scan + substring match (fallback when index missing or prefix misses case/aliases).
+  Future<List<SkillDocument>> _searchSkillDocumentsLegacy({
+    required String query,
+    String? type,
+    required int limit,
+    required Set<String> excludeIds,
+  }) async {
+    final q = query.toLowerCase();
     Query<Map<String, dynamic>> coll = _db.collection('skills');
     if (type != null && type.isNotEmpty && type != 'All') {
       coll = coll.where('type', isEqualTo: type);
@@ -401,6 +464,7 @@ class FirestoreService {
     final snapshot = await coll.get();
     final list = <SkillDocument>[];
     for (final doc in snapshot.docs) {
+      if (excludeIds.contains(doc.id)) continue;
       final data = doc.data();
       final name = (data['skillName'] as String? ?? data['name'] as String? ?? '').toLowerCase();
       final aliases = (data['aliases'] as List?)?.map((e) => e.toString().toLowerCase()).toList() ?? [];
@@ -426,56 +490,80 @@ class FirestoreService {
     invalidateSkillsCache();
   }
 
-  /// Normalized skill id from display name (doc id in skills collection).
-  static String skillNameToSkillId(String name) {
-    return name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
-  }
+  /// Same slug as jobs import / [canonicalSkillId] (hyphens, case-insensitive).
+  static String skillNameToSkillId(String name) => canonicalSkillId(name);
 
   static String _skillNameToDocId(String name) => skillNameToSkillId(name);
 
   /// Fetch suggested learning resources (course names) for missing skills from Firestore.
-  /// Uses batch getAll to avoid N+1 reads. Returns map skillName (display) -> list of up to 3 course names.
+  /// 1) Reads [suggestedCourses] on each `skills/{id}` doc when present.
+  /// 2) If empty, falls back to [courses] collection (same data as Recommendations tab).
+  /// Returns map skillName (display) -> up to [maxPerSkill] short labels.
   Future<Map<String, List<String>>> getSuggestedCoursesForSkills(
     List<String> skillNames,
   ) async {
     const maxPerSkill = 3;
-    final result = <String, List<String>>{};
-    final uniqueIds = skillNames
-        .map(_skillNameToDocId)
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList();
-    if (uniqueIds.isEmpty) return result;
+    final names = skillNames.map((n) => n.trim()).where((n) => n.isNotEmpty).toList();
+    final result = <String, List<String>>{
+      for (final n in names) n: <String>[],
+    };
+    if (names.isEmpty) return result;
+
     try {
-      final refs = uniqueIds
-          .map((id) => _db.collection('skills').doc(id))
-          .toList();
-      final snapshots = await Future.wait(refs.map((r) => r.get()));
-      final idToCourses = <String, List<String>>{};
-      for (var i = 0; i < snapshots.length && i < refs.length; i++) {
-        final data = snapshots[i].data();
-        final list = data?['suggestedCourses'] as List<dynamic>?;
-        final courses =
-            list
-                ?.map((e) => e?.toString().trim())
-                .where((s) => s != null && s.isNotEmpty)
-                .cast<String>()
-                .take(maxPerSkill)
-                .toList() ??
-            [];
-        idToCourses[refs[i].id] = courses;
-      }
-      for (final name in skillNames) {
-        final id = _skillNameToDocId(name);
-        result[name] = idToCourses[id] ?? [];
+      final uniqueIds = names.map(_skillNameToDocId).where((id) => id.isNotEmpty).toSet().toList();
+      if (uniqueIds.isNotEmpty) {
+        final refs = uniqueIds.map((id) => _db.collection('skills').doc(id)).toList();
+        final snapshots = await Future.wait(refs.map((r) => r.get()));
+        final idToSuggested = <String, List<String>>{};
+        for (var i = 0; i < snapshots.length && i < refs.length; i++) {
+          final data = snapshots[i].data();
+          final list = data?['suggestedCourses'] as List<dynamic>?;
+          final suggested =
+              list
+                  ?.map((e) => e?.toString().trim())
+                  .where((s) => s != null && s.isNotEmpty)
+                  .cast<String>()
+                  .take(maxPerSkill)
+                  .toList() ??
+              [];
+          idToSuggested[refs[i].id] = suggested;
+        }
+        for (final name in names) {
+          final id = _skillNameToDocId(name);
+          final fromDoc = idToSuggested[id] ?? [];
+          if (fromDoc.isNotEmpty) {
+            result[name] = fromDoc;
+          }
+        }
       }
     } catch (e, st) {
-      debugPrint('getSuggestedCoursesForSkills failed: $e');
+      debugPrint('getSuggestedCoursesForSkills (skills docs): $e');
       if (kDebugMode) debugPrintStack(stackTrace: st);
-      for (final name in skillNames) {
-        result[name] = [];
-      }
     }
+
+    final needFallback = names.where((n) => result[n]!.isEmpty).toList();
+    if (needFallback.isEmpty) return result;
+
+    try {
+      final fromCourses = await getCoursesForSkills(needFallback, maxPerSkill);
+      for (final name in needFallback) {
+        final courses = fromCourses[name] ?? [];
+        result[name] = courses
+            .map((c) {
+              final t = c.title.trim();
+              final p = c.platform.trim();
+              if (t.isEmpty) return '';
+              return p.isNotEmpty ? '$t ($p)' : t;
+            })
+            .where((s) => s.isNotEmpty)
+            .take(maxPerSkill)
+            .toList();
+      }
+    } catch (e, st) {
+      debugPrint('getSuggestedCoursesForSkills (courses fallback): $e');
+      if (kDebugMode) debugPrintStack(stackTrace: st);
+    }
+
     return result;
   }
 
@@ -496,6 +584,20 @@ class FirestoreService {
           return w.substring(0, 1).toUpperCase() + w.substring(1).toLowerCase();
         }).join(' ');
         list = await _getCoursesForSkillExact(titleCase, limit);
+      }
+      if (list.isEmpty) {
+        final docId = skillNameToSkillId(name);
+        if (docId.isNotEmpty) {
+          final snap = await _db.collection('skills').doc(docId).get();
+          final data = snap.data();
+          final fromSkillDoc =
+              data?['skillName']?.toString().trim() ??
+              data?['name']?.toString().trim() ??
+              '';
+          if (fromSkillDoc.isNotEmpty && fromSkillDoc != name) {
+            list = await _getCoursesForSkillExact(fromSkillDoc, limit);
+          }
+        }
       }
       return list;
     } catch (e) {
@@ -762,10 +864,7 @@ class FirestoreService {
       'profile_completed': true,
     });
 
-    refreshAnalysisResultsForUser(uid).catchError((e, st) {
-      debugPrint('refreshAnalysisResultsForUser failed: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: st);
-    });
+    scheduleRefreshAnalysisResultsForUser(uid);
   }
 
   /// Adds or updates a skill by master skill id and level (0-100). Writes users.skills as { skillId, level }.
@@ -788,10 +887,7 @@ class FirestoreService {
       skills.add(entry);
     }
     await ref.update({'skills': skills, 'profile_completed': true});
-    refreshAnalysisResultsForUser(uid).catchError((e, st) {
-      debugPrint('refreshAnalysisResultsForUser failed: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: st);
-    });
+    scheduleRefreshAnalysisResultsForUser(uid);
   }
 
   /// Updates an existing skill's level by skillId (0-100).
@@ -810,10 +906,7 @@ class FirestoreService {
     if (idx < 0) return;
     skills[idx]['level'] = level.clamp(0, 100);
     await ref.update({'skills': skills, 'profile_completed': true});
-    refreshAnalysisResultsForUser(uid).catchError((e, st) {
-      debugPrint('refreshAnalysisResultsForUser failed: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: st);
-    });
+    scheduleRefreshAnalysisResultsForUser(uid);
   }
 
   /// Updates an existing skill's level/points by normalized name.
@@ -853,43 +946,108 @@ class FirestoreService {
       'profile_completed': true,
     });
 
-    refreshAnalysisResultsForUser(uid).catchError((e, st) {
-      debugPrint('refreshAnalysisResultsForUser failed: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: st);
-    });
+    scheduleRefreshAnalysisResultsForUser(uid);
   }
 
-  /// Recalculates skill gap match for all job roles and writes a summary to the user's
-  /// analysis_results field. Called automatically after addSkill/updateSkill so that
-  /// dashboard and learning suggestions stay in sync. Each job's result includes
-  /// matchPercentage, weightedMatchPercentage, and missingCount for potential dashboard use.
-  Future<void> refreshAnalysisResultsForUser(String uid) async {
+  /// Debounced full refresh after skill edits (coalesces rapid slider changes).
+  void scheduleRefreshAnalysisResultsForUser(String uid) {
+    if (uid.isEmpty) return;
+    AnalysisRefreshScheduler.schedule(uid, () => refreshAnalysisResultsForUser(uid));
+  }
+
+  /// Recalculates and merges one job into [analysis_results] (e.g. on-demand refresh).
+  Future<void> updateAnalysisResultsForJob(String uid, String jobId) async {
+    if (uid.isEmpty || jobId.trim().isEmpty) return;
+    await refreshAnalysisResultsForUser(uid, onlyJobIds: {jobId});
+  }
+
+  /// Recalculates skill gap match for job roles and writes a summary to [analysis_results].
+  /// [onlyJobIds]: if set, only those jobs are recomputed and merged with existing entries.
+  /// If null, all jobs are recomputed in parallel (replaces the whole map).
+  Future<void> refreshAnalysisResultsForUser(
+    String uid, {
+    Set<String>? onlyJobIds,
+  }) async {
+    final sw = Stopwatch()..start();
+    var msUser = 0;
+    var msJobsSkills = 0;
+    var msCompute = 0;
+
     final userDoc = await _db.collection('users').doc(uid).get();
+    msUser = sw.elapsedMilliseconds;
     if (!userDoc.exists || userDoc.data() == null) return;
 
     final userData = userDoc.data()!;
     final jobs = await getJobsOnce();
     final skillsCatalog = await getSkills();
-    final results = <String, Map<String, dynamic>>{};
+    msJobsSkills = sw.elapsedMilliseconds;
 
-    for (final job in jobs) {
-      final result = await GapAnalysisService.runGapAnalysis(
-        userData,
-        job,
-        fetchRecommendations: getSuggestedCoursesForSkills,
-        skillsCatalog: skillsCatalog.isNotEmpty ? skillsCatalog : null,
-      );
-      results[job.id] = {
-        'matchPercentage': result.matchPercentage,
-        'weightedMatchPercentage': result.weightedMatchPercentage,
-        'missingCount': result.missingSkills.length,
-        'matchedCount': result.matchedSkills.length,
-      };
+    final jobsToRun = onlyJobIds == null
+        ? jobs
+        : jobs.where((j) => onlyJobIds.contains(j.id)).toList();
+    if (jobsToRun.isEmpty) return;
+
+    final computed = await Future.wait(
+      jobsToRun.map((job) async {
+        final result = await GapAnalysisService.runGapAnalysis(
+          userData,
+          job,
+          fetchRecommendations: getSuggestedCoursesForSkills,
+          fetchCourseDetails: (names) => getCoursesForSkills(names, 3),
+          skillsCatalog: skillsCatalog.isNotEmpty ? skillsCatalog : null,
+        );
+        return MapEntry(
+          job.id,
+          <String, dynamic>{
+            'matchPercentage': result.matchPercentage,
+            'weightedMatchPercentage': result.weightedMatchPercentage,
+            'missingCount': result.missingSkills.length,
+            'matchedCount': result.matchedSkills.length,
+          },
+        );
+      }),
+    );
+    msCompute = sw.elapsedMilliseconds;
+
+    if (onlyJobIds == null) {
+      await _db.collection('users').doc(uid).update({
+        'analysis_results': Map<String, dynamic>.fromEntries(computed),
+      });
+    } else {
+      final merged = _parseAnalysisResultsMap(userData['analysis_results']);
+      for (final e in computed) {
+        merged[e.key] = e.value;
+      }
+      await _db.collection('users').doc(uid).update({
+        'analysis_results': Map<String, dynamic>.from(merged),
+      });
     }
 
-    await _db.collection('users').doc(uid).update({
-      'analysis_results': results,
-    });
+    sw.stop();
+    if (kDebugMode) {
+      debugPrint(
+        'refreshAnalysisResultsForUser: ${jobsToRun.length} job(s) total=${sw.elapsedMilliseconds}ms '
+        '(userDoc=${msUser}ms, jobs+skills=${msJobsSkills - msUser}ms, '
+        'compute=${msCompute - msJobsSkills}ms, write=${sw.elapsedMilliseconds - msCompute}ms, '
+        'scope=${onlyJobIds == null ? 'all' : 'partial'})',
+      );
+    }
+  }
+
+  static Map<String, Map<String, dynamic>> _parseAnalysisResultsMap(dynamic raw) {
+    final out = <String, Map<String, dynamic>>{};
+    if (raw is! Map) return out;
+    for (final e in raw.entries) {
+      final v = e.value;
+      if (v is Map<String, dynamic>) {
+        out[e.key.toString()] = Map<String, dynamic>.from(v);
+      } else if (v is Map) {
+        out[e.key.toString()] = Map<String, dynamic>.from(
+          v.map((k, v) => MapEntry(k.toString(), v)),
+        );
+      }
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------------------
@@ -2075,7 +2233,7 @@ class FirestoreService {
     ),
   ];
 
-  /// إضافة أو تحديث بيانات المستخدم
+  /// Adds or updates basic user fields on the current user's document.
   Future<void> addUser({required String name, required int age}) async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -2090,7 +2248,7 @@ class FirestoreService {
     });
   }
 
-  /// جلب بيانات المستخدم
+  /// Fetches the signed-in user's document data.
   Future<Map<String, dynamic>?> getUserData() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -2101,7 +2259,7 @@ class FirestoreService {
     return doc.exists ? doc.data() : null;
   }
 
-  /// تحديث بيانات المستخدم
+  /// Updates the signed-in user's document.
   Future<void> updateUserData(Map<String, dynamic> data) async {
     final user = FirebaseAuth.instance.currentUser;
 

@@ -39,11 +39,11 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
       Navigator.pop(context, true);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      String message = 'حدث خطأ أثناء إرسال الرابط';
+      String message = 'Error sending reset link';
       if (e.code == 'user-not-found') {
-        message = 'البريد الإلكتروني غير موجود';
+        message = 'Email not found';
       } else if (e.code == 'invalid-email') {
-        message = 'يرجى إدخال بريد إلكتروني صحيح';
+        message = 'Please enter a valid email';
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
@@ -52,7 +52,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('مشكلة غير متوقعة. حاول مرة أخرى'),
+          content: Text('Unexpected issue. Please try again.'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -68,7 +68,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text(
-        'إعادة تعيين كلمة المرور',
+        'Reset Password',
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
       content: Form(
@@ -77,7 +77,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            hintText: 'أدخل بريدك الإلكتروني',
+            hintText: 'Enter your email',
             prefixIcon: const Icon(Icons.mail_outline),
             filled: true,
             fillColor: const Color(0xFFF5F5F5),
@@ -88,9 +88,9 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
           ),
           validator: (value) {
             final email = value?.trim() ?? '';
-            if (email.isEmpty) return 'يرجى إدخال بريد إلكتروني صحيح';
+            if (email.isEmpty) return 'Please enter a valid email';
             final ok = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-            if (!ok) return 'يرجى إدخال بريد إلكتروني صحيح';
+            if (!ok) return 'Please enter a valid email';
             return null;
           },
         ),
@@ -99,7 +99,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.pop(context, false),
-          child: const Text('إلغاء'),
+          child: const Text('Cancel'),
         ),
         FilledButton(
           onPressed: _loading ? null : _submit,
@@ -115,7 +115,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
                     color: Colors.white,
                   ),
                 )
-              : const Text('إرسال رابط'),
+              : const Text('Send Link'),
         ),
       ],
     );

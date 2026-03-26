@@ -3,8 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/insight_model.dart';
-import '../models/trend_model.dart';
+import '../models/market_insights.dart';
 import '../services/firestore_service.dart';
+import '../services/market_insights_service.dart';
 import 'my_profile_screen.dart';
 import 'select_job_role_screen.dart';
 
@@ -16,12 +17,21 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
   final FirestoreService _firestore = FirestoreService();
+  late Future<MarketInsights> _marketInsightsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _marketInsightsFuture = MarketInsightsService.getRealInsights();
+  }
 
   Future<void> _refreshData() async {
     if (!mounted) return;
-    setState(() {});
+    setState(() {
+      _marketInsightsFuture =
+          MarketInsightsService.getRealInsights(forceRefresh: true);
+    });
     await Future<void>.delayed(const Duration(milliseconds: 250));
   }
 
@@ -109,7 +119,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 10),
                       _buildStatGrid(stats),
                       const SizedBox(height: 25),
-                      _buildQuickTipsCard(),
+                      _buildMarketInsightsCard(),
                       const SizedBox(height: 25),
                       const Row(
                         children: [
@@ -132,7 +142,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 15),
                       _buildInsightsSection(),
                       const SizedBox(height: 25),
-                      _buildMarketTrendsSection(),
+                      _buildQuickTipsCard(),
                         const SizedBox(height: 120),
                       ],
                     ),
@@ -200,15 +210,17 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: SvgPicture.asset(
                   'assets/logo.svg',
-                  width: 32,
-                  height: 32,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
                   placeholderBuilder: (context) =>
                       const Icon(Icons.auto_graph, color: Colors.white),
                 ),
@@ -239,7 +251,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           if (userName != null && userName.isNotEmpty) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             _buildWelcomeBackBox(userName),
           ],
         ],
@@ -247,34 +259,34 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Welcome box for returning users (purple gradient, light glass effect).
+  /// Welcome box: light purple surface, dark text — compact padding.
   Widget _buildWelcomeBackBox(String name) {
+    const darkText = Color(0xFF1A1C1E);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [
-              const Color(0xFFD1C4E9), // lavender left
-              const Color(0xFFB39DDB),
-              const Color(0xFF9575CD),
-              const Color(0xFF7E57C2), // deeper purple right
+              Color(0xFFF3E5F5),
+              Color(0xFFE1BEE7),
+              Color(0xFFD1C4E9),
             ],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
+            color: const Color(0xFFCE93D8).withValues(alpha: 0.45),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -282,21 +294,22 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'Welcome back,',
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: darkText,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               _formatDisplayName(name),
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                height: 1.2,
+                color: darkText,
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
@@ -471,6 +484,286 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Live feeds via [MarketInsightsService].
+  Widget _buildMarketInsightsCard() {
+    return FutureBuilder<MarketInsights>(
+      future: _marketInsightsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return _buildMarketInsightsLoading();
+        }
+        final insights = snapshot.data ?? MarketInsights.fallback();
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.local_fire_department_rounded,
+                    color: Color(0xFFFF9800),
+                    size: 26,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Market Insights',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1C1E),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (insights.errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    insights.errorMessage!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                )
+              else ...[
+                _buildMarketInsightSummaryBlock(insights),
+                ..._marketInsightJobRows(insights),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Summary: big count + full wrapped description + stat chips (no single-line ellipsis).
+  Widget _buildMarketInsightSummaryBlock(MarketInsights insights) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _trendBgColors[0],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '${insights.jobCount}',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                  color: Color(0xFF1A1C1E),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'live listings',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1C1E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            insights.jobListKind,
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.35,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _marketInsightStatChip(
+                Icons.payments_outlined,
+                'Avg salary',
+                insights.avgSalary,
+              ),
+              _marketInsightStatChip(
+                Icons.show_chart_rounded,
+                'Trend',
+                insights.growthRate,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _marketInsightStatChip(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      constraints: const BoxConstraints(minWidth: 0),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: _trendIconColors[0]),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1C1E),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Up to three job rows with multi-line titles (full job text).
+  List<Widget> _marketInsightJobRows(MarketInsights insights) {
+    final jobs = insights.topJobs.take(3).toList();
+    if (jobs.isEmpty) return const [];
+
+    return [
+      const SizedBox(height: 12),
+      for (var i = 0; i < jobs.length; i++) ...[
+        if (i > 0) const SizedBox(height: 12),
+        _marketInsightJobRow(
+          jobs[i],
+          i < insights.topCompanies.length
+              ? insights.topCompanies[i]
+              : 'Remote listing',
+          _trendBgColors[(i + 1) % _trendBgColors.length],
+          _trendIconColors[(i + 1) % _trendIconColors.length],
+        ),
+      ],
+    ];
+  }
+
+  Widget _marketInsightJobRow(
+    String title,
+    String company,
+    Color bgColor,
+    Color iconColor,
+  ) {
+    final iconContainerColor =
+        Color.lerp(bgColor, Colors.white, 0.6) ?? bgColor;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconContainerColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.work_outline_rounded, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    height: 1.35,
+                    color: Color(0xFF1A1C1E),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  company,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarketInsightsLoading() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
+        ),
+      ),
+    );
+  }
+
   // --- 4. Latest Insights (dynamic from Firestore) ---
   static const List<Color> _skillBarColors = [
     Color(0xFF9226FF),
@@ -558,6 +851,8 @@ class _HomePageState extends State<HomePage> {
               padding: EdgeInsets.all(16),
               child: Text(
                 'No insights yet. Add data in Firestore or run uploadHomeMockData().',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             )
           : Column(
@@ -576,7 +871,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- 5. Job Market Trends (dynamic from Firestore) ---
+  // --- 5. Market Insights palette (backgrounds + accent) ---
   static const List<Color> _trendBgColors = [
     Color(0xFFE8F5E9),
     Color(0xFFE3F2FD),
@@ -587,182 +882,6 @@ class _HomePageState extends State<HomePage> {
     Color(0xFF2196F3),
     Color(0xFF9C27B0),
   ];
-
-  Widget _buildMarketTrendsSection() {
-    return StreamBuilder<List<TrendModel>>(
-      stream: _firestore.streamMarketTrends(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return _buildJobMarketTrendsLoading();
-        }
-        if (snapshot.hasError) {
-          return _buildJobMarketTrendsError(snapshot.error.toString());
-        }
-        final trends = snapshot.data ?? [];
-        return _buildJobMarketTrends(trends);
-      },
-    );
-  }
-
-  Widget _buildJobMarketTrendsLoading() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJobMarketTrendsError(String message) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Text(
-        'Error loading trends: $message',
-        style: const TextStyle(color: Colors.red),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 3,
-      ),
-    );
-  }
-
-  Widget _buildJobMarketTrends(List<TrendModel> trends) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.trending_up, color: Color(0xFF4CAF50), size: 26),
-              SizedBox(width: 10),
-              Text(
-                'Job Market Trends',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1C1E),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          if (trends.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'No trends yet. Add data in Firestore or run uploadHomeMockData().',
-              ),
-            )
-          else
-            ...trends.asMap().entries.map((e) {
-              final i = e.key;
-              final t = e.value;
-              return Padding(
-                padding: EdgeInsets.only(top: i > 0 ? 12 : 0),
-                child: _trendItem(
-                  t.title,
-                  t.displaySubtitle,
-                  _trendBgColors[i % _trendBgColors.length],
-                  _trendIconColors[i % _trendIconColors.length],
-                  trendIconFromName(t.iconName),
-                ),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-
-  Widget _trendItem(
-    String title,
-    String subtitle,
-    Color bgColor,
-    Color iconColor,
-    IconData icon,
-  ) {
-    final iconContainerColor =
-        Color.lerp(bgColor, Colors.white, 0.6) ?? bgColor;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconContainerColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: iconColor, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFF1A1C1E),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- 6. Bottom Navigation Bar (fixed colors) ---
   Widget _buildBottomNav() {
@@ -806,7 +925,6 @@ class _HomePageState extends State<HomePage> {
     required int index,
     required Color itemColor,
   }) {
-    bool isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () {
         if (index == 0) {
@@ -824,8 +942,6 @@ class _HomePageState extends State<HomePage> {
               builder: (context) => const SelectJobRoleScreen(),
             ),
           );
-        } else {
-          setState(() => _selectedIndex = index);
         }
       },
       child: Column(
@@ -842,10 +958,10 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 6),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? const Color(0xFF1A1C1E) : Colors.grey[600],
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1C1E),
             ),
           ),
         ],

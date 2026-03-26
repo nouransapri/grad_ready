@@ -224,6 +224,8 @@ class _RecommendationsTabState extends State<RecommendationsTab>
               fontSize: 12,
               color: Colors.white.withValues(alpha: 0.7),
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -270,6 +272,8 @@ class _RecommendationsTabState extends State<RecommendationsTab>
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF111827),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isCritical)
@@ -374,6 +378,8 @@ class _RecommendationsTabState extends State<RecommendationsTab>
                       Text(
                         course.duration,
                         style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(width: 12),
                       Icon(Icons.star_rounded, size: 14, color: Colors.amber.shade700),

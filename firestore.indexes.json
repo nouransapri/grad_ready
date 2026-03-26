@@ -16,6 +16,13 @@
       ]
     },
     {
+      "collectionGroup": "skills",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "skillName", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "insights",
       "queryScope": "COLLECTION",
       "fields": [

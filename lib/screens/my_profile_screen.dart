@@ -411,6 +411,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     fontSize: 16,
                     color: Colors.black87,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
@@ -434,6 +436,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       child: Text(
         text,
         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

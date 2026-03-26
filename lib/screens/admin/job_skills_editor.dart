@@ -1,15 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/job_document.dart';
 import '../../models/skill_document.dart';
 import '../../services/firestore_service.dart';
 
 const Color _purple = Color(0xFF5B4B9E);
-const Color _criticalColor = Color(0xFFB91C1C);
-const Color _importantColor = Color(0xFFEA580C);
-const Color _niceColor = Color(0xFF16A34A);
+const Color _softBlue = Color(0xFF2563EB);
 
-/// Required skills editor: 3 tabs (Technical / Soft / Tools), search from skills library, cards with level, priority, weight.
+/// Required skills: segmented add target, manual row (name + level), library search, grouped lists.
+/// [createMode] matches the Add New Job Role mock: two segments (Technical / Soft), gray + button, no Tools section.
 class JobSkillsEditor extends StatefulWidget {
   final List<JobSkillItem> technicalSkills;
   final List<JobSkillItem> softSkills;
@@ -17,6 +18,7 @@ class JobSkillsEditor extends StatefulWidget {
   final ValueChanged<List<JobSkillItem>> onTechnicalChanged;
   final ValueChanged<List<JobSkillItem>> onSoftChanged;
   final ValueChanged<List<JobSkillItem>> onToolsChanged;
+  final bool createMode;
 
   const JobSkillsEditor({
     super.key,
@@ -26,6 +28,7 @@ class JobSkillsEditor extends StatefulWidget {
     required this.onTechnicalChanged,
     required this.onSoftChanged,
     required this.onToolsChanged,
+    this.createMode = false,
   });
 
   @override
@@ -36,6 +39,8 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
   final FirestoreService _firestore = FirestoreService();
   int _skillTabIndex = 0;
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _manualNameController = TextEditingController();
+  final TextEditingController _manualLevelController = TextEditingController(text: '70');
   List<SkillDocument> _suggestions = [];
   bool _searching = false;
   String _lastQuery = '';
@@ -44,14 +49,29 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
   Timer? _searchDebounceTimer;
 
   @override
+  void didUpdateWidget(covariant JobSkillsEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.createMode && _skillTabIndex > 1) {
+      _skillTabIndex = 0;
+    }
+  }
+
+  @override
   void dispose() {
     _searchDebounceTimer?.cancel();
     _searchController.dispose();
+    _manualNameController.dispose();
+    _manualLevelController.dispose();
     super.dispose();
   }
 
+  int get _effectiveTabIndex {
+    if (widget.createMode && _skillTabIndex > 1) return 0;
+    return _skillTabIndex;
+  }
+
   String get _currentType {
-    switch (_skillTabIndex) {
+    switch (_effectiveTabIndex) {
       case 0:
         return 'Technical';
       case 1:
@@ -64,7 +84,7 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
   }
 
   List<JobSkillItem> get _currentList {
-    switch (_skillTabIndex) {
+    switch (_effectiveTabIndex) {
       case 0:
         return widget.technicalSkills;
       case 1:
@@ -77,7 +97,7 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
   }
 
   void _onListChanged(List<JobSkillItem> list) {
-    switch (_skillTabIndex) {
+    switch (_effectiveTabIndex) {
       case 0:
         widget.onTechnicalChanged(list);
         break;
@@ -100,10 +120,12 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
 
   Future<void> _search(String q) async {
     if (q.trim().length < 2) {
-      if (mounted) setState(() {
-        _suggestions = [];
-        _showSuggestions = false;
-      });
+      if (mounted) {
+        setState(() {
+          _suggestions = [];
+          _showSuggestions = false;
+        });
+      }
       return;
     }
     if (mounted) setState(() => _searching = true);
@@ -144,442 +166,582 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
     });
   }
 
-  void _updateItem(int index, JobSkillItem updated) {
-    final list = List<JobSkillItem>.from(_currentList);
-    if (index < 0 || index >= list.length) return;
-    list[index] = updated;
+  void _addManual() {
+    final name = _manualNameController.text.trim();
+    if (name.isEmpty) return;
+    final raw = _manualLevelController.text.trim();
+    final n = int.tryParse(raw) ?? 70;
+    final level = n.clamp(0, 100);
+    if (raw.isNotEmpty && int.tryParse(raw) != null) {
+      _manualLevelController.text = level.toString();
+    }
+    final lower = name.toLowerCase();
+    if (_addedNames.contains(lower)) return;
+    final item = JobSkillItem(
+      name: name,
+      requiredLevel: level,
+      priority: 'Important',
+      weight: 5,
+      category: '',
+    );
+    final list = List<JobSkillItem>.from(_currentList)..add(item);
     _onListChanged(list);
+    _manualNameController.clear();
+    setState(() {});
   }
 
-  void _removeItem(int index) {
-    final list = List<JobSkillItem>.from(_currentList);
-    if (index < 0 || index >= list.length) return;
-    list.removeAt(index);
-    _onListChanged(list);
+  void _updateInList(
+    int tabIndex,
+    int index,
+    JobSkillItem updated,
+  ) {
+    switch (tabIndex) {
+      case 0:
+        final list = List<JobSkillItem>.from(widget.technicalSkills);
+        if (index < 0 || index >= list.length) return;
+        list[index] = updated;
+        widget.onTechnicalChanged(list);
+        break;
+      case 1:
+        final list = List<JobSkillItem>.from(widget.softSkills);
+        if (index < 0 || index >= list.length) return;
+        list[index] = updated;
+        widget.onSoftChanged(list);
+        break;
+      case 2:
+        final list = List<JobSkillItem>.from(widget.tools);
+        if (index < 0 || index >= list.length) return;
+        list[index] = updated;
+        widget.onToolsChanged(list);
+        break;
+    }
+  }
+
+  void _removeFromList(int tabIndex, int index) {
+    switch (tabIndex) {
+      case 0:
+        final list = List<JobSkillItem>.from(widget.technicalSkills);
+        if (index < 0 || index >= list.length) return;
+        list.removeAt(index);
+        widget.onTechnicalChanged(list);
+        break;
+      case 1:
+        final list = List<JobSkillItem>.from(widget.softSkills);
+        if (index < 0 || index >= list.length) return;
+        list.removeAt(index);
+        widget.onSoftChanged(list);
+        break;
+      case 2:
+        final list = List<JobSkillItem>.from(widget.tools);
+        if (index < 0 || index >= list.length) return;
+        list.removeAt(index);
+        widget.onToolsChanged(list);
+        break;
+    }
+    setState(() {});
+  }
+
+  Color _colorFrom(String? hex) {
+    if (hex == null || hex.isEmpty) return _purple;
+    var h = hex.replaceFirst('#', '');
+    if (h.length == 6) h = 'FF$h';
+    final n = int.tryParse(h, radix: 16);
+    return n != null ? Color(n) : _purple;
   }
 
   @override
   Widget build(BuildContext context) {
+    final create = widget.createMode;
+    final showUnifiedEmpty =
+        create && widget.technicalSkills.isEmpty && widget.softSkills.isEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Required Skills',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         const SizedBox(height: 6),
         Text(
-          'Search the skills library and add skills. Set level, priority and weight per skill.',
-          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _tab('Technical', widget.technicalSkills.length, 0, Icons.code_rounded)),
-            const SizedBox(width: 8),
-            Expanded(child: _tab('Soft', widget.softSkills.length, 1, Icons.people_rounded)),
-            const SizedBox(width: 8),
-            Expanded(child: _tab('Tools', widget.tools.length, 2, Icons.build_rounded)),
-          ],
+          create
+              ? 'Add technical and soft skills with required proficiency levels (0–100%).'
+              : 'Modify technical and soft skills with required proficiency levels (0–100%).',
+          style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.35),
         ),
         const SizedBox(height: 14),
-        Stack(
+        _segmentedToggle(),
+        const SizedBox(height: 14),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _searchController,
-              onChanged: (v) {
-                _searchDebounceTimer?.cancel();
-                _lastQuery = v;
-                _searchDebounceTimer = Timer(_searchDebounce, () {
-                  _searchDebounceTimer = null;
-                  if (_lastQuery == _searchController.text && mounted) _search(v);
-                });
-              },
-              onTap: () => setState(() => _showSuggestions = _suggestions.isNotEmpty),
-              decoration: InputDecoration(
-                hintText: 'Search $_currentType skills...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _searching
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                      )
-                    : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            Expanded(
+              child: TextField(
+                controller: _manualNameController,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  hintText: 'Skill name...',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                onSubmitted: (_) => _addManual(),
               ),
             ),
-            if (_showSuggestions && _suggestions.isNotEmpty)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 52,
-                child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(12),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: _suggestions.length,
-                      itemBuilder: (_, i) {
-                        final s = _suggestions[i];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _colorFrom(s.color).withValues(alpha: 0.3),
-                            child: Text(
-                              (s.icon ?? s.skillName.substring(0, 1)).toUpperCase(),
-                              style: TextStyle(color: _colorFrom(s.color), fontSize: 14),
-                            ),
-                          ),
-                          title: Text(s.skillName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text('${s.category} · Used in ${s.totalJobsUsingSkill} jobs'),
-                          onTap: () => _addSkill(s),
-                        );
-                      },
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 64,
+              child: TextField(
+                controller: _manualLevelController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(3),
+                ],
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  suffixText: create ? null : '%',
+                  suffixStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                onSubmitted: (_) => _addManual(),
+              ),
+            ),
+            const SizedBox(width: 4),
+            create
+                ? Material(
+                    color: const Color(0xFFE8E8E8),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _addManual,
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(Icons.add_rounded, color: Colors.grey.shade800, size: 22),
+                      ),
+                    ),
+                  )
+                : Material(
+                    color: _purple,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: _addManual,
+                      borderRadius: BorderRadius.circular(12),
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                      ),
                     ),
                   ),
-                ),
-              ),
           ],
         ),
-        const SizedBox(height: 16),
-        ReorderableListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          buildDefaultDragHandles: true,
-          itemCount: _currentList.length,
-          onReorder: (oldIndex, newIndex) {
-            if (newIndex > oldIndex) newIndex--;
-            final list = List<JobSkillItem>.from(_currentList);
-            final item = list.removeAt(oldIndex);
-            list.insert(newIndex, item);
-            _onListChanged(list);
-          },
-          itemBuilder: (_, index) {
-            final item = _currentList[index];
-            return _SkillCard(
-              key: ValueKey('${item.name}_$index'),
-              index: index,
-              item: item,
-              onLevelChanged: (v) => _updateItem(
-                index,
-                JobSkillItem(
-                  name: item.name,
-                  requiredLevel: v.round(),
-                  priority: item.priority,
-                  weight: item.weight,
-                  category: item.category,
-                ),
+        const SizedBox(height: 12),
+        if (!create)
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(top: 8),
+              title: Text(
+                'Search skills library',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
               ),
-              onPriorityChanged: (p) => _updateItem(
-                index,
-                JobSkillItem(
-                  name: item.name,
-                  requiredLevel: item.requiredLevel,
-                  priority: p,
-                  weight: item.weight,
-                  category: item.category,
-                ),
-              ),
-              onWeightChanged: (w) => _updateItem(
-                index,
-                JobSkillItem(
-                  name: item.name,
-                  requiredLevel: item.requiredLevel,
-                  priority: item.priority,
-                  weight: w,
-                  category: item.category,
-                ),
-              ),
-              onRemove: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (c) => AlertDialog(
-                    title: const Text('Remove skill?'),
-                    content: Text('Remove "${item.name}" from this job?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                      FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Remove')),
-                    ],
-                  ),
-                );
-                if (confirm == true) _removeItem(index);
-              },
-            );
-          },
-        ),
-        if (_currentList.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Column(
               children: [
-                Icon(Icons.add_circle_outline_rounded, size: 40, color: Colors.grey[600]),
-                const SizedBox(height: 8),
-                Text(
-                  'No $_currentType skills added. Search above to add.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                  textAlign: TextAlign.center,
+                Stack(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (v) {
+                        _searchDebounceTimer?.cancel();
+                        _lastQuery = v;
+                        _searchDebounceTimer = Timer(_searchDebounce, () {
+                          _searchDebounceTimer = null;
+                          if (_lastQuery == _searchController.text && mounted) _search(v);
+                        });
+                      },
+                      onTap: () => setState(() => _showSuggestions = _suggestions.isNotEmpty),
+                      decoration: InputDecoration(
+                        hintText: 'Search $_currentType skills…',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 22),
+                        suffixIcon: _searching
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : null,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    if (_showSuggestions && _suggestions.isNotEmpty)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 52,
+                        child: Material(
+                          elevation: 8,
+                          borderRadius: BorderRadius.circular(12),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: _suggestions.length,
+                              itemBuilder: (_, i) {
+                                final s = _suggestions[i];
+                                return ListTile(
+                                  dense: true,
+                                  leading: CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: _colorFrom(s.color).withValues(alpha: 0.25),
+                                    child: Text(
+                                      (s.icon ?? s.skillName.substring(0, 1)).toUpperCase(),
+                                      style: TextStyle(color: _colorFrom(s.color), fontSize: 13),
+                                    ),
+                                  ),
+                                  title: Text(s.skillName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  subtitle: Text(
+                                    '${s.category} · ${s.totalJobsUsingSkill} jobs',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  onTap: () => _addSkill(s),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
-        const SizedBox(height: 20),
-        _SummaryPanel(
-          technical: widget.technicalSkills,
-          soft: widget.softSkills,
-          tools: widget.tools,
+        if (!create) const SizedBox(height: 8),
+        Text(
+          create
+              ? 'Technical Skills: ${widget.technicalSkills.length}    Soft Skills: ${widget.softSkills.length}'
+              : 'Technical Skills: ${widget.technicalSkills.length}    Soft Skills: ${widget.softSkills.length}    Tools: ${widget.tools.length}',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
+        const SizedBox(height: 16),
+        if (showUnifiedEmpty) _buildUnifiedEmptyPlaceholder() else ...[
+          _buildSection(
+            label: 'Technical Skills',
+            labelColor: _purple,
+            rowBg: const Color(0xFFF3EEFF),
+            accent: _purple,
+            tabIndex: 0,
+            items: widget.technicalSkills,
+          ),
+          const SizedBox(height: 16),
+          _buildSection(
+            label: 'Soft Skills',
+            labelColor: _softBlue,
+            rowBg: const Color(0xFFE8F4FC),
+            accent: _softBlue,
+            tabIndex: 1,
+            items: widget.softSkills,
+          ),
+        ],
+        if (!create) ...[
+          const SizedBox(height: 16),
+          _buildSection(
+            label: 'Tools',
+            labelColor: Colors.black87,
+            rowBg: const Color(0xFFF3F4F6),
+            accent: Colors.blueGrey.shade700,
+            tabIndex: 2,
+            items: widget.tools,
+          ),
+        ],
       ],
     );
   }
 
-  Widget _tab(String label, int count, int index, IconData icon) {
-    final selected = _skillTabIndex == index;
-    return Material(
-      color: selected ? _purple.withValues(alpha: 0.15) : Colors.grey.shade200,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: () => setState(() {
-          _skillTabIndex = index;
-          _showSuggestions = false;
-          _suggestions = [];
-        }),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: selected ? _purple : Colors.grey[700]),
-              const SizedBox(width: 6),
-              Text(
-                '$label ($count)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? _purple : Colors.grey[700],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _colorFrom(String? hex) {
-    if (hex == null || hex.isEmpty) return _purple;
-    hex = hex.replaceFirst('#', '');
-    if (hex.length == 6) hex = 'FF$hex';
-    final n = int.tryParse(hex, radix: 16);
-    return n != null ? Color(n) : _purple;
-  }
-}
-
-class _SkillCard extends StatelessWidget {
-  final int index;
-  final JobSkillItem item;
-  final ValueChanged<double> onLevelChanged;
-  final ValueChanged<String> onPriorityChanged;
-  final ValueChanged<int> onWeightChanged;
-  final VoidCallback onRemove;
-
-  const _SkillCard({
-    super.key,
-    required this.index,
-    required this.item,
-    required this.onLevelChanged,
-    required this.onPriorityChanged,
-    required this.onWeightChanged,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ReorderableDragStartListener(
-                  index: index,
-                  child: const Icon(Icons.drag_handle_rounded, color: Colors.grey),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      if (item.category.isNotEmpty)
-                        Text(
-                          item.category,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  onPressed: onRemove,
-                  color: Colors.red.shade400,
-                  tooltip: 'Remove',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Required level: ${item.requiredLevel}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-            Slider(
-              value: item.requiredLevel.toDouble(),
-              min: 0,
-              max: 100,
-              divisions: 20,
-              onChanged: onLevelChanged,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('الأولوية', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 4),
-                      DropdownButtonFormField<String>(
-                        value: item.priority,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        ),
-                        items: [
-                          DropdownMenuItem(value: 'Critical', child: Text('حرجة', style: TextStyle(color: _criticalColor, fontWeight: FontWeight.w600))),
-                          DropdownMenuItem(value: 'Important', child: Text('مهمة', style: TextStyle(color: _importantColor, fontWeight: FontWeight.w600))),
-                          DropdownMenuItem(value: 'Nice-to-Have', child: Text('مفضلة', style: TextStyle(color: _niceColor, fontWeight: FontWeight.w600))),
-                        ],
-                        onChanged: (v) => onPriorityChanged(v ?? 'Important'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 80,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Weight (1-10)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 4),
-                      TextFormField(
-                        initialValue: item.weight.toString(),
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        ),
-                        onChanged: (v) {
-                          final n = int.tryParse(v);
-                          if (n != null) onWeightChanged(n.clamp(1, 10));
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryPanel extends StatelessWidget {
-  final List<JobSkillItem> technical;
-  final List<JobSkillItem> soft;
-  final List<JobSkillItem> tools;
-
-  const _SummaryPanel({
-    required this.technical,
-    required this.soft,
-    required this.tools,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final all = [...technical, ...soft, ...tools];
-    final total = all.length;
-    final avg = total == 0 ? 0.0 : all.fold<int>(0, (a, s) => a + s.requiredLevel) / total;
-    final critical = all.where((s) => s.priority == 'Critical').length;
-    final important = all.where((s) => s.priority == 'Important').length;
-    final nice = all.where((s) => s.priority == 'Nice-to-Have').length;
+  Widget _buildUnifiedEmptyPlaceholder() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Colors.grey.shade400, width: 1.5),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Skills summary', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _summaryChip(Icons.assessment_rounded, 'Total', '$total'),
-              const SizedBox(width: 12),
-              _summaryChip(Icons.code_rounded, 'Technical', '${technical.length}'),
-              const SizedBox(width: 12),
-              _summaryChip(Icons.people_rounded, 'Soft', '${soft.length}'),
-              const SizedBox(width: 12),
-              _summaryChip(Icons.build_rounded, 'Tools', '${tools.length}'),
-            ],
+          Text(
+            'No skills added yet',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800]),
           ),
-          const SizedBox(height: 10),
-          Text('Average required level: ${avg.toStringAsFixed(0)}%', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
           const SizedBox(height: 6),
-          Wrap(
-            spacing: 12,
-            runSpacing: 4,
-            children: [
-              Text('Critical: $critical', style: const TextStyle(fontSize: 12, color: _criticalColor, fontWeight: FontWeight.w600)),
-              Text('Important: $important', style: const TextStyle(fontSize: 12, color: _importantColor, fontWeight: FontWeight.w600)),
-              Text('Nice-to-Have: $nice', style: const TextStyle(fontSize: 12, color: _niceColor, fontWeight: FontWeight.w600)),
-            ],
+          Text(
+            'Add skills using the form above',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _summaryChip(IconData icon, String label, String value) {
+  Widget _segmentedToggle() {
+    Widget seg(String label, int index) {
+      final selected = _effectiveTabIndex == index;
+      return Expanded(
+        child: Material(
+          color: selected ? _purple : const Color(0xFFE8E8E8),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: () => setState(() {
+              _skillTabIndex = index;
+              _showSuggestions = false;
+              _suggestions = [];
+            }),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (widget.createMode) {
+      return Row(
+        children: [
+          seg('Technical', 0),
+          const SizedBox(width: 8),
+          seg('Soft Skills', 1),
+        ],
+      );
+    }
+
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: _purple),
-        const SizedBox(width: 4),
-        Text('$label: $value', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        seg('Technical', 0),
+        const SizedBox(width: 8),
+        seg('Soft Skills', 1),
+        const SizedBox(width: 8),
+        seg('Tools', 2),
       ],
+    );
+  }
+
+  Widget _buildSection({
+    required String label,
+    required Color labelColor,
+    required Color rowBg,
+    required Color accent,
+    required int tabIndex,
+    required List<JobSkillItem> items,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: labelColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (items.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Text(
+              'No ${label.toLowerCase()} added yet.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+          )
+        else
+          ...List.generate(items.length, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _CompactSkillRow(
+                key: ValueKey('$tabIndex-${items[index].name}-$index'),
+                item: items[index],
+                rowBg: rowBg,
+                accent: accent,
+                onLevelChanged: (v) => _updateInList(
+                  tabIndex,
+                  index,
+                  JobSkillItem(
+                    name: items[index].name,
+                    requiredLevel: v.round(),
+                    priority: items[index].priority,
+                    weight: items[index].weight,
+                    category: items[index].category,
+                  ),
+                ),
+                onRemove: () => _removeFromList(tabIndex, index),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class _CompactSkillRow extends StatefulWidget {
+  final JobSkillItem item;
+  final Color rowBg;
+  final Color accent;
+  final ValueChanged<double> onLevelChanged;
+  final VoidCallback onRemove;
+
+  const _CompactSkillRow({
+    super.key,
+    required this.item,
+    required this.rowBg,
+    required this.accent,
+    required this.onLevelChanged,
+    required this.onRemove,
+  });
+
+  @override
+  State<_CompactSkillRow> createState() => _CompactSkillRowState();
+}
+
+class _CompactSkillRowState extends State<_CompactSkillRow> {
+  late TextEditingController _levelController;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _levelController = TextEditingController(
+      text: widget.item.requiredLevel.clamp(0, 100).toString(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _CompactSkillRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.requiredLevel != widget.item.requiredLevel &&
+        widget.item.requiredLevel.toString() != _levelController.text) {
+      _levelController.text = widget.item.requiredLevel.clamp(0, 100).toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _levelController.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    _debounce?.cancel();
+    final raw = _levelController.text.trim();
+    if (raw.isEmpty) return;
+    final n = int.tryParse(raw);
+    if (n == null) return;
+    final c = n.clamp(0, 100);
+    if (c != n) _levelController.text = c.toString();
+    widget.onLevelChanged(c.toDouble());
+  }
+
+  void _schedule() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      _commit();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.rowBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              widget.item.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 56,
+            child: TextField(
+              controller: _levelController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(3),
+              ],
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: widget.accent,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                suffixText: '%',
+                suffixStyle: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+              onChanged: (_) => _schedule(),
+              onEditingComplete: _commit,
+              onSubmitted: (_) => _commit(),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close_rounded, size: 20, color: Colors.grey.shade600),
+            onPressed: widget.onRemove,
+            tooltip: 'Remove',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ],
+      ),
     );
   }
 }

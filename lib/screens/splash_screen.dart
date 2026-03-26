@@ -1,22 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
-import 'onboarding_screen.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  Future<void> _goNext(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final completed = prefs.getBool('onboarding_completed') ?? false;
-    if (!context.mounted) return;
+  void _goNext(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) =>
-            completed ? const LoginScreen() : const OnboardingScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
     );
   }
 
@@ -54,11 +46,14 @@ class SplashScreen extends StatelessWidget {
                       width: 2,
                     ),
                   ),
-                  child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
                     child: SvgPicture.asset(
                       'assets/logo.svg',
-                      width: 80,
-                      height: 80,
+                      width: 114,
+                      height: 114,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
                     ),
                   ),
                 ),

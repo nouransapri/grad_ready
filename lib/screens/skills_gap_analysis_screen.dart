@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
 import '../models/job_role.dart';
@@ -96,19 +97,24 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         .toList();
   }
 
-  /// من مستوى البروفايل (Basic/Intermediate/Advanced) إلى نسبة مئوية — مطابق لـ create_profile
+  /// Maps profile level (Basic/Intermediate/Advanced) to a 0–100 percent (same as create_profile).
   static int _levelToPercent(dynamic level) {
     if (level == null) return 0;
     if (level is int) return level.clamp(0, 100);
     if (level is double) return level.round().clamp(0, 100);
     final s = level.toString().trim();
     if (s.isEmpty) return 0;
-    switch (s.toLowerCase()) {
+    final normalized = s.toLowerCase();
+    switch (normalized) {
       case 'advanced':
+      case 'expert':
         return 95;
       case 'intermediate':
+      case 'intermidiate':
+      case 'mid':
         return 65;
       case 'basic':
+      case 'beginner':
         return 35;
       default:
         final num = int.tryParse(s);
@@ -116,7 +122,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     }
   }
 
-  /// استخراج نسبة المستخدم لمهارة من خريطة مهارات البروفايل (مع مطابقة مرنة للأسماء)
+  /// Resolves user percent for a job skill name from profile skill map (flexible name match).
   static int _userPercentForSkill(
     String jobSkillName,
     Map<String, int> userSkillPercent,
@@ -134,32 +140,71 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     return 0;
   }
 
+  static int _userLevelForSkillId(String skillId, Map<String, int> userLevels) {
+    final canonical = canonicalSkillId(skillId);
+    return userLevels[canonical] ?? userLevels[skillId] ?? 0;
+  }
+
+  static Skill? _catalogSkillById(Map<String, Skill> catalog, String skillId) {
+    final canonical = canonicalSkillId(skillId);
+    final byKey = catalog[canonical] ?? catalog[skillId];
+    if (byKey != null) return byKey;
+    for (final s in catalog.values) {
+      if (canonicalSkillId(s.id) == canonical) return s;
+    }
+    return null;
+  }
+
+  static int _userLevelFallbackByName(Map<String, dynamic> userData, String skillName) {
+    final skills = userData['skills'] as List?;
+    if (skills == null) return 0;
+    final target = normalizeSkillName(skillName);
+    int best = 0;
+    for (final s in skills) {
+      if (s is! Map) continue;
+      final m = Map<String, dynamic>.from(
+        s.map((k, v) => MapEntry(k.toString(), v)),
+      );
+      final name = (m['name'] ?? '').toString().trim();
+      if (name.isEmpty) continue;
+      final n = normalizeSkillName(name);
+      if (!(n == target || n.contains(target) || target.contains(n))) continue;
+      final percent = _levelToPercent(m['level'] ?? m['points']);
+      if (percent > best) best = percent;
+    }
+    return best;
+  }
+
   Future<void> _updateAnalysis() async {
     if (_userSnap == null) return;
     final version = ++_updateAnalysisVersion;
     final userData = _userSnap!.data();
-    final catalog = _skillsCatalog;
+    final mergedCatalog = GapAnalysisService.mergeJobRequiredSkillsCatalog(
+      _currentJob,
+      _skillsCatalog,
+    );
     final useLevelBased =
-        _currentJob.requiredSkillsWithLevel.isNotEmpty &&
-        catalog != null &&
-        catalog.isNotEmpty;
+        _currentJob.requiredSkillsWithLevel.isNotEmpty && userData != null;
 
     List<SkillGapItem> items = [];
     GapAnalysisResult? gapResult;
 
-    if (useLevelBased && userData != null) {
+    if (useLevelBased) {
       final userLevels = GapAnalysisService.collectUserLevelsBySkillId(
         userData,
-        catalog,
+        mergedCatalog,
       );
       final requiredSorted = List<JobRequiredSkill>.from(
         _currentJob.requiredSkillsWithLevel,
       )..sort((a, b) => b.importance.compareTo(a.importance));
       for (final req in requiredSorted) {
-        final skill = catalog[req.skillId];
+        final skill = _catalogSkillById(mergedCatalog, req.skillId);
         final name = skill?.name ?? req.skillId;
         final requiredPercent = req.requiredLevel.clamp(0, 100);
-        final currentPercent = userLevels[req.skillId] ?? 0;
+        int currentPercent = _userLevelForSkillId(req.skillId, userLevels);
+        if (currentPercent == 0) {
+          currentPercent = _userLevelFallbackByName(userData, name);
+        }
         final isTechnical = skill?.isTechnical ?? true;
         final isCritical = req.importance >= 3;
         items.add(
@@ -177,7 +222,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         _currentJob,
         fetchRecommendations: (names) =>
             _firestore.getSuggestedCoursesForSkills(names),
-        skillsCatalog: catalog,
+        fetchCourseDetails: (names) => _firestore.getCoursesForSkills(names, 3),
+        skillsCatalog: _skillsCatalog,
       );
     } else {
       final technical = _technicalSkills;
@@ -241,6 +287,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           _currentJob,
           fetchRecommendations: (names) =>
               _firestore.getSuggestedCoursesForSkills(names),
+          fetchCourseDetails: (names) =>
+              _firestore.getCoursesForSkills(names, 3),
         );
       }
     }
@@ -257,7 +305,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     }
   }
 
-  /// يحدّث حقل last_analysis في بروفايل المستخدم مرة واحدة لكل دور وظيفي في الجلسة.
+  /// Updates user profile `last_analysis` once per job role per session.
   void _saveLastAnalysisIfNeeded() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || _currentJob.id.isEmpty) return;
@@ -274,6 +322,14 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           debugPrint('_saveLastAnalysisIfNeeded failed: $e');
           if (kDebugMode) debugPrintStack(stackTrace: st);
         });
+  }
+
+  Future<void> _openCourseUrl(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   @override
@@ -293,6 +349,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         .then((map) {
           if (mounted) {
             setState(() => _skillsCatalog = map.isNotEmpty ? map : null);
+            // Re-run once catalog is loaded so level-based matching uses canonical ids.
+            _updateAnalysis();
           }
         })
         .catchError((e, st) {
@@ -782,7 +840,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               ),
             ),
             const SizedBox(height: 16),
-            // بطاقة ملخص الفجوة (بداخل كارد بتدرج)
+            // Gap summary card (inside gradient card)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -1278,7 +1336,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               ),
               const SizedBox(height: 16),
               _SkillsListSection(
-                title: 'Missing skills (by priority)',
+                title: 'Skills below requirement (by priority)',
                 skills: _gapResult!.missingSkills,
                 icon: Icons.warning_amber_rounded,
                 color: AppTheme.warning,
@@ -2259,7 +2317,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Matched ${r.matchedSkills.length} · Missing ${r.missingSkills.length}',
+                  'Matched ${r.matchedSkills.length} · Below requirement ${r.missingSkills.length}',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -2285,7 +2343,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           if (r.missingSkills.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
-              'Missing skills (by priority — focus on top first)',
+              'Skills below job requirement — suggested courses',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -2296,6 +2354,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             ...r.missingSkills.map((s) {
               final isHigh = r.isHighPriority(s);
               final courses = r.skillRecommendations[s] ?? [];
+              final courseLinks = r.skillCourseResources[s] ?? [];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Column(
@@ -2349,11 +2408,60 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    if (courses.isNotEmpty) ...[
+                    if (courseLinks.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Suggested courses (tap to open)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: courseLinks
+                            .take(3)
+                            .map(
+                              (c) => InkWell(
+                                onTap: c.url.trim().isEmpty
+                                    ? null
+                                    : () => _openCourseUrl(c.url),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                    horizontal: 2,
+                                  ),
+                                  child: Text(
+                                    c.title.isNotEmpty ? c.title : c.platform,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ] else if (courses.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Padding(
                         padding: const EdgeInsets.only(left: 0),
@@ -2385,7 +2493,6 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             ),
             const SizedBox(height: 6),
             ...r.learningPath
-                .take(5)
                 .map(
                   (step) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -2410,7 +2517,38 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
-                              if (step.suggestedCourses.isNotEmpty)
+                              if (step.suggestedCourseLinks.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: step.suggestedCourseLinks
+                                      .take(3)
+                                      .map(
+                                        (c) => InkWell(
+                                          onTap: c.url.trim().isEmpty
+                                              ? null
+                                              : () => _openCourseUrl(c.url),
+                                          child: Text(
+                                            c.title.isNotEmpty
+                                                ? c.title
+                                                : c.platform,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ] else if (step.suggestedCourses.isNotEmpty)
                                 Text(
                                   'Resources: ${step.suggestedCourses.take(2).join(', ')}',
                                   style: TextStyle(
@@ -3495,7 +3633,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 }
 
-/// بطاقة مهارة واحدة داخل تبويب Skills Breakdown (مع تسمية Critical ونص "improvement needed")
+/// Single skill card in Skills Breakdown tab (Critical label + improvement text).
 class _BreakdownSkillTile extends StatelessWidget {
   final SkillGapItem item;
 

@@ -1,17 +1,17 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../app_theme.dart';
 import '../../models/job_document.dart';
+import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
-import '../login_screen.dart';
 import 'job_skills_editor.dart';
 
-// ألوان مطابقة للتصميم
-const Color _headerPurpleStart = Color(0xFF5B4B9E);
-const Color _headerPurpleEnd = Color(0xFF7B6BBE);
-const Color _tabSelectedBg = Color(0xFFE8E4F5);
-const Color _saveButtonGrey = Color(0xFFE0E0E0);
-const Color _saveButtonText = Color(0xFF757575);
+const Color _pageBg = Color(0xFF0A0A0A);
+const Color _createPageBg = Color(0xFFF0F2F5);
+const Color _cardWhite = Colors.white;
+const Color _statRed = Color(0xFFD32F2F);
 
-/// شاشة إنشاء أو تعديل دور وظيفي (تفتح من Add New Job Role أو Edit على بطاقة الوظيفة).
+/// Create or edit a job role (from Add New Job Role or Edit on a job card).
 class AdminCreateJobRoleScreen extends StatefulWidget {
   final JobDocument? job;
 
@@ -34,12 +34,22 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
   List<JobSkillItem> _softSkills = [];
   List<JobSkillItem> _tools = [];
   final FirestoreService _firestore = FirestoreService();
+  late final Stream<List<JobRole>> _jobsStream = _firestore.getJobs();
   bool _saving = false;
   JobDocument? get _editingJob => widget.job;
+  bool get _isCreate => widget.job == null;
+
+  void _onFormFieldChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
+    _titleController.addListener(_onFormFieldChanged);
+    _descriptionController.addListener(_onFormFieldChanged);
+    _categoryController.addListener(_onFormFieldChanged);
+    _salaryController.addListener(_onFormFieldChanged);
     final job = widget.job;
     if (job != null) {
       _titleController.text = job.title;
@@ -57,6 +67,10 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
 
   @override
   void dispose() {
+    _titleController.removeListener(_onFormFieldChanged);
+    _descriptionController.removeListener(_onFormFieldChanged);
+    _categoryController.removeListener(_onFormFieldChanged);
+    _salaryController.removeListener(_onFormFieldChanged);
     _titleController.dispose();
     _descriptionController.dispose();
     _categoryController.dispose();
@@ -64,19 +78,180 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     super.dispose();
   }
 
+  bool get _canSave {
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    final category = _categoryController.text.trim();
+    final total = _technicalSkills.length + _softSkills.length + _tools.length;
+    return title.isNotEmpty &&
+        description.isNotEmpty &&
+        category.isNotEmpty &&
+        total >= 5;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isCreate) {
+      return _buildCreateScaffold(context);
+    }
+    return _buildEditScaffold(context);
+  }
+
+  Widget _buildCreateScaffold(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final secondary = theme.colorScheme.secondary;
     final topPadding = MediaQuery.of(context).padding.top;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
+      backgroundColor: _createPageBg,
       body: Column(
         children: [
-          _buildHeader(topPadding),
+          _createGradientHeader(context, topPadding, primary, secondary),
           Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(16, 14, 16, 24 + bottomPadding),
-              child: _buildFormCard(),
+            child: StreamBuilder<List<JobRole>>(
+              stream: _jobsStream,
+              builder: (context, snapshot) {
+                final jobs = snapshot.data ?? [];
+                final categories = jobs
+                    .map((j) => j.category)
+                    .where((c) => c.isNotEmpty)
+                    .toSet()
+                    .toList()
+                  ..sort();
+                final highDemandCount = jobs.where((j) => j.isHighDemand).length;
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _CreateStatCard(
+                              value: '${jobs.length}',
+                              label: 'Total Roles',
+                              color: primary,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _CreateStatCard(
+                              value: '$highDemandCount',
+                              label: 'High Demand',
+                              color: _statRed,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _CreateStatCard(
+                              value: '${categories.isEmpty ? 0 : categories.length}',
+                              label: 'Categories',
+                              color: secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Material(
+                        color: _cardWhite,
+                        elevation: 2,
+                        shadowColor: Colors.black26,
+                        borderRadius: BorderRadius.circular(18),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'Create New Job Role',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => Navigator.maybePop(context),
+                                      icon: const Icon(Icons.close_rounded, color: Colors.black54),
+                                      tooltip: 'Close',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                _jobFields(isCreate: true),
+                                const SizedBox(height: 20),
+                                const Divider(height: 1),
+                                const SizedBox(height: 16),
+                                JobSkillsEditor(
+                                  technicalSkills: _technicalSkills,
+                                  softSkills: _softSkills,
+                                  tools: _tools,
+                                  createMode: true,
+                                  onTechnicalChanged: (v) => setState(() => _technicalSkills = v),
+                                  onSoftChanged: (v) => setState(() => _softSkills = v),
+                                  onToolsChanged: (v) => setState(() => _tools = v),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 88 + bottomInset),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            color: _createPageBg,
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + bottomInset),
+            child: FilledButton(
+              onPressed: (_canSave && !_saving) ? _saveJobRole : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFBDBDBD),
+                disabledForegroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_saving)
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    const Icon(Icons.save_rounded, size: 22),
+                  const SizedBox(width: 10),
+                  Text(
+                    _saving ? 'Saving…' : 'Save Job Role',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -84,109 +259,253 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     );
   }
 
-  Widget _buildHeader(double topPadding) {
+  Widget _createGradientHeader(
+    BuildContext context,
+    double topPadding,
+    Color primary,
+    Color secondary,
+  ) {
+    const tabs = [
+      (label: 'Overview', icon: Icons.dashboard_rounded),
+      (label: 'Jobs', icon: Icons.work_outline_rounded),
+      (label: 'Analytics', icon: Icons.analytics_outlined),
+      (label: 'Skills', icon: Icons.school_rounded),
+    ];
+    const selectedTabIndex = 1;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16, topPadding + 12, 16, 14),
-      decoration: const BoxDecoration(
+      padding: EdgeInsets.fromLTRB(8, topPadding + 8, 8, 14),
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_headerPurpleStart, _headerPurpleEnd],
+          colors: [primary, secondary],
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.shield_outlined,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Admin Panel',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+              IconButton(
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
+                tooltip: 'Back',
+              ),
+              const Icon(Icons.shield_outlined, color: Colors.white, size: 28),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Admin Panel',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Text(
-                        'GradReady Management',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 12,
-                        ),
+                    ),
+                    Text(
+                      'GradReady Management',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
               IconButton(
-                onPressed: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                ),
-                icon: const Icon(
-                  Icons.logout_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (!context.mounted) return;
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 24),
+                tooltip: 'Log out',
               ),
             ],
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              _tabChip('Overview', Icons.dashboard_rounded, false),
-              const SizedBox(width: 6),
-              _tabChip('Jobs', Icons.work_outline_rounded, true),
-              const SizedBox(width: 6),
-              _tabChip('Analytics', Icons.analytics_outlined, false),
-              const SizedBox(width: 6),
-              _tabChip('Market', Icons.storage_rounded, false),
-            ],
+          IgnorePointer(
+            child: Row(
+              children: List.generate(tabs.length, (i) {
+                final isSelected = i == selectedTabIndex;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: i < tabs.length - 1 ? 6 : 0),
+                    child: Material(
+                      color: isSelected ? Theme.of(context).colorScheme.surface : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              tabs[i].icon,
+                              size: 20,
+                              color: isSelected ? primary : Colors.white,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              tabs[i].label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? primary : Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _tabChip(String label, IconData icon, bool selected) {
-    return Expanded(
-      child: Material(
-        color: selected ? _tabSelectedBg : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: selected ? _headerPurpleStart : Colors.white,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? _headerPurpleStart : Colors.white,
+  Widget _buildEditScaffold(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    const title = 'Edit Job Role';
+
+    return Scaffold(
+      backgroundColor: _pageBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _jobInfoCard(title),
+                    const SizedBox(height: 16),
+                    _skillsCard(),
+                  ],
                 ),
               ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + bottomInset),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _saving ? null : () => Navigator.maybePop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white38,
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _saving ? null : _saveJobRole,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_saving)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          else
+                            const Icon(Icons.save_rounded, size: 20),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _saving ? 'Saving…' : 'Save Changes',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _jobInfoCard(String title) {
+    return Material(
+      color: _cardWhite,
+      elevation: 2,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.maybePop(context),
+                    icon: const Icon(Icons.close_rounded, color: Colors.black54),
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _jobFields(isCreate: false),
             ],
           ),
         ),
@@ -194,171 +513,102 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     );
   }
 
-  Widget _buildFormCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
+  Widget _jobFields({required bool isCreate}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _field(
+          'Job Title *',
+          _titleController,
+          hint: isCreate ? 'e.g., Senior Data Analyst' : 'e.g., Data Analyst',
+        ),
+        const SizedBox(height: 14),
+        _field(
+          'Description *',
+          _descriptionController,
+          hint: isCreate ? 'Brief description of the role...' : 'Brief description of the role…',
+          maxLines: 4,
+        ),
+        const SizedBox(height: 14),
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  _editingJob != null ? 'Edit Job' : 'Create New Job Role',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.close,
-                    size: 24,
-                    color: Colors.black54,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _field(
+                'Category *',
+                _categoryController,
+                hint: isCreate ? 'e.g., Data & A' : 'e.g., Data & Analytics',
+              ),
             ),
-            const SizedBox(height: 18),
-            _field(
-              'Job Title *',
-              _titleController,
-              hint: 'e.g., Senior Data Analyst',
-            ),
-            const SizedBox(height: 14),
-            _field(
-              'Description *',
-              _descriptionController,
-              hint: 'Brief description of the role...',
-              maxLines: 4,
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _field(
-                    'Category *',
-                    _categoryController,
-                    hint: 'e.g., Data & A',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Demand',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _demand,
-                            isExpanded: true,
-                            items: ['High', 'Medium', 'Low']
-                                .map(
-                                  (s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _demand = v ?? 'Medium'),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            _field(
-              'Salary Range',
-              _salaryController,
-              hint: 'e.g., \$70K - \$110K',
-            ),
-            const SizedBox(height: 20),
-            JobSkillsEditor(
-              technicalSkills: _technicalSkills,
-              softSkills: _softSkills,
-              tools: _tools,
-              onTechnicalChanged: (v) => setState(() => _technicalSkills = v),
-              onSoftChanged: (v) => setState(() => _softSkills = v),
-              onToolsChanged: (v) => setState(() => _tools = v),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: _saveButtonGrey,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  onTap: _saving ? null : _saveJobRole,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.save_outlined,
-                          size: 20,
-                          color: _saveButtonText,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _saving ? 'Saving...' : 'Save Job Role',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: _saveButtonText,
-                          ),
-                        ),
-                      ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Demand',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _demand,
+                        isExpanded: true,
+                        items: ['High', 'Medium', 'Low']
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(s),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _demand = v ?? 'Medium'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _field(
+          'Salary Range',
+          _salaryController,
+          hint: isCreate ? r'e.g., $70K - $110K' : r'e.g., $65K - $95K',
+        ),
+      ],
+    );
+  }
+
+  Widget _skillsCard() {
+    return Material(
+      color: _cardWhite,
+      elevation: 2,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: JobSkillsEditor(
+          technicalSkills: _technicalSkills,
+          softSkills: _softSkills,
+          tools: _tools,
+          createMode: false,
+          onTechnicalChanged: (v) => setState(() => _technicalSkills = v),
+          onSoftChanged: (v) => setState(() => _softSkills = v),
+          onToolsChanged: (v) => setState(() => _tools = v),
         ),
       ),
     );
@@ -385,7 +635,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: TextFormField(
             controller: controller,
@@ -406,6 +656,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
   }
 
   Future<void> _saveJobRole() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
     final category = _categoryController.text.trim();
@@ -494,7 +745,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(doc != null ? 'تم تحديث الوظيفة' : 'تم حفظ الوظيفة')),
+        SnackBar(content: Text(doc != null ? 'Job updated' : 'Job saved')),
       );
       Navigator.pop(context);
     } catch (e) {
@@ -503,5 +754,51 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+}
+
+class _CreateStatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+
+  const _CreateStatCard({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        ],
+      ),
+    );
   }
 }

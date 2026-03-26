@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     if (sent == true) {
-      _showSuccess('تم إرسال رابط إعادة التعيين لبريدك الإلكتروني');
+      _showSuccess('Password reset link sent to your email');
     }
   }
 
@@ -148,11 +148,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 2,
                             ),
                           ),
-                          child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(3),
                             child: SvgPicture.asset(
                               'assets/logo.svg',
-                              width: 80,
-                              height: 80,
+                              width: 114,
+                              height: 114,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
                             ),
                           ),
                         ),
@@ -252,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     TextButton(
                                       onPressed: _showPasswordResetDialog,
                                       child: const Text(
-                                        'نسيت كلمة المرور؟',
+                                        'Forgot Password?',
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,

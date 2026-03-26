@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "import:jobs": "node scripts/import_jobs.js --file scripts/data/jobs_import.json --service-account scripts/gradready-5033e-firebase-adminsdk-fbsvc-3c4f769765.json",
+    "import:jobs:dry": "node scripts/import_jobs.js --file scripts/data/jobs_import.json --service-account scripts/gradready-5033e-firebase-adminsdk-fbsvc-3c4f769765.json --dry-run",
+    "sync:skills-courses": "node scripts/sync_skills_courses.js --service-account scripts/gradready-5033e-firebase-adminsdk-fbsvc-3c4f769765.json",
+    "sync:skills-courses:dry": "node scripts/sync_skills_courses.js --service-account scripts/gradready-5033e-firebase-adminsdk-fbsvc-3c4f769765.json --dry-run"
+  },
   "dependencies": {
     "firebase-admin": "^13.7.0"
   }

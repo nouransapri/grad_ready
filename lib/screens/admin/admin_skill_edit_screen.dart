@@ -14,6 +14,32 @@ class AdminSkillEditScreen extends StatefulWidget {
   State<AdminSkillEditScreen> createState() => _AdminSkillEditScreenState();
 }
 
+const _skillTypeOptions = ['Technical', 'Soft', 'Tool'];
+const _skillCategoryOptions = [
+  'Programming',
+  'Framework',
+  'Database',
+  'Interpersonal',
+  'Cognitive',
+  'Design',
+  'Tool',
+  'Soft',
+];
+
+String _coerceSkillType(String? raw) {
+  final t = (raw ?? '').trim();
+  if (t == 'Tools') return 'Tool';
+  if (_skillTypeOptions.contains(t)) return t;
+  return 'Technical';
+}
+
+String _coerceSkillCategory(String? raw) {
+  final t = (raw ?? '').trim();
+  if (t == 'Tools') return 'Tool';
+  if (_skillCategoryOptions.contains(t)) return t;
+  return 'Programming';
+}
+
 class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
   final _firestore = FirestoreService();
   final _formKey = GlobalKey<FormState>();
@@ -38,8 +64,8 @@ class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
     final s = widget.skill;
     _nameController = TextEditingController(text: s?.skillName ?? '');
     _descController = TextEditingController(text: s?.description ?? '');
-    _type = s?.type ?? 'Technical';
-    _category = s?.category ?? 'Programming';
+    _type = _coerceSkillType(s?.type);
+    _category = _coerceSkillCategory(s?.category);
     _demandLevel = s?.demandLevel ?? 'High';
     _trending = s?.trending ?? false;
     _growthRate = s?.growthRate ?? '';
@@ -161,14 +187,18 @@ class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
               DropdownButtonFormField<String>(
                 value: _type,
                 decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
-                items: const ['Technical', 'Soft', 'Tool'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                items: _skillTypeOptions
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
                 onChanged: viewOnly ? null : (v) => setState(() => _type = v ?? _type),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _category,
                 decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
-                items: const ['Programming', 'Framework', 'Database', 'Interpersonal', 'Cognitive', 'Design', 'Tool'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                items: _skillCategoryOptions
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
                 onChanged: viewOnly ? null : (v) => setState(() => _category = v ?? _category),
               ),
               const SizedBox(height: 20),

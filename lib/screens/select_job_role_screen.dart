@@ -249,6 +249,8 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                 color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 14,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -430,6 +432,8 @@ class _JobCard extends StatelessWidget {
                 Text(
                   '${job.requiredSkillsCount} required skills',
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

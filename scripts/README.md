@@ -48,3 +48,20 @@ python scripts/skill_match_report.py --users scripts/data/users.csv --jobs scrip
 
 - Get Data → Text/CSV → select `skill_match_results.csv`.
 - Use `user_id`, `job_id`, `match_percentage` for visuals; filter or highlight rows where `recommend = true` for recommendations.
+
+---
+
+## Bulk import jobs to Firestore
+
+You can import many jobs with full skills/requirements using:
+
+- Script: `scripts/import_jobs.js`
+- Guide: `scripts/JOBS_IMPORT_GUIDE.md`
+- Sample input: `scripts/data/jobs_import.json`
+
+Quick run from project root:
+
+```bash
+npm run import:jobs:dry
+npm run import:jobs
+```
