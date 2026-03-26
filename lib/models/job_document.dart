@@ -6,6 +6,7 @@ import '../utils/skill_utils.dart';
 
 /// Single skill/tool entry in a job (technical, soft, or tool).
 class JobSkillItem {
+  final String skillId; // reference to /skills/{skillId}
   final String name;
   final int requiredLevel; // 0-100
   final String priority; // Critical | Important | Nice-to-Have
@@ -13,6 +14,7 @@ class JobSkillItem {
   final String category; // for technical: Programming, Framework, Database, etc.
 
   const JobSkillItem({
+    this.skillId = '',
     required this.name,
     required this.requiredLevel,
     required this.priority,
@@ -21,6 +23,7 @@ class JobSkillItem {
   });
 
   Map<String, dynamic> toFirestore() => {
+        'skillId': skillId.trim().isNotEmpty ? skillId.trim() : skillNameToSkillId(name),
         'name': name,
         'requiredLevel': requiredLevel.clamp(0, 100),
         'priority': priority,
@@ -35,7 +38,9 @@ class JobSkillItem {
     );
     final name = m['name']?.toString().trim();
     if (name == null || name.isEmpty) return null;
+    final skillId = m['skillId']?.toString().trim() ?? '';
     return JobSkillItem(
+      skillId: skillId.isNotEmpty ? skillId : skillNameToSkillId(name),
       name: name,
       requiredLevel: (m['requiredLevel'] is int)
           ? (m['requiredLevel'] as int).clamp(0, 100)
@@ -244,7 +249,7 @@ class JobDocument {
     final criticalNames = <String>[];
     for (final s in technicalSkills) {
       allSkills.add(JobRequiredSkill(
-        skillId: skillNameToSkillId(s.name),
+        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
         importance: _weightToImportance(s.weight),
       ));
@@ -252,7 +257,7 @@ class JobDocument {
     }
     for (final s in softSkills) {
       allSkills.add(JobRequiredSkill(
-        skillId: skillNameToSkillId(s.name),
+        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
         importance: _weightToImportance(s.weight),
       ));
@@ -260,7 +265,7 @@ class JobDocument {
     }
     for (final s in tools) {
       allSkills.add(JobRequiredSkill(
-        skillId: skillNameToSkillId(s.name),
+        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
         importance: _weightToImportance(s.weight),
       ));

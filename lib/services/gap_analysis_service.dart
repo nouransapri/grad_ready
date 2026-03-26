@@ -404,6 +404,11 @@ class GapAnalysisService {
     JobRole job, {
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
+    Future<Map<String, List<String>>> Function(
+      List<String> missingSkillNames,
+      Set<String> userSkillIds,
+    )?
+    fetchSmartRecommendations,
     Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
     fetchCourseDetails,
     Map<String, Skill>? skillsCatalog,
@@ -415,6 +420,7 @@ class GapAnalysisService {
         job,
         merged,
         fetchRecommendations,
+        fetchSmartRecommendations,
         fetchCourseDetails,
       );
     }
@@ -422,6 +428,7 @@ class GapAnalysisService {
       userData,
       job,
       fetchRecommendations,
+      fetchSmartRecommendations,
       fetchCourseDetails,
     );
   }
@@ -432,6 +439,11 @@ class GapAnalysisService {
     Map<String, Skill> skillsCatalog,
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
+    Future<Map<String, List<String>>> Function(
+      List<String> missingSkillNames,
+      Set<String> userSkillIds,
+    )?
+    fetchSmartRecommendations,
     Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
     fetchCourseDetails,
   ) async {
@@ -488,7 +500,17 @@ class GapAnalysisService {
     }
 
     Map<String, List<String>> skillRecommendations = {};
-    if (fetchRecommendations != null && missingSkills.isNotEmpty) {
+    final userSkillIds = userLevels.keys.map(canonicalSkillId).toSet();
+    if (fetchSmartRecommendations != null && missingSkills.isNotEmpty) {
+      try {
+        skillRecommendations = await fetchSmartRecommendations(
+          missingSkills,
+          userSkillIds,
+        );
+      } catch (e) {
+        debugPrint('Gap analysis smart recommendations error: $e');
+      }
+    } else if (fetchRecommendations != null && missingSkills.isNotEmpty) {
       try {
         skillRecommendations = await fetchRecommendations(missingSkills);
       } catch (e) {
@@ -578,6 +600,11 @@ class GapAnalysisService {
     JobRole job,
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
+    Future<Map<String, List<String>>> Function(
+      List<String> missingSkillNames,
+      Set<String> userSkillIds,
+    )?
+    fetchSmartRecommendations,
     Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
     fetchCourseDetails,
   ) async {
@@ -712,7 +739,20 @@ class GapAnalysisService {
     }
 
     Map<String, List<String>> skillRecommendations = {};
-    if (fetchRecommendations != null && missingSkills.isNotEmpty) {
+    final userSkillIds = collectUserLevelsBySkillId(userData, null)
+        .keys
+        .map(canonicalSkillId)
+        .toSet();
+    if (fetchSmartRecommendations != null && missingSkills.isNotEmpty) {
+      try {
+        skillRecommendations = await fetchSmartRecommendations(
+          missingSkills,
+          userSkillIds,
+        );
+      } catch (e) {
+        debugPrint('Gap analysis smart recommendations error: $e');
+      }
+    } else if (fetchRecommendations != null && missingSkills.isNotEmpty) {
       try {
         skillRecommendations = await fetchRecommendations(missingSkills);
       } catch (e) {

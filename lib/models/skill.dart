@@ -3,16 +3,65 @@ class Skill {
   final String id;
   final String name;
   final String category;
+  final List<String> aliases;
+  final bool isVerified;
+  final List<String> relatedSkills;
+  final String domain;
+  final String demandLevel;
+  final int totalJobsUsingSkill;
 
-  const Skill({required this.id, required this.name, required this.category});
+  const Skill({
+    required this.id,
+    required this.name,
+    required this.category,
+    this.aliases = const [],
+    this.isVerified = true,
+    this.relatedSkills = const [],
+    this.domain = '',
+    this.demandLevel = 'Medium',
+    this.totalJobsUsingSkill = 0,
+  });
 
-  Map<String, dynamic> toFirestore() => {'name': name, 'category': category};
+  Map<String, dynamic> toFirestore() => {
+    'name': name,
+    'category': category,
+    'aliases': aliases,
+    'isVerified': isVerified,
+    'relatedSkills': relatedSkills,
+    'domain': domain,
+    'demandLevel': demandLevel,
+    'totalJobsUsingSkill': totalJobsUsingSkill,
+  };
 
   static Skill fromFirestore(String id, Map<String, dynamic> data) {
+    final aliases = (data['aliases'] as List?)
+        ?.map((e) => e?.toString().trim())
+        .where((e) => e != null && e.isNotEmpty)
+        .cast<String>()
+        .toList() ??
+        const <String>[];
+    final relatedSkills = (data['relatedSkills'] as List?)
+        ?.map((e) => e?.toString().trim())
+        .where((e) => e != null && e.isNotEmpty)
+        .cast<String>()
+        .toList() ??
+        const <String>[];
     return Skill(
       id: id,
-      name: data['name']?.toString().trim() ?? '',
-      category: data['category']?.toString().trim() ?? 'Technical',
+      name: data['name']?.toString().trim() ??
+          data['skillName']?.toString().trim() ??
+          '',
+      category: data['category']?.toString().trim() ??
+          data['type']?.toString().trim() ??
+          'Technical',
+      aliases: aliases,
+      isVerified: data['isVerified'] != false,
+      relatedSkills: relatedSkills,
+      domain: data['domain']?.toString().trim() ?? '',
+      demandLevel: data['demandLevel']?.toString().trim() ?? 'Medium',
+      totalJobsUsingSkill: (data['totalJobsUsingSkill'] is int)
+          ? data['totalJobsUsingSkill'] as int
+          : int.tryParse(data['totalJobsUsingSkill']?.toString() ?? '0') ?? 0,
     );
   }
 

@@ -58,6 +58,92 @@ class FirestoreService {
     CachedDataService.invalidate(CachedDataService.keyJobsOnce);
   }
 
+  String _defaultCategoryForGroup(String group) {
+    if (group == 'softSkills') return 'Soft';
+    if (group == 'tools') return 'Tool';
+    return 'Technical';
+  }
+
+  String? _matchSkillIdFromCatalog(
+    String rawName,
+    Map<String, Skill> catalog,
+  ) {
+    final canonicalNameId = canonicalSkillId(rawName);
+    if (canonicalNameId.isNotEmpty && catalog.containsKey(canonicalNameId)) {
+      return canonicalNameId;
+    }
+    final normalized = normalizeSkillName(rawName);
+    final aliasKey = normalizeSkillAliasKey(rawName);
+    for (final s in catalog.values) {
+      if (canonicalSkillId(s.id) == canonicalNameId) return s.id;
+      if (normalizeSkillName(s.name) == normalized) return s.id;
+      for (final alias in s.aliases) {
+        if (normalizeSkillName(alias) == normalized ||
+            normalizeSkillAliasKey(alias) == aliasKey) {
+          return s.id;
+        }
+      }
+      if (normalizeSkillAliasKey(s.name) == aliasKey) {
+        return s.id;
+      }
+    }
+    return null;
+  }
+
+  Future<String> resolveOrCreateSkillId(
+    String rawName, {
+    String defaultCategory = 'Technical',
+    bool createIfMissing = true,
+    bool isVerified = false,
+  }) async {
+    final name = rawName.trim();
+    if (name.isEmpty) return '';
+    final catalog = await getSkills();
+    final existingId = _matchSkillIdFromCatalog(name, catalog);
+    if (existingId != null && existingId.isNotEmpty) {
+      return canonicalSkillId(existingId);
+    }
+    final generatedId = skillNameToSkillId(name);
+    if (!createIfMissing || generatedId.isEmpty) {
+      return generatedId;
+    }
+    await _db.collection('skills').doc(generatedId).set({
+      'skillId': generatedId,
+      'skillName': name,
+      'name': name,
+      'aliases': [name],
+      'category': defaultCategory,
+      'type': defaultCategory,
+      'isVerified': isVerified,
+      'relatedSkills': <String>[],
+      'domain': defaultCategory,
+      'demandLevel': 'Medium',
+      'totalJobsUsingSkill': 0,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    invalidateSkillsCache();
+    return generatedId;
+  }
+
+  Future<List<JobSkillItem>> _normalizeJobSkills(
+    List<JobSkillItem> input, {
+    required String groupKey,
+  }) async {
+    if (input.isEmpty) return input;
+    final defaultCategory = _defaultCategoryForGroup(groupKey);
+    return input.map((item) {
+      return JobSkillItem(
+        skillId: item.skillId,
+        name: item.name,
+        requiredLevel: item.requiredLevel,
+        priority: item.priority,
+        weight: item.weight,
+        category: item.category.isEmpty ? defaultCategory : item.category,
+      );
+    }).toList();
+  }
+
   /// Stream of full job documents (for admin panel). Only parses new-format docs as JobDocument.
   Stream<List<JobDocument>> getJobDocuments() {
     return _db.collection('jobs').snapshots().map((snapshot) {
@@ -160,9 +246,90 @@ class FirestoreService {
 
   /// Add a new job document (comprehensive format). Uses [job.jobId] as doc id if provided, else auto-generates.
   Future<String> addJobDocument(JobDocument job) async {
+    final normalizedTechRaw = await _normalizeJobSkills(
+      job.technicalSkills,
+      groupKey: 'technicalSkills',
+    );
+    final normalizedSoftRaw = await _normalizeJobSkills(
+      job.softSkills,
+      groupKey: 'softSkills',
+    );
+    final normalizedToolsRaw = await _normalizeJobSkills(
+      job.tools,
+      groupKey: 'tools',
+    );
+    final normalizedTech = await Future.wait(
+      normalizedTechRaw.map((s) async {
+        final resolved = await resolveOrCreateSkillId(
+          s.skillId.isNotEmpty ? s.skillId : s.name,
+          defaultCategory: _defaultCategoryForGroup('technicalSkills'),
+        );
+        return JobSkillItem(
+          skillId: resolved,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        );
+      }),
+    );
+    final normalizedSoft = await Future.wait(
+      normalizedSoftRaw.map((s) async {
+        final resolved = await resolveOrCreateSkillId(
+          s.skillId.isNotEmpty ? s.skillId : s.name,
+          defaultCategory: _defaultCategoryForGroup('softSkills'),
+        );
+        return JobSkillItem(
+          skillId: resolved,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        );
+      }),
+    );
+    final normalizedTools = await Future.wait(
+      normalizedToolsRaw.map((s) async {
+        final resolved = await resolveOrCreateSkillId(
+          s.skillId.isNotEmpty ? s.skillId : s.name,
+          defaultCategory: _defaultCategoryForGroup('tools'),
+        );
+        return JobSkillItem(
+          skillId: resolved,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        );
+      }),
+    );
+    final normalizedJob = JobDocument(
+      id: job.id,
+      jobId: job.jobId,
+      title: job.title,
+      category: job.category,
+      industry: job.industry,
+      experienceLevel: job.experienceLevel,
+      description: job.description,
+      technicalSkills: normalizedTech,
+      softSkills: normalizedSoft,
+      tools: normalizedTools,
+      certifications: job.certifications,
+      education: job.education,
+      experience: job.experience,
+      salary: job.salary,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      isActive: job.isActive,
+      totalSkillsCount: job.totalSkillsCount,
+      averageRequiredLevel: job.averageRequiredLevel,
+    );
     final id = job.jobId.trim().isNotEmpty ? job.jobId : _db.collection('jobs').doc().id;
     final ref = _db.collection('jobs').doc(id);
-    await ref.set(job.toFirestore());
+    await ref.set(normalizedJob.toFirestore());
     _invalidateJobsCache();
     return ref.id;
   }
@@ -170,6 +337,66 @@ class FirestoreService {
   /// Update an existing job document. Soft-update: set updatedAt and isActive.
   Future<void> updateJobDocument(JobDocument job) async {
     if (job.id.isEmpty) return;
+    final normalizedTechRaw = await _normalizeJobSkills(
+      job.technicalSkills,
+      groupKey: 'technicalSkills',
+    );
+    final normalizedSoftRaw = await _normalizeJobSkills(
+      job.softSkills,
+      groupKey: 'softSkills',
+    );
+    final normalizedToolsRaw = await _normalizeJobSkills(
+      job.tools,
+      groupKey: 'tools',
+    );
+    final normalizedTech = await Future.wait(
+      normalizedTechRaw.map((s) async {
+        final resolved = await resolveOrCreateSkillId(
+          s.skillId.isNotEmpty ? s.skillId : s.name,
+          defaultCategory: _defaultCategoryForGroup('technicalSkills'),
+        );
+        return JobSkillItem(
+          skillId: resolved,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        );
+      }),
+    );
+    final normalizedSoft = await Future.wait(
+      normalizedSoftRaw.map((s) async {
+        final resolved = await resolveOrCreateSkillId(
+          s.skillId.isNotEmpty ? s.skillId : s.name,
+          defaultCategory: _defaultCategoryForGroup('softSkills'),
+        );
+        return JobSkillItem(
+          skillId: resolved,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        );
+      }),
+    );
+    final normalizedTools = await Future.wait(
+      normalizedToolsRaw.map((s) async {
+        final resolved = await resolveOrCreateSkillId(
+          s.skillId.isNotEmpty ? s.skillId : s.name,
+          defaultCategory: _defaultCategoryForGroup('tools'),
+        );
+        return JobSkillItem(
+          skillId: resolved,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        );
+      }),
+    );
     final updated = JobDocument(
       id: job.id,
       jobId: job.jobId,
@@ -178,9 +405,9 @@ class FirestoreService {
       industry: job.industry,
       experienceLevel: job.experienceLevel,
       description: job.description,
-      technicalSkills: job.technicalSkills,
-      softSkills: job.softSkills,
-      tools: job.tools,
+      technicalSkills: normalizedTech,
+      softSkills: normalizedSoft,
+      tools: normalizedTools,
       certifications: job.certifications,
       education: job.education,
       experience: job.experience,
@@ -500,8 +727,9 @@ class FirestoreService {
   /// 2) If empty, falls back to [courses] collection (same data as Recommendations tab).
   /// Returns map skillName (display) -> up to [maxPerSkill] short labels.
   Future<Map<String, List<String>>> getSuggestedCoursesForSkills(
-    List<String> skillNames,
-  ) async {
+    List<String> skillNames, {
+    bool verifiedOnly = false,
+  }) async {
     const maxPerSkill = 3;
     final names = skillNames.map((n) => n.trim()).where((n) => n.isNotEmpty).toList();
     final result = <String, List<String>>{
@@ -510,13 +738,23 @@ class FirestoreService {
     if (names.isEmpty) return result;
 
     try {
-      final uniqueIds = names.map(_skillNameToDocId).where((id) => id.isNotEmpty).toSet().toList();
+      final uniqueIds = <String>{};
+      final catalog = await getSkills();
+      for (final name in names) {
+        final matched = _matchSkillIdFromCatalog(name, catalog);
+        final id = matched ?? _skillNameToDocId(name);
+        if (id.isNotEmpty) uniqueIds.add(id);
+      }
       if (uniqueIds.isNotEmpty) {
         final refs = uniqueIds.map((id) => _db.collection('skills').doc(id)).toList();
         final snapshots = await Future.wait(refs.map((r) => r.get()));
         final idToSuggested = <String, List<String>>{};
         for (var i = 0; i < snapshots.length && i < refs.length; i++) {
           final data = snapshots[i].data();
+          if (verifiedOnly && data?['isVerified'] == false) {
+            idToSuggested[refs[i].id] = const [];
+            continue;
+          }
           final list = data?['suggestedCourses'] as List<dynamic>?;
           final suggested =
               list
@@ -529,7 +767,7 @@ class FirestoreService {
           idToSuggested[refs[i].id] = suggested;
         }
         for (final name in names) {
-          final id = _skillNameToDocId(name);
+          final id = _matchSkillIdFromCatalog(name, catalog) ?? _skillNameToDocId(name);
           final fromDoc = idToSuggested[id] ?? [];
           if (fromDoc.isNotEmpty) {
             result[name] = fromDoc;
@@ -564,6 +802,43 @@ class FirestoreService {
       if (kDebugMode) debugPrintStack(stackTrace: st);
     }
 
+    return result;
+  }
+
+  /// Enhanced recommendations:
+  /// - Course labels for each missing skill
+  /// - Related skills that the user already has (bridging hints)
+  Future<Map<String, List<String>>> getSmartRecommendationsForSkills(
+    List<String> missingSkillNames,
+    Set<String> userSkillIds, {
+    bool verifiedOnly = true,
+  }) async {
+    final result = await getSuggestedCoursesForSkills(
+      missingSkillNames,
+      verifiedOnly: verifiedOnly,
+    );
+    if (missingSkillNames.isEmpty) return result;
+    final catalog = await getSkills();
+    final userSet = userSkillIds.map(canonicalSkillId).where((e) => e.isNotEmpty).toSet();
+    for (final missing in missingSkillNames) {
+      final missingId = _matchSkillIdFromCatalog(missing, catalog);
+      if (missingId == null || missingId.isEmpty) continue;
+      final skill = catalog[canonicalSkillId(missingId)];
+      if (skill == null) continue;
+      if (verifiedOnly && !skill.isVerified) continue;
+      final bridges = <String>[];
+      for (final relatedId in skill.relatedSkills) {
+        final cid = canonicalSkillId(relatedId);
+        if (!userSet.contains(cid)) continue;
+        final rel = catalog[cid];
+        if (rel == null) continue;
+        bridges.add('Bridge from your `${rel.name}` skill to `${skill.name}`');
+        if (bridges.length >= 2) break;
+      }
+      if (bridges.isNotEmpty) {
+        result[missing] = [...(result[missing] ?? const <String>[]), ...bridges];
+      }
+    }
     return result;
   }
 
@@ -822,49 +1097,13 @@ class FirestoreService {
   Future<void> addSkill(String uid, String skillName, int points) async {
     if (uid.isEmpty || skillName.trim().isEmpty) return;
     final pointsClamped = points.clamp(0, 100);
-    final catalog = await getSkills();
-    if (catalog.isNotEmpty) {
-      final normalized = normalizeSkillName(skillName);
-      for (final s in catalog.values) {
-        if (normalizeSkillName(s.name) == normalized) {
-          await addSkillById(uid, s.id, pointsClamped);
-          return;
-        }
-      }
-    }
-    final ref = _db.collection('users').doc(uid);
-    final doc = await ref.get();
-    if (!doc.exists || doc.data() == null) return;
-
-    final data = doc.data()!;
-    final skills = _parseSkillsList(data['skills']);
-    final normalizedNew = normalizeSkillName(skillName);
-    final displayName = skillName.trim();
-    final level = _pointsToLevel(pointsClamped);
-
-    final idx = skills.indexWhere(
-      (s) => normalizeSkillName(s['name']?.toString()) == normalizedNew,
+    final skillId = await resolveOrCreateSkillId(
+      skillName,
+      defaultCategory: 'Technical',
+      createIfMissing: true,
+      isVerified: false,
     );
-    final Map<String, dynamic> skillMap = {
-      'name': displayName,
-      'type': idx >= 0
-          ? (skills[idx]['type'] ?? 'Technical').toString()
-          : 'Technical',
-      'level': level,
-      'points': pointsClamped,
-    };
-    if (idx >= 0) {
-      skills[idx] = {...skills[idx], ...skillMap};
-    } else {
-      skills.add(skillMap);
-    }
-
-    await ref.update({
-      'skills': skills.map((s) => s).toList(),
-      'profile_completed': true,
-    });
-
-    scheduleRefreshAnalysisResultsForUser(uid);
+    await addSkillById(uid, skillId, pointsClamped);
   }
 
   /// Adds or updates a skill by master skill id and level (0-100). Writes users.skills as { skillId, level }.
@@ -914,38 +1153,27 @@ class FirestoreService {
   Future<void> updateSkill(String uid, String skillName, int points) async {
     if (uid.isEmpty || skillName.trim().isEmpty) return;
     final pointsClamped = points.clamp(0, 100);
-    final catalog = await getSkills();
-    if (catalog.isNotEmpty) {
-      final normalized = normalizeSkillName(skillName);
-      for (final s in catalog.values) {
-        if (normalizeSkillName(s.name) == normalized) {
-          await updateSkillById(uid, s.id, pointsClamped);
-          return;
-        }
-      }
-    }
+    final skillId = await resolveOrCreateSkillId(
+      skillName,
+      defaultCategory: 'Technical',
+      createIfMissing: true,
+      isVerified: false,
+    );
     final ref = _db.collection('users').doc(uid);
     final doc = await ref.get();
     if (!doc.exists || doc.data() == null) return;
 
     final data = doc.data()!;
     final skills = _parseSkillsList(data['skills']);
-    final normalizedTarget = normalizeSkillName(skillName);
-    final level = _pointsToLevel(pointsClamped);
-
     final idx = skills.indexWhere(
-      (s) => normalizeSkillName(s['name']?.toString()) == normalizedTarget,
+      (s) => (s['skillId']?.toString().trim() ?? '') == skillId,
     );
-    if (idx < 0) return;
-
-    skills[idx]['level'] = level;
-    skills[idx]['points'] = pointsClamped;
-
-    await ref.update({
-      'skills': skills.map((s) => s).toList(),
-      'profile_completed': true,
-    });
-
+    if (idx < 0) {
+      await addSkillById(uid, skillId, pointsClamped);
+      return;
+    }
+    skills[idx] = {'skillId': skillId, 'level': pointsClamped};
+    await ref.update({'skills': skills, 'profile_completed': true});
     scheduleRefreshAnalysisResultsForUser(uid);
   }
 
@@ -993,6 +1221,12 @@ class FirestoreService {
           userData,
           job,
           fetchRecommendations: getSuggestedCoursesForSkills,
+          fetchSmartRecommendations: (names, userSkillIds) =>
+              getSmartRecommendationsForSkills(
+                names,
+                userSkillIds,
+                verifiedOnly: true,
+              ),
           fetchCourseDetails: (names) => getCoursesForSkills(names, 3),
           skillsCatalog: skillsCatalog.isNotEmpty ? skillsCatalog : null,
         );

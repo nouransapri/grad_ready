@@ -222,6 +222,12 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         _currentJob,
         fetchRecommendations: (names) =>
             _firestore.getSuggestedCoursesForSkills(names),
+        fetchSmartRecommendations: (names, userSkillIds) =>
+            _firestore.getSmartRecommendationsForSkills(
+              names,
+              userSkillIds,
+              verifiedOnly: true,
+            ),
         fetchCourseDetails: (names) => _firestore.getCoursesForSkills(names, 3),
         skillsCatalog: _skillsCatalog,
       );
@@ -287,6 +293,12 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           _currentJob,
           fetchRecommendations: (names) =>
               _firestore.getSuggestedCoursesForSkills(names),
+          fetchSmartRecommendations: (names, userSkillIds) =>
+              _firestore.getSmartRecommendationsForSkills(
+                names,
+                userSkillIds,
+                verifiedOnly: true,
+              ),
           fetchCourseDetails: (names) =>
               _firestore.getCoursesForSkills(names, 3),
         );

@@ -1,0 +1,41 @@
+name: Daily Demand Analytics
+
+on:
+  schedule:
+    # Runs daily at 2:00 AM UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  calculate-demand:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Materialize Firebase service account file
+        shell: bash
+        env:
+          FIREBASE_SA_B64: ${{ secrets.FIREBASE_SA }}
+        run: |
+          if [ -z "$FIREBASE_SA_B64" ]; then
+            echo "FIREBASE_SA secret is missing."
+            exit 1
+          fi
+          echo "$FIREBASE_SA_B64" | base64 --decode > "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Run demand analytics
+        run: node scripts/calculate_demand_analytics.js --service-account "$RUNNER_TEMP/firebase-sa.json"
+
