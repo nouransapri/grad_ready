@@ -90,6 +90,16 @@ class FirestoreService {
     return null;
   }
 
+  /// Public lookup for UI/forms/imports: resolve by canonical id, name, or alias.
+  Future<Skill?> getSkillByNameOrAlias(String value) async {
+    final q = value.trim();
+    if (q.isEmpty) return null;
+    final catalog = await getSkills();
+    final id = _matchSkillIdFromCatalog(q, catalog);
+    if (id == null || id.isEmpty) return null;
+    return catalog[canonicalSkillId(id)] ?? catalog[id];
+  }
+
   Future<String> resolveOrCreateSkillId(
     String rawName, {
     String defaultCategory = 'Technical',
@@ -740,10 +750,14 @@ class FirestoreService {
     try {
       final uniqueIds = <String>{};
       final catalog = await getSkills();
+      final allowedByName = <String, bool>{};
       for (final name in names) {
         final matched = _matchSkillIdFromCatalog(name, catalog);
         final id = matched ?? _skillNameToDocId(name);
         if (id.isNotEmpty) uniqueIds.add(id);
+        final skill = id.isNotEmpty ? (catalog[canonicalSkillId(id)] ?? catalog[id]) : null;
+        final allowed = !verifiedOnly || (skill?.isVerified == true);
+        allowedByName[name] = allowed;
       }
       if (uniqueIds.isNotEmpty) {
         final refs = uniqueIds.map((id) => _db.collection('skills').doc(id)).toList();
@@ -768,6 +782,9 @@ class FirestoreService {
         }
         for (final name in names) {
           final id = _matchSkillIdFromCatalog(name, catalog) ?? _skillNameToDocId(name);
+          if ((allowedByName[name] ?? false) == false) {
+            continue;
+          }
           final fromDoc = idToSuggested[id] ?? [];
           if (fromDoc.isNotEmpty) {
             result[name] = fromDoc;
@@ -779,7 +796,17 @@ class FirestoreService {
       if (kDebugMode) debugPrintStack(stackTrace: st);
     }
 
-    final needFallback = names.where((n) => result[n]!.isEmpty).toList();
+    final catalogForFallback = await getSkills();
+    bool allowFallback(String name) {
+      if (!verifiedOnly) return true;
+      final id = _matchSkillIdFromCatalog(name, catalogForFallback) ?? _skillNameToDocId(name);
+      if (id.isEmpty) return false;
+      final s = catalogForFallback[canonicalSkillId(id)] ?? catalogForFallback[id];
+      return s?.isVerified == true;
+    }
+    final needFallback = names
+        .where((n) => result[n]!.isEmpty && allowFallback(n))
+        .toList();
     if (needFallback.isEmpty) return result;
 
     try {

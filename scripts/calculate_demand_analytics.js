@@ -117,6 +117,9 @@ async function run() {
       ...(Array.isArray(jobData.tools) ? jobData.tools : []),
     ];
 
+    // Dedupe by skill per job to avoid inflated totalJobsUsingSkill.
+    const perJobLevels = new Map(); // skillId -> max requiredLevel in this job
+
     for (const skillItem of allSkills) {
       let rawSkillId = '';
       let requiredLevel = 50;
@@ -129,11 +132,18 @@ async function run() {
       }
       const skillId = canonicalSkillId(rawSkillId);
       if (!skillId) continue;
+      const prev = perJobLevels.get(skillId);
+      if (prev == null || requiredLevel > prev) {
+        perJobLevels.set(skillId, requiredLevel);
+      }
+    }
+
+    for (const [skillId, level] of perJobLevels.entries()) {
       if (!skillStats[skillId]) {
         skillStats[skillId] = { count: 0, totalLevel: 0 };
       }
       skillStats[skillId].count += 1;
-      skillStats[skillId].totalLevel += requiredLevel;
+      skillStats[skillId].totalLevel += level;
     }
   }
 

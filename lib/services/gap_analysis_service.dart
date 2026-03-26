@@ -91,11 +91,48 @@ class GapAnalysisResult {
 /// Service for gap analysis between user profile and job requirements. Skills only.
 /// Uses level-based weighted scoring when job has [JobRequiredSkill] and skills catalog is provided.
 class GapAnalysisService {
+  static String? _resolveSkillIdFromCatalog(
+    Map<String, Skill> catalog,
+    String raw,
+  ) {
+    final c = canonicalSkillId(raw);
+    if (c.isEmpty) return null;
+    if (catalog.containsKey(c)) return c;
+
+    final nameKey = normalizeSkillAliasKey(raw);
+    for (final s in catalog.values) {
+      final sid = canonicalSkillId(s.id);
+      if (sid == c) return sid;
+      if (normalizeSkillAliasKey(s.name) == nameKey) return sid;
+      for (final alias in s.aliases) {
+        if (normalizeSkillAliasKey(alias) == nameKey) return sid;
+      }
+    }
+
+    // Fallback: composite ids like "machine-learning-python" -> "python".
+    final tokens = c.split('-').where((t) => t.length >= 3).toList().reversed;
+    for (final t in tokens) {
+      if (catalog.containsKey(t)) return t;
+      for (final s in catalog.values) {
+        final sid = canonicalSkillId(s.id);
+        if (sid == t) return sid;
+        if (normalizeSkillAliasKey(s.name) == t) return sid;
+        for (final alias in s.aliases) {
+          if (normalizeSkillAliasKey(alias) == t) return sid;
+        }
+      }
+    }
+    return null;
+  }
+
   /// Resolves a skill from the catalog when keys differ by slug style (`-` vs `_`) or casing.
   static Skill? _catalogSkill(Map<String, Skill> catalog, String skillId) {
-    final c = canonicalSkillId(skillId);
-    final byKey = catalog[c] ?? catalog[skillId];
+    final resolved = _resolveSkillIdFromCatalog(catalog, skillId);
+    final byKey = resolved == null ? null : catalog[resolved];
     if (byKey != null) return byKey;
+    final c = canonicalSkillId(skillId);
+    final byRaw = catalog[c] ?? catalog[skillId];
+    if (byRaw != null) return byRaw;
     for (final s in catalog.values) {
       if (canonicalSkillId(s.id) == c) return s;
     }
@@ -104,7 +141,15 @@ class GapAnalysisService {
 
   static int _userLevelFor(Map<String, int> userLevels, String skillId) {
     final c = canonicalSkillId(skillId);
-    return userLevels[c] ?? userLevels[skillId] ?? 0;
+    final direct = userLevels[c] ?? userLevels[skillId];
+    if (direct != null) return direct;
+    // Fallback for composite job ids.
+    final tokens = c.split('-').where((t) => t.length >= 3).toList().reversed;
+    for (final t in tokens) {
+      final v = userLevels[t];
+      if (v != null && v > 0) return v;
+    }
+    return 0;
   }
 
   static int _legacyUserLevelByName(
@@ -209,12 +254,17 @@ class GapAnalysisService {
           level = (int.tryParse(str) ?? 35).clamp(0, 100);
       }
       if (skillsCatalog != null && skillsCatalog.isNotEmpty) {
-        final n = normalizeSkillName(name);
-        for (final skill in skillsCatalog.values) {
-          if (normalizeSkillName(skill.name) == n) {
-            final cid = canonicalSkillId(skill.id);
-            if (level > (result[cid] ?? 0)) result[cid] = level;
-            break;
+        final resolved = _resolveSkillIdFromCatalog(skillsCatalog, name);
+        if (resolved != null && resolved.isNotEmpty) {
+          if (level > (result[resolved] ?? 0)) result[resolved] = level;
+        } else {
+          final n = normalizeSkillName(name);
+          for (final skill in skillsCatalog.values) {
+            if (normalizeSkillName(skill.name) == n) {
+              final cid = canonicalSkillId(skill.id);
+              if (level > (result[cid] ?? 0)) result[cid] = level;
+              break;
+            }
           }
         }
       }
@@ -456,9 +506,11 @@ class GapAnalysisService {
         <({String skillId, String name, int importance, double score})>[];
 
     for (final req in requiredList) {
-      final skill = _catalogSkill(skillsCatalog, req.skillId);
-      final name = skill?.name ?? req.skillId;
-      int userLevel = _userLevelFor(userLevels, req.skillId);
+      final resolvedReqId =
+          _resolveSkillIdFromCatalog(skillsCatalog, req.skillId) ?? req.skillId;
+      final skill = _catalogSkill(skillsCatalog, resolvedReqId);
+      final name = skill?.name ?? resolvedReqId;
+      int userLevel = _userLevelFor(userLevels, resolvedReqId);
       if (userLevel == 0) {
         userLevel = _legacyUserLevelByName(userData, name);
       }
@@ -470,11 +522,16 @@ class GapAnalysisService {
         matchedNames.add(name);
       } else {
         missingWithMeta.add((
-          skillId: req.skillId,
+          skillId: resolvedReqId,
           name: name,
           importance: imp,
           score: score,
         ));
+      }
+      if (kDebugMode) {
+        debugPrint(
+          '[GapMatch] req=${req.skillId} resolved=$resolvedReqId user=$userLevel required=${req.requiredLevel} score=${score.toStringAsFixed(2)}',
+        );
       }
     }
 
