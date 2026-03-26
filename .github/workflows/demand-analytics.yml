@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -19,8 +20,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "24"
           cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -30,12 +32,30 @@ jobs:
         env:
           FIREBASE_SA_B64: ${{ secrets.FIREBASE_SA }}
         run: |
+          set -euo pipefail
           if [ -z "$FIREBASE_SA_B64" ]; then
             echo "FIREBASE_SA secret is missing."
             exit 1
           fi
-          echo "$FIREBASE_SA_B64" | base64 --decode > "$RUNNER_TEMP/firebase-sa.json"
+          echo "$FIREBASE_SA_B64" | base64 --decode > "$RUNNER_TEMP/firebase-sa.json" || {
+            echo "Failed to decode FIREBASE_SA. Ensure it is valid base64."
+            exit 1
+          }
+          # Validate JSON shape to fail fast on bad secrets.
+          node -e "const fs=require('fs');const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,'utf8'));if(!j.client_email||!j.private_key||!j.project_id){throw new Error('Invalid service account JSON');}" "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Verify Firebase auth connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const admin=require('firebase-admin');const p=process.argv[1];admin.initializeApp({credential:admin.credential.cert(p)});admin.firestore().collection('jobs').limit(1).get().then(()=>{console.log('Firebase auth OK');process.exit(0);}).catch((e)=>{console.error(e.message);process.exit(1);});" "$RUNNER_TEMP/firebase-sa.json"
 
       - name: Run demand analytics
         run: node scripts/calculate_demand_analytics.js --service-account "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Cleanup credentials
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/firebase-sa.json"
 

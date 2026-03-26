@@ -4,6 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
 
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
+
 function parseArgs(argv) {
   const args = {};
   for (let i = 2; i < argv.length; i += 1) {
@@ -39,11 +48,12 @@ function getDemandLevel(jobCount) {
 
 async function run() {
   const args = parseArgs(process.argv);
-  const serviceAccountArg = args['service-account'];
+  const serviceAccountArg =
+    args['service-account'] || process.env.GOOGLE_APPLICATION_CREDENTIALS;
   const dryRun = Boolean(args['dry-run']);
   if (!serviceAccountArg) {
     console.error(
-      'Usage: node scripts/calculate_demand_analytics.js --service-account <key.json> [--dry-run]',
+      'Usage: node scripts/calculate_demand_analytics.js --service-account <key.json> [--dry-run] (or set GOOGLE_APPLICATION_CREDENTIALS)',
     );
     process.exit(1);
   }
@@ -56,14 +66,41 @@ async function run() {
     process.exit(1);
   }
 
+  // Validate service-account JSON early with actionable errors.
+  let serviceAccountJson;
+  try {
+    serviceAccountJson = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  } catch (e) {
+    console.error(`Invalid JSON service account file: ${e.message}`);
+    process.exit(1);
+  }
+  const missingKeys = ['project_id', 'client_email', 'private_key'].filter(
+    (k) => !serviceAccountJson[k],
+  );
+  if (missingKeys.length > 0) {
+    console.error(
+      `Service account missing required keys: ${missingKeys.join(', ')}`,
+    );
+    process.exit(1);
+  }
+
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccountPath),
+    credential: admin.credential.cert(serviceAccountJson),
   });
   const db = admin.firestore();
   const startTime = Date.now();
   const nowTs = admin.firestore.FieldValue.serverTimestamp();
 
   console.log(`Calculating Market Demand Analytics... (dryRun=${dryRun})\n`);
+
+  // Connectivity/auth sanity check to surface permission issues before main flow.
+  try {
+    await db.collection('jobs').limit(1).get();
+    console.log('Firebase connection test: OK');
+  } catch (e) {
+    console.error(`Firebase connection test failed: ${e.message}`);
+    process.exit(1);
+  }
 
   const jobsSnapshot = await db.collection('jobs').get();
   console.log(`Scanning ${jobsSnapshot.size} jobs...`);
