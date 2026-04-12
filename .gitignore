@@ -55,6 +55,11 @@ scripts/firebase-sa.json
 # Script output (local backups, generated files)
 scripts/out/
 
+# Android release signing (create key.properties locally; never commit keystore)
+android/key.properties
+**/upload-keystore.jks
+*.jks
+
 # Node (scripts / Firebase admin SDK)
 node_modules/
 

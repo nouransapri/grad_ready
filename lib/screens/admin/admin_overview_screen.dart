@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../services/auth_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../app_theme.dart';
 import 'admin_jobs_screen.dart';
@@ -221,7 +222,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                     ),
                     IconButton(
                       onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
+                        await AuthService.signOut();
                         if (!context.mounted) return;
                         Navigator.of(
                           context,

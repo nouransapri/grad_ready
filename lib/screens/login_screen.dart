@@ -2,8 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'create_account.dart';
 import '../widgets/password_reset_dialog.dart';
+import '../services/auth_service.dart';
 
 const Color _gradientTop = Color(0xFF2A6CFF);
 const Color _gradientBottom = Color(0xFF9226FF);
@@ -19,6 +21,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -97,6 +100,36 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (_googleLoading) return;
+    setState(() => _googleLoading = true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          const Center(child: CircularProgressIndicator(color: Colors.white)),
+    );
+    try {
+      await AuthService.signInWithGoogle();
+      if (!mounted) return;
+      _closeLoadingDialog();
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on GoogleSignInCanceledException {
+      if (!mounted) return;
+      _closeLoadingDialog();
+    } catch (e) {
+      if (!mounted) return;
+      _closeLoadingDialog();
+      _showError(
+        e is FirebaseAuthException
+            ? (e.message ?? 'Google sign-in failed')
+            : 'Google sign-in failed. Check SHA-1 / Web client ID in Firebase.',
+      );
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
   }
 
   Future<void> _showPasswordResetDialog() async {
@@ -259,6 +292,66 @@ class _LoginScreenState extends State<LoginScreen> {
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Divider(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.35,
+                                            ),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          child: Text(
+                                            'or',
+                                            style: TextStyle(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.85,
+                                              ),
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Divider(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.35,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    OutlinedButton.icon(
+                                      onPressed:
+                                          _googleLoading ? null : _signInWithGoogle,
+                                      icon: const FaIcon(
+                                        FontAwesomeIcons.google,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Text('Continue with Google'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        side: BorderSide(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.45,
+                                          ),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                     ),

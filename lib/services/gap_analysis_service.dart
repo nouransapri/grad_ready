@@ -4,6 +4,8 @@ import '../models/skill.dart';
 import '../utils/skill_utils.dart';
 import 'package:flutter/foundation.dart';
 
+import 'skills_analysis_service.dart';
+
 /// One step in a learning path: a missing skill with priority and suggested resources.
 class LearningStep {
   final int stepNumber;
@@ -198,21 +200,12 @@ class GapAnalysisService {
     return ratio > 1.0 ? 1.0 : ratio;
   }
 
-  /// Weighted match score: sum(skillScore × importance) / sum(importance). Same formula used in UI.
+  /// Delegates to [SkillsAnalysisService.weightedMatchRatio] (Σ(score×weight)/Σ(weight)).
   static double weightedMatchScore(
     List<double> skillScores,
-    List<int> importances,
-  ) {
-    if (importances.isEmpty) return 0.0;
-    double sumWeighted = 0.0;
-    int sumImportance = 0;
-    for (var i = 0; i < skillScores.length && i < importances.length; i++) {
-      final w = importances[i].clamp(1, 3);
-      sumWeighted += skillScores[i] * w;
-      sumImportance += w;
-    }
-    return sumImportance > 0 ? sumWeighted / sumImportance : 0.0;
-  }
+    List<int> weights,
+  ) =>
+      SkillsAnalysisService.weightedMatchRatio(skillScores, weights);
 
   /// Builds user skillId -> level (0–100) from user document. Supports new (skillId, level) and legacy (name, level/points).
   static Map<String, int> collectUserLevelsBySkillId(
@@ -505,7 +498,7 @@ class GapAnalysisService {
     final userLevels = collectUserLevelsBySkillId(userData, skillsCatalog);
     final requiredList = job.requiredSkillsWithLevel;
     final skillScores = <double>[];
-    final importances = <int>[];
+    final weights = <int>[];
     final matchedNames = <String>[];
     final missingWithMeta =
         <({String skillId, String name, int importance, double score})>[];
@@ -520,16 +513,16 @@ class GapAnalysisService {
         userLevel = _legacyUserLevelByName(userData, name);
       }
       final score = skillScoreForLevel(userLevel, req.requiredLevel);
-      final imp = req.importance.clamp(1, 3);
+      final w = req.weight.clamp(1, 10);
       skillScores.add(score);
-      importances.add(imp);
+      weights.add(w);
       if (score >= 1.0) {
         matchedNames.add(name);
       } else {
         missingWithMeta.add((
           skillId: resolvedReqId,
           name: name,
-          importance: imp,
+          importance: req.importance.clamp(1, 3),
           score: score,
         ));
       }
@@ -540,7 +533,10 @@ class GapAnalysisService {
       }
     }
 
-    final matchScore = weightedMatchScore(skillScores, importances);
+    final matchScore = SkillsAnalysisService.weightedMatchRatio(
+      skillScores,
+      weights,
+    );
     final matchPercentage = matchScore * 100;
     final weightedMatchPercentage = matchPercentage;
 
@@ -776,7 +772,7 @@ class GapAnalysisService {
         requiredPctByNorm.isNotEmpty &&
         requiredCount > 0) {
       final scores = <double>[];
-      final imps = <int>[];
+      final weights = <int>[];
       for (final skill in requiredSkills) {
         final n = normalize(skill);
         if (n.isEmpty) continue;
@@ -787,9 +783,9 @@ class GapAnalysisService {
         } else {
           scores.add(skillScoreForLevel(userLevel, need));
         }
-        imps.add(1);
+        weights.add(criticalNormalized.contains(n) ? 10 : 5);
       }
-      final m = weightedMatchScore(scores, imps);
+      final m = weightedMatchScore(scores, weights);
       matchPercentage = m * 100;
       weightedMatchPercentage = matchPercentage;
     } else {

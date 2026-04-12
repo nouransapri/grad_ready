@@ -1,0 +1,6 @@
+# Copy to key.properties next to this file and fill in (never commit key.properties).
+# storeFile is relative to the android/ directory (e.g. put the .jks in android/app/).
+storePassword=your-store-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=app/upload-keystore.jks

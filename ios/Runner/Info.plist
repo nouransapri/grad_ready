@@ -47,5 +47,9 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>GradReady needs camera access to set your profile photo.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>GradReady needs photo library access to set your profile photo.</string>
 	</dict>
 </plist>

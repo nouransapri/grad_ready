@@ -97,22 +97,27 @@ class UserSkill {
   }
 }
 
-/// Job required skill: skillId + requiredLevel (0–100) + importance (1–3). Stored in jobs.requiredSkills[].
+/// Job required skill: skillId + requiredLevel (0–100) + importance (1–3) + [weight] for match %.
+/// [weight] defaults from [importance] when absent in Firestore (1–10 scale preferred for jobs).
 class JobRequiredSkill {
   final String skillId;
   final int requiredLevel;
   final int importance;
+  /// Weight in weighted match: Σ(score×weight)/Σ(weight). Typically 1–10.
+  final int weight;
 
-  const JobRequiredSkill({
+  JobRequiredSkill({
     required this.skillId,
     required this.requiredLevel,
     required this.importance,
-  });
+    int? weight,
+  }) : weight = (weight ?? importance).clamp(1, 10);
 
   Map<String, dynamic> toFirestore() => {
     'skillId': skillId,
     'requiredLevel': requiredLevel.clamp(0, 100),
     'importance': importance.clamp(1, 3),
+    'weight': weight.clamp(1, 10),
   };
 
   static JobRequiredSkill? fromFirestore(dynamic item) {
@@ -131,10 +136,14 @@ class JobRequiredSkill {
     final importance = m['importance'] is int
         ? (m['importance'] as int).clamp(1, 3)
         : (int.tryParse(m['importance']?.toString() ?? '2') ?? 2).clamp(1, 3);
+    final w = m['weight'] is num
+        ? (m['weight'] as num).toInt().clamp(1, 10)
+        : null;
     return JobRequiredSkill(
       skillId: id,
       requiredLevel: requiredLevel,
       importance: importance,
+      weight: w,
     );
   }
 }

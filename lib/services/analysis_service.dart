@@ -1,0 +1,293 @@
+import 'dart:developer' as developer;
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart' show BorderRadius, Color;
+
+import '../models/course_model.dart';
+
+/// Academic analysis: GPA, chart groups from Firestore [courses], safe parsing of user data.
+class AnalysisService {
+  AnalysisService._();
+
+  /// Weighted GPA: Σ(gradePoints × credits) / Σ(credits).
+  static double? computeWeightedGpa(List<UserCourseEntry> rows) {
+    try {
+      double sumGp = 0;
+      double sumCr = 0;
+      for (final r in rows) {
+        if (!r.isValid) continue;
+        sumGp += r.gradePoints * r.credits;
+        sumCr += r.credits;
+      }
+      if (sumCr <= 0) return null;
+      final g = sumGp / sumCr;
+      if (g.isNaN || g.isInfinite) return null;
+      return double.parse(g.toStringAsFixed(3));
+    } catch (e, st) {
+      developer.log(
+        'computeWeightedGpa: $e',
+        name: 'AnalysisService',
+        error: e,
+        stackTrace: st,
+      );
+      return null;
+    }
+  }
+
+  /// Parses [users.added_courses] list of maps (flexible keys).
+  static List<UserCourseEntry> parseAddedCourses(dynamic raw) {
+    if (raw is! List) return [];
+    final out = <UserCourseEntry>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(
+        item.map((k, v) => MapEntry(k.toString(), v)),
+      );
+      try {
+        final name = (m['name'] ?? m['title'] ?? m['courseName'] ?? '')
+            .toString()
+            .trim();
+        final credits = _parseDouble(
+          m['credits'] ?? m['credit_hours'] ?? m['ch'] ?? m['hours'],
+        );
+        final gradeRaw = m['grade'] ?? m['grade_points'] ?? m['gpa'];
+        final gp = _parseGradePoints(gradeRaw);
+        if (name.isEmpty || credits == null || credits <= 0 || gp == null) {
+          continue;
+        }
+        out.add(
+          UserCourseEntry(
+            name: name,
+            gradePoints: gp.clamp(0.0, 4.0),
+            credits: credits,
+          ),
+        );
+      } catch (e, st) {
+        developer.log(
+          'parseAddedCourses row skip: $e',
+          name: 'AnalysisService',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+    return out;
+  }
+
+  static double? _parseDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim());
+  }
+
+  /// Accepts 0–4 scale, 0–100 (mapped to 4.0 scale), or letter grades.
+  static double? _parseGradePoints(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) {
+      final n = raw.toDouble();
+      if (n >= 0 && n <= 4.5) return n.clamp(0.0, 4.0);
+      if (n > 4 && n <= 100) return (n / 100.0 * 4.0).clamp(0.0, 4.0);
+      return null;
+    }
+    final s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    final letter = _letterToPoints(s);
+    if (letter != null) return letter;
+    return _parseDouble(s);
+  }
+
+  static double? _letterToPoints(String s) {
+    switch (s.toUpperCase()) {
+      case 'A+':
+      case 'A':
+        return 4.0;
+      case 'A-':
+        return 3.7;
+      case 'B+':
+        return 3.3;
+      case 'B':
+        return 3.0;
+      case 'B-':
+        return 2.7;
+      case 'C+':
+        return 2.3;
+      case 'C':
+        return 2.0;
+      case 'C-':
+        return 1.7;
+      case 'D':
+      case 'D+':
+        return 1.0;
+      case 'F':
+        return 0.0;
+      default:
+        return null;
+    }
+  }
+
+  /// Profile text field fallback e.g. "3.45" or "3.45/4".
+  static double? parseProfileGpaField(dynamic raw) {
+    if (raw == null) return null;
+    var s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    final slash = s.split('/');
+    if (slash.length == 2) {
+      s = slash[0].trim();
+    }
+    return double.tryParse(s);
+  }
+
+  /// Bar groups: average [Course.rating] per skill (top [maxBars] by count).
+  static List<BarChartGroupData> buildAvgRatingBySkillBars(
+    List<Course> courses, {
+    int maxBars = 8,
+  }) {
+    try {
+      final bySkill = <String, List<double>>{};
+      for (final c in courses) {
+        final k = c.skillName.trim().isEmpty ? 'General' : c.skillName.trim();
+        bySkill.putIfAbsent(k, () => []).add(c.rating.clamp(0.0, 5.0));
+      }
+      final averages = <MapEntry<String, double>>[];
+      for (final e in bySkill.entries) {
+        if (e.value.isEmpty) continue;
+        final avg = e.value.reduce((a, b) => a + b) / e.value.length;
+        averages.add(MapEntry(e.key, avg));
+      }
+      averages.sort((a, b) => b.value.compareTo(a.value));
+      final take = averages.take(maxBars).toList();
+      return List.generate(take.length, (i) {
+        return BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: take[i].value,
+              width: 14,
+              borderRadius: BorderRadius.circular(4),
+              color: const Color(0xFF2A6CFF),
+            ),
+          ],
+        );
+      });
+    } catch (e, st) {
+      developer.log(
+        'buildAvgRatingBySkillBars: $e',
+        name: 'AnalysisService',
+        error: e,
+        stackTrace: st,
+      );
+      return [];
+    }
+  }
+
+  /// X labels for [buildAvgRatingBySkillBars] (same order).
+  static List<String> avgRatingBarLabels(
+    List<Course> courses, {
+    int maxBars = 8,
+  }) {
+    try {
+      final bySkill = <String, List<double>>{};
+      for (final c in courses) {
+        final k = c.skillName.trim().isEmpty ? 'General' : c.skillName.trim();
+        bySkill.putIfAbsent(k, () => []).add(c.rating);
+      }
+      final averages = <MapEntry<String, double>>[];
+      for (final e in bySkill.entries) {
+        if (e.value.isEmpty) continue;
+        final avg = e.value.reduce((a, b) => a + b) / e.value.length;
+        averages.add(MapEntry(e.key, avg));
+      }
+      averages.sort((a, b) => b.value.compareTo(a.value));
+      return averages
+          .take(maxBars)
+          .map((e) => e.key.length > 10 ? '${e.key.substring(0, 9)}…' : e.key)
+          .toList();
+    } catch (e, st) {
+      developer.log(
+        'avgRatingBarLabels: $e',
+        name: 'AnalysisService',
+        error: e,
+        stackTrace: st,
+      );
+      return [];
+    }
+  }
+
+  /// Line spots: cumulative GPA after each course (by list order).
+  static List<FlSpot> cumulativeGpaSpots(List<UserCourseEntry> rows) {
+    try {
+      final valid = rows.where((r) => r.isValid).toList();
+      if (valid.isEmpty) return [];
+      double sumGp = 0;
+      double sumCr = 0;
+      final spots = <FlSpot>[];
+      for (var i = 0; i < valid.length; i++) {
+        final r = valid[i];
+        sumGp += r.gradePoints * r.credits;
+        sumCr += r.credits;
+        final gpa = sumGp / sumCr;
+        spots.add(FlSpot(i.toDouble(), gpa.clamp(0.0, 4.0)));
+      }
+      return spots;
+    } catch (e, st) {
+      developer.log(
+        'cumulativeGpaSpots: $e',
+        name: 'AnalysisService',
+        error: e,
+        stackTrace: st,
+      );
+      return [];
+    }
+  }
+
+  /// Skills progress 0–100 from level strings (Basic/Intermediate/Advanced).
+  static double skillLevelToPercent(String? level) {
+    switch (level?.toLowerCase().trim()) {
+      case 'basic':
+        return 33;
+      case 'intermediate':
+        return 66;
+      case 'advanced':
+        return 100;
+      default:
+        return 0;
+    }
+  }
+
+  /// Stream of catalog [Course] for charts (real-time).
+  static Stream<List<Course>> watchCatalogCourses({int limit = 80}) {
+    return FirebaseFirestore.instance
+        .collection('courses')
+        .limit(limit)
+        .snapshots()
+        .map((snap) {
+      try {
+        return snap.docs
+            .map((d) {
+              try {
+                return Course.fromFirestore(d.data());
+              } catch (e, st) {
+                developer.log(
+                  'Course.fromFirestore: $e',
+                  name: 'AnalysisService',
+                  error: e,
+                  stackTrace: st,
+                );
+                return null;
+              }
+            })
+            .whereType<Course>()
+            .toList();
+      } catch (e, st) {
+        developer.log(
+          'watchCatalogCourses map: $e',
+          name: 'AnalysisService',
+          error: e,
+          stackTrace: st,
+        );
+        return <Course>[];
+      }
+    });
+  }
+}

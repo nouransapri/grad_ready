@@ -252,6 +252,7 @@ class JobDocument {
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
         importance: _weightToImportance(s.weight),
+        weight: s.weight.clamp(1, 10),
       ));
       if (s.priority == 'Critical') criticalNames.add(s.name);
     }
@@ -260,6 +261,7 @@ class JobDocument {
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
         importance: _weightToImportance(s.weight),
+        weight: s.weight.clamp(1, 10),
       ));
       if (s.priority == 'Critical') criticalNames.add(s.name);
     }
@@ -268,6 +270,7 @@ class JobDocument {
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
         importance: _weightToImportance(s.weight),
+        weight: s.weight.clamp(1, 10),
       ));
       if (s.priority == 'Critical') criticalNames.add(s.name);
     }

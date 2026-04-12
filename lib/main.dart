@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'app_theme.dart';
 // Generate firebase_options.dart by running: flutterfire configure
 import 'firebase_options.dart';
+import 'firebase_messaging_background.dart';
+import 'services/database_helper.dart';
 import 'services/firestore_service.dart';
+import 'services/hive_service.dart';
+import 'services/push_notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/create_profile.dart';
@@ -15,10 +22,16 @@ import 'screens/admin/admin_overview_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveService.initialize();
+  unawaited(DatabaseHelper.performAutoBackup());
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
+  await PushNotificationService.initialize();
   if (kDebugMode) {
     try {
       await FirestoreService().uploadHomeMockDataIfEmpty();

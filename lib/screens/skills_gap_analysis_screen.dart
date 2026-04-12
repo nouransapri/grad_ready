@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -320,7 +319,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 
   List<SkillGapItem> _dedupeSkillGapItems(List<SkillGapItem> input) {
-    final bySkill = LinkedHashMap<String, SkillGapItem>();
+    final bySkill = <String, SkillGapItem>{};
     for (final item in input) {
       final key = normalizeSkillName(item.name);
       if (key.isEmpty) continue;

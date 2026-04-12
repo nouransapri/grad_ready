@@ -1,7 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import '../services/auth_service.dart';
+import '../services/profile_photo_service.dart';
 import 'create_profile.dart';
 import 'splash_screen.dart';
 
@@ -18,6 +25,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   static const _purple = Color(0xFF9226FF);
 
   late Future<DocumentSnapshot> _profileFuture;
+  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -80,6 +88,74 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  String? _effectivePhotoUrl(Map<String, dynamic>? data) {
+    final fromDoc = data?['photoUrl']?.toString().trim();
+    if (fromDoc != null && fromDoc.isNotEmpty) return fromDoc;
+    return FirebaseAuth.instance.currentUser?.photoURL;
+  }
+
+  Future<void> _offerPhotoChange(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadPhoto(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadPhoto(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadPhoto(ImageSource source) async {
+    if (_uploadingPhoto) return;
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Camera permission is required')),
+        );
+        return;
+      }
+    }
+    setState(() => _uploadingPhoto = true);
+    try {
+      final xfile = await ProfilePhotoService.pickImage(source: source);
+      if (xfile == null) return;
+      await ProfilePhotoService.uploadAndSaveProfilePhoto(File(xfile.path));
+      _refreshProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update photo: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
   Widget _buildBody(BuildContext context, Map<String, dynamic>? data) {
     final name = data?['full_name'] as String? ?? '—';
     final university = data?['university'] as String? ?? '';
@@ -90,6 +166,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final internships = _safeMapList(data?['internships']);
     final clubs = _safeMapList(data?['clubs']);
     final projects = _safeMapList(data?['projects']);
+    final photoUrl = _effectivePhotoUrl(data);
 
     return RefreshIndicator(
       onRefresh: _refreshData,
@@ -101,7 +178,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _buildProfileCard(context, name, university),
+                _buildProfileCard(context, name, university, photoUrl),
                 const SizedBox(height: 20),
                 _buildSection(
                   context,
@@ -268,7 +345,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ),
           IconButton(
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+              await AuthService.signOut();
               if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const SplashScreen()),
@@ -286,6 +363,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     BuildContext context,
     String name,
     String university,
+    String? photoUrl,
   ) {
     return Container(
       width: double.infinity,
@@ -305,24 +383,54 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _purple.withValues(alpha: 0.15),
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 10,
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _uploadingPhoto
+                      ? null
+                      : () => _offerPhotoChange(context),
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _purple.withValues(alpha: 0.15),
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 48,
-                  color: _purple,
+                    clipBehavior: Clip.antiAlias,
+                    child: _uploadingPhoto
+                        ? const Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : photoUrl != null && photoUrl.isNotEmpty
+                        ? Image.network(
+                            photoUrl,
+                            fit: BoxFit.cover,
+                            width: 90,
+                            height: 90,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.person_rounded,
+                              size: 48,
+                              color: _purple,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.person_rounded,
+                            size: 48,
+                            color: _purple,
+                          ),
+                  ),
                 ),
               ),
               Positioned(
