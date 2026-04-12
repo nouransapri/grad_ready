@@ -30,6 +30,17 @@ const _academicColors = [
 // --- Dynamic analytics from Firestore (no hardcoded values) ---
 
 /// 1. Most Selected Job Roles: count users by [last_analysis] title (any value, not only catalog jobs).
+String _analysisTitle(Map<String, dynamic> user) {
+  final last = user['last_analysis'];
+  if (last is Map) {
+    final title = last['title']?.toString().trim();
+    if (title != null && title.isNotEmpty) return title;
+  }
+  final legacy = user['last_analysis_title']?.toString().trim();
+  if (legacy != null && legacy.isNotEmpty) return legacy;
+  return last?.toString().trim() ?? '';
+}
+
 List<(String, double)> computeMostSelectedJobRoles(
   List<Map<String, dynamic>> users,
   List<JobRole> jobs, {
@@ -37,8 +48,8 @@ List<(String, double)> computeMostSelectedJobRoles(
 }) {
   final countByTitle = <String, int>{};
   for (final u in users) {
-    final last = u['last_analysis']?.toString().trim();
-    if (last == null || last.isEmpty) continue;
+    final last = _analysisTitle(u);
+    if (last.isEmpty) continue;
     countByTitle[last] = (countByTitle[last] ?? 0) + 1;
   }
   if (countByTitle.isEmpty && jobs.isNotEmpty) {
@@ -54,8 +65,7 @@ List<(String, double)> computeMostSelectedJobRoles(
 double computeTotalSelections(List<Map<String, dynamic>> users) {
   int n = 0;
   for (final u in users) {
-    final last = u['last_analysis']?.toString().trim();
-    if (last != null && last.isNotEmpty) n++;
+    if (_analysisTitle(u).isNotEmpty) n++;
   }
   return n.toDouble();
 }

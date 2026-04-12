@@ -4,6 +4,7 @@ import '../../app_theme.dart';
 import '../../models/job_document.dart';
 import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/skill_utils.dart';
 import 'job_skills_editor.dart';
 
 const Color _pageBg = Color(0xFF0A0A0A);
@@ -719,7 +720,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
         );
         await _firestore.updateJobDocument(updated);
       } else {
-        final jobId = '${title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}-${DateTime.now().millisecondsSinceEpoch % 100000}';
+        final jobId = canonicalJobId(title, category);
         final newDoc = JobDocument(
           id: '',
           jobId: jobId,

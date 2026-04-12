@@ -1,0 +1,479 @@
+{
+  "jobs": [
+    {
+      "title": "Software Engineer (Backend / Frontend / Full Stack)",
+      "technical": [
+        "Programming (JavaScript / Python / Java)",
+        "Data Structures & Algorithms",
+        "APIs (REST)",
+        "Databases (SQL)"
+      ],
+      "soft": [
+        "Problem Solving",
+        "Teamwork",
+        "Analytical Thinking"
+      ],
+      "tools": [
+        "Git & GitHub",
+        "VS Code",
+        "Frameworks (React / Node / Spring)"
+      ]
+    },
+    {
+      "title": "Mobile App Developer (Flutter / Android / iOS)",
+      "technical": [
+        "Dart / Kotlin / Swift",
+        "Mobile UI Development",
+        "API Integration",
+        "State Management"
+      ],
+      "soft": [
+        "Problem Solving",
+        "Attention to Detail",
+        "UX Thinking"
+      ],
+      "tools": [
+        "Flutter / Android Studio / Xcode",
+        "Git",
+        "Firebase"
+      ]
+    },
+    {
+      "title": "Data Analyst",
+      "technical": [
+        "SQL",
+        "Excel",
+        "Data Cleaning & EDA",
+        "Data Visualization"
+      ],
+      "soft": [
+        "Communication",
+        "Analytical Thinking",
+        "Problem Solving"
+      ],
+      "tools": [
+        "Power BI",
+        "Excel",
+        "Python (Pandas)"
+      ]
+    },
+    {
+      "title": "Data Scientist",
+      "technical": [
+        "Python",
+        "Statistics",
+        "Machine Learning",
+        "Data Modeling"
+      ],
+      "soft": [
+        "Analytical Thinking",
+        "Problem Solving",
+        "Research Thinking"
+      ],
+      "tools": [
+        "Jupyter Notebook",
+        "Scikit-learn",
+        "SQL"
+      ]
+    },
+    {
+      "title": "AI / Machine Learning Engineer",
+      "technical": [
+        "Python",
+        "Deep Learning Basics",
+        "Machine Learning Algorithms",
+        "Mathematics (Linear Algebra)"
+      ],
+      "soft": [
+        "Problem Solving",
+        "Critical Thinking",
+        "Research Skills"
+      ],
+      "tools": [
+        "TensorFlow / PyTorch",
+        "Python",
+        "Git"
+      ]
+    },
+    {
+      "title": "Cybersecurity Specialist",
+      "technical": [
+        "Network Security",
+        "Operating Systems",
+        "Threat Detection",
+        "Cryptography Basics"
+      ],
+      "soft": [
+        "Attention to Detail",
+        "Problem Solving",
+        "Analytical Thinking"
+      ],
+      "tools": [
+        "Wireshark",
+        "Linux",
+        "SIEM Tools"
+      ]
+    },
+    {
+      "title": "DevOps Engineer",
+      "technical": [
+        "CI/CD",
+        "Linux",
+        "Cloud Basics",
+        "Networking"
+      ],
+      "soft": [
+        "Problem Solving",
+        "Collaboration",
+        "Automation Thinking"
+      ],
+      "tools": [
+        "Docker",
+        "Kubernetes",
+        "Jenkins"
+      ]
+    },
+    {
+      "title": "Cloud Engineer",
+      "technical": [
+        "Cloud Computing Basics",
+        "Networking",
+        "Security Basics",
+        "Linux"
+      ],
+      "soft": [
+        "Problem Solving",
+        "Analytical Thinking",
+        "Adaptability"
+      ],
+      "tools": [
+        "AWS / Azure / GCP",
+        "Terraform",
+        "Docker"
+      ]
+    },
+    {
+      "title": "UI/UX Designer",
+      "technical": [
+        "Wireframing",
+        "User Research",
+        "Prototyping",
+        "UX Principles"
+      ],
+      "soft": [
+        "Creativity",
+        "Empathy",
+        "Communication"
+      ],
+      "tools": [
+        "Figma",
+        "Adobe XD",
+        "Photoshop"
+      ]
+    },
+    {
+      "title": "QA / Software Tester",
+      "technical": [
+        "Manual Testing",
+        "Test Cases",
+        "Bug Reporting",
+        "Basic Automation"
+      ],
+      "soft": [
+        "Attention to Detail",
+        "Analytical Thinking",
+        "Patience"
+      ],
+      "tools": [
+        "Selenium",
+        "Jira",
+        "Postman"
+      ]
+    },
+    {
+      "title": "Business Analyst",
+      "technical": [
+        "Requirements Analysis",
+        "SQL Basics",
+        "Data Analysis",
+        "Process Modeling"
+      ],
+      "soft": [
+        "Communication",
+        "Critical Thinking",
+        "Negotiation"
+      ],
+      "tools": [
+        "Excel",
+        "Power BI",
+        "Jira"
+      ]
+    },
+    {
+      "title": "Digital Marketing Specialist",
+      "technical": [
+        "SEO Basics",
+        "Paid Ads",
+        "Analytics",
+        "Content Strategy"
+      ],
+      "soft": [
+        "Creativity",
+        "Communication",
+        "Analytical Thinking"
+      ],
+      "tools": [
+        "Google Ads",
+        "Google Analytics",
+        "Meta Ads Manager"
+      ]
+    },
+    {
+      "title": "SEO Specialist",
+      "technical": [
+        "Keyword Research",
+        "On-page SEO",
+        "Off-page SEO",
+        "Technical SEO Basics"
+      ],
+      "soft": [
+        "Analytical Thinking",
+        "Attention to Detail",
+        "Research Skills"
+      ],
+      "tools": [
+        "Google Search Console",
+        "Ahrefs / SEMrush",
+        "Google Analytics"
+      ]
+    },
+    {
+      "title": "Performance Marketing Specialist",
+      "technical": [
+        "Paid Ads Strategy",
+        "Conversion Optimization",
+        "A/B Testing",
+        "Analytics"
+      ],
+      "soft": [
+        "Analytical Thinking",
+        "Decision Making",
+        "Creativity"
+      ],
+      "tools": [
+        "Google Ads",
+        "Meta Ads Manager",
+        "Google Analytics"
+      ]
+    },
+    {
+      "title": "Product Manager",
+      "technical": [
+        "Product Lifecycle",
+        "Market Research",
+        "Data Analysis",
+        "Requirements Writing"
+      ],
+      "soft": [
+        "Leadership",
+        "Communication",
+        "Decision Making"
+      ],
+      "tools": [
+        "Jira",
+        "Notion",
+        "Figma"
+      ]
+    },
+    {
+      "title": "Content Creator",
+      "technical": [
+        "Content Writing",
+        "Storytelling",
+        "Basic SEO",
+        "Social Media Strategy"
+      ],
+      "soft": [
+        "Creativity",
+        "Communication",
+        "Consistency"
+      ],
+      "tools": [
+        "Canva",
+        "Instagram / TikTok",
+        "CapCut"
+      ]
+    },
+    {
+      "title": "Copywriter",
+      "technical": [
+        "Persuasive Writing",
+        "Marketing Psychology",
+        "SEO Writing",
+        "Editing"
+      ],
+      "soft": [
+        "Creativity",
+        "Attention to Detail",
+        "Communication"
+      ],
+      "tools": [
+        "Google Docs",
+        "Grammarly",
+        "Notion"
+      ]
+    },
+    {
+      "title": "Social Media Manager",
+      "technical": [
+        "Content Planning",
+        "Analytics",
+        "Paid Ads Basics",
+        "Branding"
+      ],
+      "soft": [
+        "Creativity",
+        "Communication",
+        "Time Management"
+      ],
+      "tools": [
+        "Meta Business Suite",
+        "Canva",
+        "Hootsuite"
+      ]
+    },
+    {
+      "title": "Graphic Designer",
+      "technical": [
+        "Typography",
+        "Color Theory",
+        "Branding",
+        "Layout Design"
+      ],
+      "soft": [
+        "Creativity",
+        "Attention to Detail",
+        "Communication"
+      ],
+      "tools": [
+        "Photoshop",
+        "Illustrator",
+        "Canva"
+      ]
+    },
+    {
+      "title": "Video Editor",
+      "technical": [
+        "Video Cutting & Editing",
+        "Color Grading",
+        "Sound Editing",
+        "Storytelling"
+      ],
+      "soft": [
+        "Creativity",
+        "Patience",
+        "Attention to Detail"
+      ],
+      "tools": [
+        "Premiere Pro",
+        "After Effects",
+        "CapCut"
+      ]
+    },
+    {
+      "title": "Project Manager",
+      "technical": [
+        "Project Planning",
+        "Risk Management",
+        "Agile / Scrum",
+        "Budgeting"
+      ],
+      "soft": [
+        "Leadership",
+        "Communication",
+        "Decision Making"
+      ],
+      "tools": [
+        "Jira",
+        "Trello",
+        "Microsoft Project"
+      ]
+    },
+    {
+      "title": "Sales Specialist (SaaS)",
+      "technical": [
+        "Sales Funnel",
+        "CRM Systems",
+        "Negotiation Techniques",
+        "Product Knowledge"
+      ],
+      "soft": [
+        "Communication",
+        "Persuasion",
+        "Emotional Intelligence"
+      ],
+      "tools": [
+        "Salesforce",
+        "HubSpot",
+        "Excel"
+      ]
+    },
+    {
+      "title": "Customer Support (Remote)",
+      "technical": [
+        "CRM Usage",
+        "Ticketing Systems",
+        "Product Knowledge",
+        "Communication Scripts"
+      ],
+      "soft": [
+        "Patience",
+        "Communication",
+        "Empathy"
+      ],
+      "tools": [
+        "Zendesk",
+        "Freshdesk",
+        "Intercom"
+      ]
+    },
+    {
+      "title": "HR Specialist (Recruitment)",
+      "technical": [
+        "Recruitment Process",
+        "Interviewing",
+        "CV Screening",
+        "HR Policies"
+      ],
+      "soft": [
+        "Communication",
+        "Empathy",
+        "Decision Making"
+      ],
+      "tools": [
+        "LinkedIn Recruiter",
+        "Excel",
+        "ATS Systems"
+      ]
+    },
+    {
+      "title": "E-commerce Specialist",
+      "technical": [
+        "Store Management",
+        "Product Listing",
+        "Digital Marketing Basics",
+        "Analytics"
+      ],
+      "soft": [
+        "Analytical Thinking",
+        "Time Management",
+        "Problem Solving"
+      ],
+      "tools": [
+        "Shopify",
+        "WooCommerce",
+        "Google Analytics"
+      ]
+    }
+  ]
+}

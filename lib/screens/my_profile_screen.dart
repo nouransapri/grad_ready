@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'create_profile.dart';
+import 'splash_screen.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -268,7 +269,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           IconButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              if (context.mounted) Navigator.pop(context);
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const SplashScreen()),
+                (_) => false,
+              );
             },
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
           ),

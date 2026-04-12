@@ -114,8 +114,9 @@ class MarketInsightsService {
       jobCount: n,
       topJobs: titles.take(5).toList(),
       topCompanies: companies.take(8).toList(),
-      growthRate: '+${(n * 2).clamp(0, 999)}% this week',
-      avgSalary: '\$${120 + n ~/ 4}k',
+      // Avoid synthetic KPI math; show only verified live listing signals.
+      growthRate: '—',
+      avgSalary: '—',
       jobListKind: jobListKind,
     );
   }
@@ -224,8 +225,8 @@ class MarketInsightsService {
         jobCount: items.length,
         topJobs: titles.take(5).toList(),
         topCompanies: companies.take(8).toList(),
-        growthRate: '+${(items.length * 2).clamp(0, 999)}% this week',
-        avgSalary: '\$${120 + items.length ~/ 4}k',
+        growthRate: '—',
+        avgSalary: '—',
         jobListKind: 'jobs (Indeed RSS)',
       );
     } catch (e) {

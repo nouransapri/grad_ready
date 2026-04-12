@@ -406,15 +406,20 @@ class GapAnalysisService {
     final out = <String, Skill>{
       if (catalog != null) ...catalog,
     };
+    final softIds = job.softSkillsWithLevel
+        .map((s) => canonicalSkillId(s.name))
+        .where((id) => id.isNotEmpty)
+        .toSet();
     for (final req in job.requiredSkillsWithLevel) {
       if (_catalogSkill(out, req.skillId) != null) {
         continue;
       }
       final cid = canonicalSkillId(req.skillId);
+      final category = softIds.contains(cid) ? 'Soft' : 'Technical';
       out[cid] = Skill(
         id: cid,
         name: displayNameFromSkillId(req.skillId),
-        category: 'Technical',
+        category: category,
       );
     }
     return out;

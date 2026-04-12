@@ -26,3 +26,36 @@ String canonicalSkillId(String? raw) {
 /// Converts a display skill name to a stable id (Firestore doc id, job requiredSkills).
 /// Prefer [canonicalSkillId] for any stored id string.
 String skillNameToSkillId(String? name) => canonicalSkillId(name);
+
+/// Stable job identity based on normalized title + category.
+/// Use this to prevent duplicate role documents for the same role/category pair.
+String canonicalJobId(String? title, String? category) {
+  final t = title?.trim() ?? '';
+  final c = category?.trim() ?? '';
+  if (t.isEmpty && c.isEmpty) return '';
+  return canonicalSkillId('$t-$c');
+}
+
+/// Project-wide level bands for 0-100 scales.
+enum SkillLevelBand { beginner, intermediate, advanced, expert }
+
+SkillLevelBand skillLevelBandFromValue(int level) {
+  final v = level.clamp(0, 100);
+  if (v <= 30) return SkillLevelBand.beginner;
+  if (v <= 60) return SkillLevelBand.intermediate;
+  if (v <= 80) return SkillLevelBand.advanced;
+  return SkillLevelBand.expert;
+}
+
+String skillLevelBandLabel(int level) {
+  switch (skillLevelBandFromValue(level)) {
+    case SkillLevelBand.beginner:
+      return 'Beginner';
+    case SkillLevelBand.intermediate:
+      return 'Intermediate';
+    case SkillLevelBand.advanced:
+      return 'Advanced';
+    case SkillLevelBand.expert:
+      return 'Expert';
+  }
+}

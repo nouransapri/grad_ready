@@ -45,6 +45,26 @@ class _RecommendationsTabState extends State<RecommendationsTab>
   }
 
   @override
+  void didUpdateWidget(covariant RecommendationsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_listEquals(widget.skillNames, oldWidget.skillNames) ||
+        !_setEquals(widget.criticalGapNames, oldWidget.criticalGapNames)) {
+      _loadCourses();
+    }
+  }
+
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static bool _setEquals(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
+
+  @override
   void dispose() {
     _animController.dispose();
     super.dispose();
@@ -535,9 +555,25 @@ class _RecommendationsTabState extends State<RecommendationsTab>
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.tryParse(url);
-    if (uri == null) return;
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid course link.')),
+      );
+      return;
+    }
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {}
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open this course link.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this course link.')),
+      );
+    }
   }
 }

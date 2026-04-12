@@ -64,6 +64,31 @@ class FirestoreService {
     return 'Technical';
   }
 
+  String _jobIdentityKey(String title, String category) =>
+      canonicalJobId(title, category);
+
+  Future<String?> _findExistingJobIdByIdentity(
+    String title,
+    String category, {
+    String? excludeDocId,
+  }) async {
+    final key = _jobIdentityKey(title, category);
+    if (key.isEmpty) return null;
+    final snapshot = await _db.collection('jobs').get();
+    for (final doc in snapshot.docs) {
+      if (excludeDocId != null && excludeDocId.isNotEmpty && doc.id == excludeDocId) {
+        continue;
+      }
+      final data = doc.data();
+      final docTitle = data['title']?.toString().trim() ?? '';
+      final docCategory = data['category']?.toString().trim() ?? '';
+      if (_jobIdentityKey(docTitle, docCategory) == key) {
+        return doc.id;
+      }
+    }
+    return null;
+  }
+
   String? _matchSkillIdFromCatalog(
     String rawName,
     Map<String, Skill> catalog,
@@ -316,9 +341,13 @@ class FirestoreService {
         );
       }),
     );
+    final canonicalId = canonicalJobId(job.title, job.category);
+    if (canonicalId.isEmpty) {
+      throw StateError('Job title/category are required.');
+    }
     final normalizedJob = JobDocument(
       id: job.id,
-      jobId: job.jobId,
+      jobId: canonicalId,
       title: job.title,
       category: job.category,
       industry: job.industry,
@@ -337,7 +366,17 @@ class FirestoreService {
       totalSkillsCount: job.totalSkillsCount,
       averageRequiredLevel: job.averageRequiredLevel,
     );
-    final id = job.jobId.trim().isNotEmpty ? job.jobId : _db.collection('jobs').doc().id;
+    final existingById = await _db.collection('jobs').doc(canonicalId).get();
+    final duplicateId = await _findExistingJobIdByIdentity(
+      job.title,
+      job.category,
+    );
+    if (duplicateId != null && duplicateId != canonicalId && !existingById.exists) {
+      throw StateError(
+        'A job with the same title and category already exists (id: $duplicateId).',
+      );
+    }
+    final id = canonicalId;
     final ref = _db.collection('jobs').doc(id);
     await ref.set(normalizedJob.toFirestore());
     _invalidateJobsCache();
@@ -347,6 +386,16 @@ class FirestoreService {
   /// Update an existing job document. Soft-update: set updatedAt and isActive.
   Future<void> updateJobDocument(JobDocument job) async {
     if (job.id.isEmpty) return;
+    final duplicateId = await _findExistingJobIdByIdentity(
+      job.title,
+      job.category,
+      excludeDocId: job.id,
+    );
+    if (duplicateId != null) {
+      throw StateError(
+        'Another job with the same title and category already exists (id: $duplicateId).',
+      );
+    }
     final normalizedTechRaw = await _normalizeJobSkills(
       job.technicalSkills,
       groupKey: 'technicalSkills',
@@ -747,9 +796,9 @@ class FirestoreService {
     };
     if (names.isEmpty) return result;
 
+    final catalog = await getSkills();
     try {
       final uniqueIds = <String>{};
-      final catalog = await getSkills();
       final allowedByName = <String, bool>{};
       for (final name in names) {
         final matched = _matchSkillIdFromCatalog(name, catalog);
@@ -796,12 +845,11 @@ class FirestoreService {
       if (kDebugMode) debugPrintStack(stackTrace: st);
     }
 
-    final catalogForFallback = await getSkills();
     bool allowFallback(String name) {
       if (!verifiedOnly) return true;
-      final id = _matchSkillIdFromCatalog(name, catalogForFallback) ?? _skillNameToDocId(name);
+      final id = _matchSkillIdFromCatalog(name, catalog) ?? _skillNameToDocId(name);
       if (id.isEmpty) return false;
-      final s = catalogForFallback[canonicalSkillId(id)] ?? catalogForFallback[id];
+      final s = catalog[canonicalSkillId(id)] ?? catalog[id];
       return s?.isVerified == true;
     }
     final needFallback = names
@@ -909,33 +957,73 @@ class FirestoreService {
   }
 
   Future<List<Course>> _getCoursesForSkillExact(String skillName, int limit) async {
+    final fetchLimit = (limit <= 0 ? 10 : limit * 5).clamp(10, 100);
     final snapshot = await _db
         .collection('courses')
         .where('skillName', isEqualTo: skillName)
-        .limit(limit)
+        .limit(fetchLimit)
         .get();
-    return snapshot.docs
+    final courses = snapshot.docs
         .map((d) => Course.fromFirestore(d.data()))
         .where((c) => c.title.isNotEmpty && c.url.isNotEmpty)
         .toList();
+    courses.sort((a, b) {
+      final scoreCmp = b.relevanceScore.compareTo(a.relevanceScore);
+      if (scoreCmp != 0) return scoreCmp;
+      final ratingCmp = b.rating.compareTo(a.rating);
+      if (ratingCmp != 0) return ratingCmp;
+      return a.priority.compareTo(b.priority);
+    });
+    return courses.take(limit).toList();
   }
 
-  /// Fetches courses for multiple skills. Returns map skillName -> list of courses (up to maxPerSkill each).
+  /// Fetches courses for multiple skills in parallel. Returns map skillName -> list of courses (up to maxPerSkill each).
   Future<Map<String, List<Course>>> getCoursesForSkills(
     List<String> skillNames,
     int maxPerSkill,
   ) async {
-    final result = <String, List<Course>>{};
-    for (final name in skillNames) {
-      result[name] = await getCoursesForSkill(name, maxPerSkill);
-    }
-    return result;
+    final entries = await Future.wait(
+      skillNames.map((name) async {
+        final courses = await getCoursesForSkill(name, maxPerSkill);
+        return MapEntry(name, courses);
+      }),
+    );
+    return Map.fromEntries(entries);
   }
 
   /// Adds a course document to Firestore (admin). Returns the new document id.
   Future<String> addCourse(Course course) async {
+    final uri = Uri.tryParse(course.url.trim());
+    final validUrl = uri != null &&
+        uri.hasScheme &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        (uri.host.isNotEmpty);
+    if (!validUrl) {
+      throw StateError('Course URL must be a valid http/https URL.');
+    }
+    final skill = await getSkillByNameOrAlias(course.skillName);
+    if (skill == null) {
+      throw StateError(
+        'Course skill "${course.skillName}" was not found in skills catalog.',
+      );
+    }
+    final normalized = Course(
+      skillName: skill.name,
+      skillId: canonicalSkillId(skill.id),
+      title: course.title.trim(),
+      platform: course.platform.trim(),
+      url: course.url.trim(),
+      duration: course.duration.trim(),
+      cost: course.cost.trim(),
+      estimatedPrice: course.estimatedPrice?.trim(),
+      rating: course.rating,
+      level: course.level.trim(),
+      description: course.description.trim(),
+      priority: course.priority,
+      relevanceScore: course.relevanceScore,
+    );
     final ref = _db.collection('courses').doc();
-    await ref.set(course.toFirestore());
+    await ref.set(normalized.toFirestore());
     return ref.id;
   }
 
@@ -1071,15 +1159,6 @@ class FirestoreService {
   // so they update immediately when these methods write to the user document.
   // ---------------------------------------------------------------------------
 
-  /// Converts a points value (0–100) to a display level string used by the
-  /// profile UI and stored in Firestore (Basic / Intermediate / Advanced).
-  static String _pointsToLevel(int points) {
-    final p = points.clamp(0, 100);
-    if (p <= 35) return 'Basic';
-    if (p <= 70) return 'Intermediate';
-    return 'Advanced';
-  }
-
   /// Parses the raw skills list from a user document into a list of skill maps.
   /// Handles: legacy List<String>; legacy Map with 'name','type','level','points'; new Map with 'skillId','level' (0-100).
   static List<Map<String, dynamic>> _parseSkillsList(dynamic raw) {
@@ -1136,6 +1215,12 @@ class FirestoreService {
   /// Adds or updates a skill by master skill id and level (0-100). Writes users.skills as { skillId, level }.
   Future<void> addSkillById(String uid, String skillId, int level) async {
     if (uid.isEmpty || skillId.trim().isEmpty) return;
+    final canonicalId = canonicalSkillId(skillId);
+    if (canonicalId.isEmpty) return;
+    final catalog = await getSkills();
+    if (!catalog.containsKey(canonicalId)) {
+      throw StateError('Skill "$canonicalId" does not exist in skills catalog.');
+    }
     final ref = _db.collection('users').doc(uid);
     final doc = await ref.get();
     if (!doc.exists || doc.data() == null) return;
@@ -1144,9 +1229,9 @@ class FirestoreService {
     final skills = _parseSkillsList(data['skills']);
     final levelClamped = level.clamp(0, 100);
     final idx = skills.indexWhere(
-      (s) => (s['skillId']?.toString().trim() ?? '') == skillId.trim(),
+      (s) => canonicalSkillId(s['skillId']?.toString()) == canonicalId,
     );
-    final entry = {'skillId': skillId.trim(), 'level': levelClamped};
+    final entry = {'skillId': canonicalId, 'level': levelClamped};
     if (idx >= 0) {
       skills[idx] = entry;
     } else {
@@ -1159,15 +1244,21 @@ class FirestoreService {
   /// Updates an existing skill's level by skillId (0-100).
   Future<void> updateSkillById(String uid, String skillId, int level) async {
     if (uid.isEmpty || skillId.trim().isEmpty) return;
+    final canonicalId = canonicalSkillId(skillId);
+    if (canonicalId.isEmpty) return;
+    final catalog = await getSkills();
+    if (!catalog.containsKey(canonicalId)) {
+      throw StateError('Skill "$canonicalId" does not exist in skills catalog.');
+    }
     final ref = _db.collection('users').doc(uid);
     final doc = await ref.get();
     if (!doc.exists || doc.data() == null) return;
 
     final data = doc.data()!;
     final skills = _parseSkillsList(data['skills']);
-    final target = skillId.trim();
+    final target = canonicalId;
     final idx = skills.indexWhere(
-      (s) => (s['skillId']?.toString().trim() ?? '') == target,
+      (s) => canonicalSkillId(s['skillId']?.toString()) == target,
     );
     if (idx < 0) return;
     skills[idx]['level'] = level.clamp(0, 100);
@@ -1538,9 +1629,33 @@ class FirestoreService {
     };
   }
 
-  /// Market insights aggregated across users (for Admin dashboard). Stub: override with real aggregation.
+  /// Market insights aggregated from `skills` collection demand analytics.
+  /// Returns top demanded skills for dashboard widgets.
   Future<MarketInsights> getMarketInsights() async {
-    return const MarketInsights();
+    final snapshot = await _db
+        .collection('skills')
+        .where('totalJobsUsingSkill', isGreaterThan: 0)
+        .orderBy('totalJobsUsingSkill', descending: true)
+        .limit(20)
+        .get();
+
+    final topDemandedSkills = <String>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final name =
+          data['name']?.toString().trim() ??
+          data['skillName']?.toString().trim() ??
+          doc.id;
+      if (name.isNotEmpty) {
+        topDemandedSkills.add(name);
+      }
+    }
+
+    return MarketInsights(
+      topDemandedSkills: topDemandedSkills,
+      mostMatchedSkills: const [],
+      mostMissingSkills: const [],
+    );
   }
 
   /// Upload default jobs (1-8) + additional jobs (9-20) to Firestore. Run once to seed data.

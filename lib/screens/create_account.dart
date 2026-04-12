@@ -2,7 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'create_profile.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home_page.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -12,12 +13,15 @@ class CreateAccountScreen extends StatefulWidget {
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
+    nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmController.dispose();
@@ -25,7 +29,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> registerUser() async {
-    if (emailController.text.trim().isEmpty ||
+    if (nameController.text.trim().isEmpty ||
+        emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty ||
         confirmController.text.trim().isEmpty) {
       _showError("Please fill in all fields");
@@ -42,30 +47,43 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
+    setState(() => _isLoading = true);
     try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) =>
-            const Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
-
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      if (!mounted) return;
-      _closeLoadingDialog();
+      final user = cred.user;
+      if (user == null) {
+        throw Exception('Failed to create account. Please try again.');
+      }
 
-      // After sign-up → CreateProfileScreen
-      Navigator.pushReplacement(
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': nameController.text.trim(),
+          'email': emailController.text.trim(),
+          'skills': <dynamic>[],
+          'targetJobId': null,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (firestoreError) {
+        // Keep auth and profile in sync: if profile doc creation fails, rollback account.
+        await user.delete();
+        throw Exception(
+          'Account created but profile setup failed. Please try again. '
+          '(${firestoreError.toString()})',
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const CreateProfileScreen()),
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (_) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _closeLoadingDialog();
 
       String errorMsg = "An error occurred";
       if (e.code == 'weak-password') errorMsg = "The password is too weak.";
@@ -79,15 +97,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       _showError(errorMsg);
     } catch (_) {
       if (!mounted) return;
-      _closeLoadingDialog();
       _showError("Unexpected issue. Please try again.");
-    }
-  }
-
-  void _closeLoadingDialog() {
-    final navigator = Navigator.of(context, rootNavigator: true);
-    if (navigator.canPop()) {
-      navigator.pop();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -208,6 +220,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     const SizedBox(height: 25),
 
                                     _buildTextField(
+                                      nameController,
+                                      'Full Name',
+                                      Icons.person_outline,
+                                    ),
+                                    const SizedBox(height: 18),
+                                    _buildTextField(
                                       emailController,
                                       'Email',
                                       Icons.mail_outline,
@@ -230,7 +248,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     const SizedBox(height: 25),
 
                                     ElevatedButton(
-                                      onPressed: registerUser,
+                                      onPressed: _isLoading ? null : registerUser,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
                                         foregroundColor: const Color(
@@ -246,13 +264,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ),
                                         elevation: 5,
                                       ),
-                                      child: const Text(
-                                        'Create Account',
-                                        style: TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Create Account',
+                                              style: TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                     ),
 
                                     const SizedBox(height: 20),

@@ -8,6 +8,7 @@ import '../services/firestore_service.dart';
 import '../services/market_insights_service.dart';
 import 'my_profile_screen.dart';
 import 'select_job_role_screen.dart';
+import 'splash_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -245,7 +246,14 @@ class _HomePageState extends State<HomePage> {
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => FirebaseAuth.instance.signOut(),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const SplashScreen()),
+                    (_) => false,
+                  );
+                },
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
               ),
             ],
@@ -598,23 +606,28 @@ class _HomePageState extends State<HomePage> {
               color: Colors.grey[800],
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _marketInsightStatChip(
-                Icons.payments_outlined,
-                'Avg salary',
-                insights.avgSalary,
-              ),
-              _marketInsightStatChip(
-                Icons.show_chart_rounded,
-                'Trend',
-                insights.growthRate,
-              ),
-            ],
-          ),
+          if (_hasMeaningfulMetric(insights.avgSalary) ||
+              _hasMeaningfulMetric(insights.growthRate)) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (_hasMeaningfulMetric(insights.avgSalary))
+                  _marketInsightStatChip(
+                    Icons.payments_outlined,
+                    'Avg salary',
+                    insights.avgSalary,
+                  ),
+                if (_hasMeaningfulMetric(insights.growthRate))
+                  _marketInsightStatChip(
+                    Icons.show_chart_rounded,
+                    'Trend',
+                    insights.growthRate,
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -662,6 +675,11 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  static bool _hasMeaningfulMetric(String value) {
+    final v = value.trim();
+    return v.isNotEmpty && v != '—' && v.toLowerCase() != 'n/a';
   }
 
   /// Up to three job rows with multi-line titles (full job text).
@@ -1114,15 +1132,24 @@ class _DashboardStats {
     final skills = data['skills'] as List?;
     final courses = data['added_courses'] as List?;
     final lastAnalysisValue = data['last_analysis'];
+    String resolvedLastAnalysis() {
+      if (lastAnalysisValue is Map) {
+        final title = lastAnalysisValue['title']?.toString().trim() ?? '';
+        if (title.isNotEmpty) return title;
+      }
+      final legacy = data['last_analysis_title']?.toString().trim();
+      if (legacy != null && legacy.isNotEmpty) return legacy;
+      final raw = lastAnalysisValue?.toString().trim();
+      if (raw != null && raw.isNotEmpty) return raw;
+      return 'N/A';
+    }
     return _DashboardStats(
       skillsCount: skills?.length ?? 0,
       coursesCount: courses?.length ?? 0,
       profileCompletionPercent: _HomePageState._profileCompletionPercentage(
         data,
       ),
-      lastAnalysis: lastAnalysisValue != null
-          ? lastAnalysisValue.toString()
-          : 'N/A',
+      lastAnalysis: resolvedLastAnalysis(),
     );
   }
 }

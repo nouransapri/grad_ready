@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../app_theme.dart';
 import 'admin_jobs_screen.dart';
@@ -15,12 +16,142 @@ class AdminOverviewScreen extends StatefulWidget {
 
 class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   int _selectedTabIndex = 0;
+  late Future<_AdminOverviewKpis> _kpisFuture;
+  late Future<_AdminOverviewCharts> _chartsFuture;
   static const List<({String label, IconData icon})> _tabs = [
     (label: 'Overview', icon: Icons.dashboard_rounded),
     (label: 'Jobs', icon: Icons.work_outline_rounded),
     (label: 'Analytics', icon: Icons.analytics_outlined),
     (label: 'Skills', icon: Icons.school_rounded),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _kpisFuture = _loadLiveKpis();
+    _chartsFuture = _loadLiveCharts();
+  }
+
+  Future<_AdminOverviewKpis> _loadLiveKpis() async {
+    final usersFuture = FirebaseFirestore.instance.collection('users').get();
+    final jobsFuture = FirebaseFirestore.instance.collection('jobs').get();
+    final skillsFuture = FirebaseFirestore.instance.collection('skills').get();
+
+    final usersSnap = await usersFuture;
+    final jobsSnap = await jobsFuture;
+    final skillsSnap = await skillsFuture;
+
+    var highDemandSkills = 0;
+    for (final doc in skillsSnap.docs) {
+      final demand = doc.data()['demandLevel']?.toString().trim() ?? '';
+      if (demand == 'Very High' || demand == 'High') {
+        highDemandSkills++;
+      }
+    }
+
+    return _AdminOverviewKpis(
+      totalUsers: usersSnap.size,
+      activeJobs: jobsSnap.size,
+      totalSkills: skillsSnap.size,
+      highDemandSkills: highDemandSkills,
+    );
+  }
+
+  Future<_AdminOverviewCharts> _loadLiveCharts() async {
+    final jobsFuture = FirebaseFirestore.instance.collection('jobs').get();
+    final usersFuture = FirebaseFirestore.instance.collection('users').get();
+
+    final jobsSnap = await jobsFuture;
+    final usersSnap = await usersFuture;
+
+    final roleCounts = <String, int>{};
+    for (final doc in jobsSnap.docs) {
+      final title = doc.data()['title']?.toString().trim() ?? '';
+      if (title.isEmpty) continue;
+      roleCounts[title] = (roleCounts[title] ?? 0) + 1;
+    }
+    final topRoles = roleCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topRoleBars = topRoles.take(3).map((e) {
+      return _BarDatum(label: e.key, value: e.value.toDouble());
+    }).toList();
+
+    final now = DateTime.now();
+    final weekDays = List<DateTime>.generate(
+      7,
+      (i) => DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - i)),
+    );
+    final weekCounts = List<int>.filled(7, 0);
+    for (final doc in usersSnap.docs) {
+      final raw = doc.data()['last_analysis_at'];
+      if (raw is! Timestamp) continue;
+      final t = raw.toDate();
+      final day = DateTime(t.year, t.month, t.day);
+      for (var i = 0; i < weekDays.length; i++) {
+        if (day == weekDays[i]) {
+          weekCounts[i] += 1;
+          break;
+        }
+      }
+    }
+    final weekLabels = weekDays
+        .map((d) => _weekdayShortLabel(d.weekday))
+        .toList();
+    final weeklyValues = weekCounts.map((c) => c.toDouble()).toList();
+
+    var bachelor = 0;
+    var master = 0;
+    var phd = 0;
+    var other = 0;
+    for (final doc in usersSnap.docs) {
+      final y = doc.data()['academic_year']?.toString().trim().toLowerCase() ?? '';
+      if (y.contains('bachelor')) {
+        bachelor++;
+      } else if (y.contains('master')) {
+        master++;
+      } else if (y.contains('phd') || y.contains('doctor')) {
+        phd++;
+      } else {
+        other++;
+      }
+    }
+    final total = (bachelor + master + phd + other);
+    double pct(int c) => total == 0 ? 0 : (c * 100.0 / total);
+    final academicSegments = <_PieDatum>[
+      _PieDatum(label: 'Bachelor', percent: pct(bachelor), color: const Color(0xFF6B5BAE)),
+      _PieDatum(label: 'Master', percent: pct(master), color: const Color(0xFF2A6CFF)),
+      _PieDatum(label: 'PhD', percent: pct(phd), color: const Color(0xFF1565C0)),
+      _PieDatum(label: 'Other', percent: pct(other), color: const Color(0xFF2E7D32)),
+    ];
+
+    return _AdminOverviewCharts(
+      topRoles: topRoleBars,
+      weeklyLabels: weekLabels,
+      weeklyValues: weeklyValues,
+      academicSegments: academicSegments,
+    );
+  }
+
+  static String _weekdayShortLabel(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'Mon';
+      case DateTime.tuesday:
+        return 'Tue';
+      case DateTime.wednesday:
+        return 'Wed';
+      case DateTime.thursday:
+        return 'Thu';
+      case DateTime.friday:
+        return 'Fri';
+      case DateTime.saturday:
+        return 'Sat';
+      case DateTime.sunday:
+        return 'Sun';
+      default:
+        return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,81 +304,116 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Summary stat cards 2x2
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.people_outline_rounded,
-                                iconColor: primary,
-                                label: 'Total Users',
-                                value: '1,247',
-                                badge: null,
-                              ),
-                            ),
-                            const SizedBox(width: cardSpacing),
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.person_add_alt_1_rounded,
-                                iconColor: primary,
-                                label: 'New This Month',
-                                value: '183',
-                                badge: '+14.7%',
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: cardSpacing),
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: _StatCard(
-                                icon: Icons.work_outline_rounded,
-                                iconColor: AppTheme.success,
-                                label: 'Job Roles',
-                                value: '32',
-                                badge: null,
-                              ),
-                            ),
-                            const SizedBox(width: cardSpacing),
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.assessment_rounded,
-                                iconColor: theme.colorScheme.secondary,
-                                label: 'Assessments',
-                                value: '3,891',
-                                badge: null,
-                              ),
-                            ),
-                          ],
+                        // Summary stat cards 2x2 (live from Firestore)
+                        FutureBuilder<_AdminOverviewKpis>(
+                          future: _kpisFuture,
+                          builder: (context, snapshot) {
+                            final kpis = snapshot.data;
+                            return Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _StatCard(
+                                        icon: Icons.people_outline_rounded,
+                                        iconColor: primary,
+                                        label: 'Total Users',
+                                        value: kpis != null
+                                            ? _formatCount(kpis.totalUsers)
+                                            : '...',
+                                      ),
+                                    ),
+                                    const SizedBox(width: cardSpacing),
+                                    Expanded(
+                                      child: _StatCard(
+                                        icon: Icons.school_rounded,
+                                        iconColor: primary,
+                                        label: 'Total Skills',
+                                        value: kpis != null
+                                            ? _formatCount(kpis.totalSkills)
+                                            : '...',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: cardSpacing),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _StatCard(
+                                        icon: Icons.work_outline_rounded,
+                                        iconColor: AppTheme.success,
+                                        label: 'Active Jobs',
+                                        value: kpis != null
+                                            ? _formatCount(kpis.activeJobs)
+                                            : '...',
+                                      ),
+                                    ),
+                                    const SizedBox(width: cardSpacing),
+                                    Expanded(
+                                      child: _StatCard(
+                                        icon: Icons.local_fire_department_rounded,
+                                        iconColor: theme.colorScheme.secondary,
+                                        label: 'High Demand Skills',
+                                        value: kpis != null
+                                            ? _formatCount(kpis.highDemandSkills)
+                                            : '...',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 20),
                         // Most selected roles
                         _SectionCard(
                           title: 'Most Selected Job Roles',
-                          child: SizedBox(
-                            height: 200,
-                            child: _MostSelectedJobRolesChart(
-                              screenWidth: screenWidth,
-                            ),
+                          child: FutureBuilder<_AdminOverviewCharts>(
+                            future: _chartsFuture,
+                            builder: (context, snapshot) {
+                              final data = snapshot.data?.topRoles ?? const <_BarDatum>[];
+                              return SizedBox(
+                                height: 200,
+                                child: _MostSelectedJobRolesChart(
+                                  screenWidth: screenWidth,
+                                  data: data,
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(height: 16),
                         // Weekly activity
                         _SectionCard(
                           title: 'Weekly Assessment Activity',
-                          child: SizedBox(
-                            height: 180,
-                            child: _WeeklyActivityChart(
-                              screenWidth: screenWidth,
-                            ),
+                          child: FutureBuilder<_AdminOverviewCharts>(
+                            future: _chartsFuture,
+                            builder: (context, snapshot) {
+                              final labels = snapshot.data?.weeklyLabels ?? const <String>[];
+                              final values = snapshot.data?.weeklyValues ?? const <double>[];
+                              return SizedBox(
+                                height: 180,
+                                child: _WeeklyActivityChart(
+                                  labels: labels,
+                                  values: values,
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(height: 16),
                         // Users by academic level
                         _SectionCard(
                           title: 'Users by Academic Level',
-                          child: _AcademicLevelDonut(screenWidth: screenWidth),
+                          child: FutureBuilder<_AdminOverviewCharts>(
+                            future: _chartsFuture,
+                            builder: (context, snapshot) {
+                              final segments = snapshot.data?.academicSegments ?? const <_PieDatum>[];
+                              return _AcademicLevelDonut(segments: segments);
+                            },
+                          ),
                         ),
                         const SizedBox(height: 16),
                         // Quick Insights
@@ -265,6 +431,68 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       ),
     );
   }
+
+  static String _formatCount(int value) {
+    final s = value.toString();
+    if (s.length <= 3) return s;
+    final out = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      out.write(s[i]);
+      final remaining = s.length - i - 1;
+      if (remaining > 0 && remaining % 3 == 0) out.write(',');
+    }
+    return out.toString();
+  }
+}
+
+class _AdminOverviewKpis {
+  final int totalUsers;
+  final int totalSkills;
+  final int activeJobs;
+  final int highDemandSkills;
+
+  const _AdminOverviewKpis({
+    required this.totalUsers,
+    required this.totalSkills,
+    required this.activeJobs,
+    required this.highDemandSkills,
+  });
+}
+
+class _AdminOverviewCharts {
+  final List<_BarDatum> topRoles;
+  final List<String> weeklyLabels;
+  final List<double> weeklyValues;
+  final List<_PieDatum> academicSegments;
+
+  const _AdminOverviewCharts({
+    required this.topRoles,
+    required this.weeklyLabels,
+    required this.weeklyValues,
+    required this.academicSegments,
+  });
+}
+
+class _BarDatum {
+  final String label;
+  final double value;
+
+  const _BarDatum({
+    required this.label,
+    required this.value,
+  });
+}
+
+class _PieDatum {
+  final String label;
+  final double percent;
+  final Color color;
+
+  const _PieDatum({
+    required this.label,
+    required this.percent,
+    required this.color,
+  });
 }
 
 class _StatCard extends StatelessWidget {
@@ -272,14 +500,12 @@ class _StatCard extends StatelessWidget {
   final Color iconColor;
   final String label;
   final String value;
-  final String? badge;
 
   const _StatCard({
     required this.icon,
     required this.iconColor,
     required this.label,
     required this.value,
-    this.badge,
   });
 
   @override
@@ -299,25 +525,6 @@ class _StatCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(icon, color: iconColor, size: 26),
-              if (badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.success.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    badge!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.success,
-                    ),
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -380,17 +587,25 @@ class _SectionCard extends StatelessWidget {
 
 class _MostSelectedJobRolesChart extends StatelessWidget {
   final double screenWidth;
+  final List<_BarDatum> data;
 
-  const _MostSelectedJobRolesChart({required this.screenWidth});
+  const _MostSelectedJobRolesChart({
+    required this.screenWidth,
+    required this.data,
+  });
 
   @override
   Widget build(BuildContext context) {
-    const data = [
-      ('Frontend Dev', 330.0),
-      ('UX Designer', 280.0),
-      ('Product Mgr', 240.0),
-    ];
-    const maxY = 360.0;
+    if (data.isEmpty) {
+      return const Center(
+        child: Text('No role selection data yet.'),
+      );
+    }
+    final maxValue = data
+        .map((d) => d.value)
+        .reduce((a, b) => a > b ? a : b);
+    final maxY = (maxValue <= 0 ? 10.0 : maxValue * 1.2);
+    final interval = (maxY / 4).clamp(1, 1000000).toDouble();
 
     return BarChart(
       BarChartData(
@@ -406,7 +621,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                 value.toInt().toString(),
                 style: const TextStyle(color: Colors.grey, fontSize: 10),
               ),
-              interval: 90,
+              interval: interval,
             ),
           ),
           bottomTitles: AxisTitles(
@@ -419,7 +634,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      data[i].$1,
+                      data[i].label,
                       style: const TextStyle(color: Colors.grey, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -440,7 +655,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 90,
+          horizontalInterval: interval,
           getDrawingHorizontalLine: (value) =>
               FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
         ),
@@ -450,7 +665,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
             x: e.key,
             barRods: [
               BarChartRodData(
-                toY: e.value.$2,
+                toY: e.value.value,
                 color: Theme.of(context).colorScheme.primary,
                 width: (screenWidth - 32 - 48) / 3 * 0.45,
                 borderRadius: const BorderRadius.vertical(
@@ -468,25 +683,35 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
 }
 
 class _WeeklyActivityChart extends StatelessWidget {
-  final double screenWidth;
+  final List<String> labels;
+  final List<double> values;
 
-  const _WeeklyActivityChart({required this.screenWidth});
+  const _WeeklyActivityChart({
+    required this.labels,
+    required this.values,
+  });
 
   @override
   Widget build(BuildContext context) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const values = [45.0, 50.0, 45.0, 62.0, 55.0, 38.0, 30.0];
+    if (values.isEmpty || labels.isEmpty) {
+      return const Center(
+        child: Text('No weekly activity yet.'),
+      );
+    }
 
     final spots = values
         .asMap()
         .entries
         .map((e) => FlSpot(e.key.toDouble(), e.value))
         .toList();
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final maxY = (maxValue <= 0 ? 5.0 : maxValue * 1.25);
+    final interval = (maxY / 4).clamp(1, 1000000).toDouble();
 
     return LineChart(
       LineChartData(
         minY: 0,
-        maxY: 80,
+        maxY: maxY,
         lineTouchData: const LineTouchData(enabled: false),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
@@ -497,7 +722,7 @@ class _WeeklyActivityChart extends StatelessWidget {
                 value.toInt().toString(),
                 style: const TextStyle(color: Colors.grey, fontSize: 10),
               ),
-              interval: 20,
+              interval: interval,
             ),
           ),
           bottomTitles: AxisTitles(
@@ -506,9 +731,9 @@ class _WeeklyActivityChart extends StatelessWidget {
               reservedSize: 28,
               getTitlesWidget: (value, meta) {
                 final i = value.toInt();
-                if (i >= 0 && i < days.length) {
+                if (i >= 0 && i < labels.length) {
                   return Text(
-                    days[i],
+                    labels[i],
                     style: const TextStyle(color: Colors.grey, fontSize: 10),
                   );
                 }
@@ -526,7 +751,7 @@ class _WeeklyActivityChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 20,
+          horizontalInterval: interval,
           getDrawingHorizontalLine: (value) =>
               FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
         ),
@@ -549,18 +774,20 @@ class _WeeklyActivityChart extends StatelessWidget {
 }
 
 class _AcademicLevelDonut extends StatelessWidget {
-  final double screenWidth;
+  final List<_PieDatum> segments;
 
-  const _AcademicLevelDonut({required this.screenWidth});
+  const _AcademicLevelDonut({required this.segments});
 
   @override
   Widget build(BuildContext context) {
-    const segments = [
-      (label: 'Bachelor', percent: 45.0, color: Color(0xFF6B5BAE)),
-      (label: 'Master', percent: 30.0, color: Color(0xFF2A6CFF)),
-      (label: 'PhD', percent: 10.0, color: Color(0xFF1565C0)),
-      (label: 'Other', percent: 15.0, color: Color(0xFF2E7D32)),
-    ];
+    if (segments.isEmpty || segments.every((s) => s.percent <= 0)) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text('No academic distribution data yet.'),
+        ),
+      );
+    }
 
     return Column(
       children: [

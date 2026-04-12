@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -306,8 +307,9 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     }
 
     if (mounted && version == _updateAnalysisVersion) {
+      final dedupedItems = _dedupeSkillGapItems(items);
       setState(() {
-        _items = items;
+        _items = dedupedItems;
         _gapResult = gapResult;
         _loading = false;
         _error = null;
@@ -317,17 +319,66 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     }
   }
 
+  List<SkillGapItem> _dedupeSkillGapItems(List<SkillGapItem> input) {
+    final bySkill = LinkedHashMap<String, SkillGapItem>();
+    for (final item in input) {
+      final key = normalizeSkillName(item.name);
+      if (key.isEmpty) continue;
+      final existing = bySkill[key];
+      if (existing == null) {
+        bySkill[key] = item;
+        continue;
+      }
+      bySkill[key] = SkillGapItem(
+        name: existing.name.length >= item.name.length ? existing.name : item.name,
+        isTechnical: existing.isTechnical || item.isTechnical,
+        requiredPercent: existing.requiredPercent > item.requiredPercent
+            ? existing.requiredPercent
+            : item.requiredPercent,
+        currentPercent: existing.currentPercent > item.currentPercent
+            ? existing.currentPercent
+            : item.currentPercent,
+        isCritical: existing.isCritical || item.isCritical,
+      );
+    }
+    return bySkill.values.toList();
+  }
+
   /// Updates user profile `last_analysis` once per job role per session.
   void _saveLastAnalysisIfNeeded() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || _currentJob.id.isEmpty) return;
     if (_lastAnalysisSavedJobIds.contains(_currentJob.id)) return;
+    final coverage = (_gapResult?.matchPercentage ?? 0).round().clamp(0, 100);
+    List<String> uniqueNames(Iterable<SkillGapItem> source) {
+      final seen = <String>{};
+      final out = <String>[];
+      for (final item in source) {
+        final key = normalizeSkillName(item.name);
+        if (key.isEmpty || !seen.add(key)) continue;
+        out.add(item.name.trim());
+      }
+      return out;
+    }
+    final strongSkills = uniqueNames(_items.where((e) => e.isStrong));
+    final developingSkills = uniqueNames(_items.where((e) => e.isDeveloping));
+    final criticalSkills = uniqueNames(_items.where((e) => e.isCriticalGap));
+    final analysisDetails = <String, dynamic>{
+      'jobId': _currentJob.id,
+      'title': _currentJob.title,
+      'coverage': coverage,
+      'strongSkills': strongSkills,
+      'developingSkills': developingSkills,
+      'criticalSkills': criticalSkills,
+      'generatedAt': FieldValue.serverTimestamp(),
+    };
     _lastAnalysisSavedJobIds.add(_currentJob.id);
     FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .update({
-          'last_analysis': _currentJob.title,
+          'last_analysis': analysisDetails,
+          'last_analysis_title': _currentJob.title,
           'last_analysis_at': FieldValue.serverTimestamp(),
         })
         .catchError((e, st) {
@@ -338,10 +389,26 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
 
   Future<void> _openCourseUrl(String url) async {
     final uri = Uri.tryParse(url.trim());
-    if (uri == null) return;
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid course link.')),
+      );
+      return;
+    }
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {}
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open this course link.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this course link.')),
+      );
+    }
   }
 
   @override
@@ -1050,7 +1117,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: gradientColors,
@@ -1069,8 +1136,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 40)),
-          const SizedBox(width: 16),
+          Text(emoji, style: const TextStyle(fontSize: 28)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1078,38 +1145,38 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   'Your Current Status',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.95),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   message,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.9),
-                    height: 1.4,
+                    height: 1.25,
                   ),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  maxLines: 4,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text.rich(
                   TextSpan(
                     text: 'You match ',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: Colors.white.withValues(alpha: 0.95),
                     ),
@@ -1441,12 +1508,11 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   Widget _buildSkillCoverageSummaryCard() {
     final total = _items.length;
     final matched = _items.where((e) => e.isStrong).length;
-    final developing = _items.where((e) => e.isDeveloping).length;
     final missing = _items.where((e) => e.isCriticalGap).length;
     final coveragePct = total > 0 ? (matched / total * 100).round() : 0;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
@@ -1468,19 +1534,19 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.gps_fixed,
                   color: Colors.white,
-                  size: 22,
+                  size: 18,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1488,29 +1554,24 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                     Text(
                       'Skill Coverage Summary',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Your overall skill alignment',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.4,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.2,
             children: [
               _coverageStatTile('$total', 'Total Required'),
               _coverageStatTile('$matched', 'Matched'),
@@ -1518,103 +1579,13 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               _coverageStatTile('$coveragePct%', 'Coverage'),
             ],
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Skills Status',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '$total Total',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
-          ),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: total == 0
-                ? Container(
-                    height: 32,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  )
-                : TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 800),
-                    curve: Curves.easeOutCubic,
-                    builder: (_, value, __) => Row(
-                      children: [
-                        if (matched > 0)
-                          Expanded(
-                            flex: matched,
-                            child: Container(
-                              height: 32,
-                              color: const Color(0xFF4ADE80),
-                              child: Center(
-                                child: Text(
-                                  '$matched',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (developing > 0)
-                          Expanded(
-                            flex: developing,
-                            child: Container(
-                              height: 32,
-                              color: const Color(0xFF60A5FA),
-                              child: Center(
-                                child: Text(
-                                  '$developing',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (missing > 0)
-                          Expanded(
-                            flex: missing,
-                            child: Container(
-                              height: 32,
-                              color: const Color(0xFFFB923C),
-                              child: Center(
-                                child: Text(
-                                  '$missing',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            spacing: 10,
+            runSpacing: 6,
             children: [
               _legendItem(const Color(0xFF4ADE80), 'Matched'),
-              const SizedBox(width: 16),
               _legendItem(const Color(0xFF60A5FA), 'Developing'),
-              const SizedBox(width: 16),
               _legendItem(const Color(0xFFFB923C), 'Critical'),
             ],
           ),
@@ -1625,7 +1596,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
 
   Widget _coverageStatTile(String value, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
@@ -1633,21 +1604,22 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             value,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
@@ -1889,13 +1861,21 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Current Coverage',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            Flexible(
+              child: Text(
+                'Current Coverage',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Text(
-              '${100 - percent}% gap remaining',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '${100 - percent}% gap remaining',
+                textAlign: TextAlign.end,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -3783,6 +3763,13 @@ class _SkillsListSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final uniqueSkills = <String>[];
+    final seen = <String>{};
+    for (final s in skills) {
+      final key = normalizeSkillName(s);
+      if (key.isEmpty || !seen.add(key)) continue;
+      uniqueSkills.add(s);
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -3805,23 +3792,30 @@ class _SkillsListSection extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 22),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                '(${skills.length})',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '(${uniqueSkills.length})',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ),
             ],
           ),
-          if (skills.isEmpty) ...[
+          if (uniqueSkills.isEmpty) ...[
             const SizedBox(height: 8),
             Text(
               'None',
@@ -3834,42 +3828,26 @@ class _SkillsListSection extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: skills.map((s) {
+              children: uniqueSkills.map((s) {
                 final isHigh = highPrioritySkills?.contains(s) ?? false;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 4, bottom: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Chip(
-                        label: Text(s, style: const TextStyle(fontSize: 12)),
-                        backgroundColor: color.withValues(alpha: 0.15),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                      ),
-                      if (isHigh)
-                        Container(
-                          margin: const EdgeInsets.only(left: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.warning.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'High priority',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.warning,
-                            ),
-                          ),
-                        ),
-                    ],
+                final short = s.length > 22 ? '${s.substring(0, 22)}…' : s;
+                return Chip(
+                  label: Text(
+                    short,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  avatar: isHigh
+                      ? const Icon(
+                          Icons.priority_high_rounded,
+                          size: 14,
+                          color: AppTheme.warning,
+                        )
+                      : null,
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
                 );
               }).toList(),

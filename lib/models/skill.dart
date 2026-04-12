@@ -65,8 +65,10 @@ class Skill {
     );
   }
 
-  bool get isTechnical =>
-      category.toLowerCase().contains('technical') || category == 'Technical';
+  bool get isTechnical {
+    final c = category.toLowerCase();
+    return c.contains('technical') || c == 'tool' || c == 'tools';
+  }
 }
 
 /// User skill storage: skillId + level (0–100). Stored in users.skills[].

@@ -37,6 +37,10 @@ function normalizeId(input) {
     .replace(/^-+|-+$/g, '');
 }
 
+function normalizeJobIdentity(title, category) {
+  return normalizeId(`${String(title || '').trim()}-${String(category || '').trim()}`);
+}
+
 function toNumber(value, fallback = 0) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const parsed = Number(value);
@@ -131,19 +135,23 @@ function validateJob(job, index, seenJobIds) {
     return { errors: [`jobs[${index}] must be an object.`], normalized: null };
   }
 
-  const jobIdRaw = isNonEmptyString(job.jobId) ? job.jobId : `${job.title || ''}-${index + 1}`;
-  const jobId = normalizeId(jobIdRaw);
+  const normalizedTitle = String(job.title || '').trim();
+  const normalizedCategory = String(job.category || '').trim();
+  const jobId = normalizeJobIdentity(normalizedTitle, normalizedCategory);
   if (!jobId) {
-    errors.push(`jobs[${index}].jobId could not be generated.`);
+    errors.push(`jobs[${index}] jobId could not be generated from title + category.`);
   }
   if (seenJobIds.has(jobId)) {
-    errors.push(`jobs[${index}] duplicate jobId: "${jobId}".`);
+    errors.push(
+      `jobs[${index}] duplicate role identity (title + category): "${jobId}".`,
+    );
   } else {
     seenJobIds.add(jobId);
   }
 
   if (!isNonEmptyString(job.title)) errors.push(`jobs[${index}].title is required.`);
-  if (!isNonEmptyString(job.category)) errors.push(`jobs[${index}].category is required.`);
+  if (!isNonEmptyString(job.category))
+    errors.push(`jobs[${index}].category is required.`);
   if (!isNonEmptyString(job.description)) errors.push(`jobs[${index}].description is required.`);
 
   const technicalSkills = Array.isArray(job.technicalSkills) ? job.technicalSkills : [];
@@ -160,8 +168,8 @@ function validateJob(job, index, seenJobIds) {
 
   const normalized = {
     jobId,
-    title: String(job.title || '').trim(),
-    category: String(job.category || '').trim(),
+    title: normalizedTitle,
+    category: normalizedCategory,
     industry: String(job.industry || '').trim(),
     experienceLevel: String(job.experienceLevel || 'Mid-Level').trim(),
     description: String(job.description || '').trim(),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/job_role.dart';
+import '../models/skill.dart';
 import '../services/firestore_service.dart';
+import '../utils/skill_utils.dart';
 import 'job_requirements_screen.dart';
 
 class SelectJobRoleScreen extends StatefulWidget {
@@ -18,26 +20,90 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
   static const _gradientEnd = Color(0xFF9226FF);
 
   final _firestoreService = FirestoreService();
-  late final Stream<List<JobRole>> _jobsStream = _firestoreService.getJobs();
+  late Stream<List<JobRole>> _jobsStream;
+  Map<String, Skill> _skillsCatalog = const {};
   bool _refreshing = false;
 
   List<JobRole> _filterJobs(List<JobRole> jobs, String query) {
-    final q = query.trim().toLowerCase();
-    if (q.isEmpty) return jobs;
-    return jobs.where((j) {
-      return j.title.toLowerCase().contains(q) ||
-          j.description.toLowerCase().contains(q) ||
-          j.category.toLowerCase().contains(q) ||
-          j.requiredSkills.any((s) => s.toLowerCase().contains(q));
+    final q = query.trim();
+    final dedupedJobs = _dedupeJobs(jobs);
+    if (q.isEmpty) return dedupedJobs;
+    final qNorm = normalizeSkillName(q);
+    final qAlias = normalizeSkillAliasKey(q);
+    return dedupedJobs.where((j) {
+      final terms = _jobSearchTerms(j);
+      return terms.any((t) {
+        final n = normalizeSkillName(t);
+        final a = normalizeSkillAliasKey(t);
+        return n.contains(qNorm) || a.contains(qAlias);
+      });
     }).toList();
+  }
+
+  List<JobRole> _dedupeJobs(List<JobRole> jobs) {
+    final out = <JobRole>[];
+    final seen = <String>{};
+    for (final j in jobs) {
+      final key = canonicalJobId(j.title, j.category);
+      if (seen.add(key)) {
+        out.add(j);
+      }
+    }
+    return out;
   }
 
   void _onSearchChanged() => setState(() {});
 
+  List<String> _jobSearchTerms(JobRole j) {
+    final terms = <String>[
+      j.title,
+      j.description,
+      j.category,
+      ...j.requiredSkills,
+      ...j.criticalSkills,
+    ];
+
+    for (final req in j.requiredSkillsWithLevel) {
+      final sid = canonicalSkillId(req.skillId);
+      if (sid.isEmpty) continue;
+      terms.add(sid);
+      final skill = _skillsCatalog[sid];
+      if (skill != null) {
+        terms.add(skill.name);
+        terms.addAll(skill.aliases);
+      } else {
+        terms.add(req.skillId);
+      }
+    }
+
+    // Keep only non-empty unique values to reduce repeated checks.
+    final seen = <String>{};
+    final out = <String>[];
+    for (final t in terms) {
+      final s = t.trim();
+      if (s.isEmpty) continue;
+      final key = normalizeSkillName(s);
+      if (seen.add(key)) out.add(s);
+    }
+    return out;
+  }
+
+  Future<void> _loadSkillsCatalog() async {
+    try {
+      final catalog = await _firestoreService.getSkills();
+      if (!mounted) return;
+      setState(() => _skillsCatalog = catalog);
+    } catch (_) {
+      // Keep search functional even if skills catalog fails.
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _jobsStream = _firestoreService.getJobs();
     _searchController.addListener(_onSearchChanged);
+    _loadSkillsCatalog();
   }
 
   @override
@@ -193,8 +259,14 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
   Future<void> _refreshData() async {
     if (_refreshing) return;
     _refreshing = true;
-    if (mounted) setState(() {});
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
+      setState(() {
+        // Recreate stream to force a fresh subscription.
+        _jobsStream = _firestoreService.getJobs();
+      });
+    }
+    await _loadSkillsCatalog();
+    await Future<void>.delayed(const Duration(milliseconds: 250));
     _refreshing = false;
     if (!mounted) return;
     setState(() {});
