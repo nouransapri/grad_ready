@@ -6,12 +6,12 @@
 
 لتسجيل دخول لوحة الأدمن:
 
-1. في Firebase Console → Authentication أنشئ مستخدماً بالإيميل `admin@gradready.com` (أو `admin@gradready`) وكلمة المرور `1111`.
-2. عند أول تسجيل دخول بهذا الحساب سيتم إنشاء مستند في Firestore تلقائياً بحقل `role: 'admin'` وتوجيهك للوحة الأدمن.
+1. في Firebase Console → Authentication أنشئ مستخدماً بالإيميل `admin@gradready.com` وكلمة المرور `111111`.
+2. صلاحية الأدمن الحقيقية تكون عبر **custom claim** `admin: true` أو مستند `admins/{UID}` (انظر أدناه). لا تعتمد على أي حقل `role` داخل `users`.
 
 ### تفعيل صلاحيات الأدمن في Firestore (مهم)
 
-قواعد Firestore تسمح بالكتابة على `jobs` و `skills` فقط إذا كان للمستخدم **custom claim** باسم `admin` وقيمته `true`. إنشاء المستند في Firestore بحقل `role: 'admin'` يفعّل واجهة الأدمن في التطبيق فقط، ولا يمنح صلاحيات الكتابة إلا بعد ضبط الـ claim.
+قواعد Firestore تسمح بالكتابة على `jobs` و `skills` فقط إذا كان للمستخدم **custom claim** باسم `admin` وقيمته `true`، أو إذا وُجد مستند `admins/{UID}` لنفس المستخدم. يجب ضبط أحد الخيارين حتى يعمل التطبيق كأدمن كامل (واجهة + كتابة على البيانات).
 
 **طريقة واحدة لضبط الـ claim (Node.js مع Firebase Admin SDK):**
 

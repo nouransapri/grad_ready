@@ -90,9 +90,13 @@ class UserSkill {
     );
     final id = m['skillId']?.toString().trim();
     if (id == null || id.isEmpty) return null;
-    final level = m['level'] is int
-        ? (m['level'] as int).clamp(0, 100)
-        : (int.tryParse(m['level']?.toString() ?? '0') ?? 0).clamp(0, 100);
+    final dynamic rawLevel = m['level'];
+    final level = rawLevel is num
+        ? rawLevel.toInt().clamp(0, 100)
+        : (double.tryParse(m['level']?.toString() ?? '0')?.toInt() ?? 0).clamp(
+            0,
+            100,
+          );
     return UserSkill(skillId: id, level: level);
   }
 }
@@ -127,15 +131,18 @@ class JobRequiredSkill {
     );
     final id = m['skillId']?.toString().trim();
     if (id == null || id.isEmpty) return null;
-    final requiredLevel = m['requiredLevel'] is int
-        ? (m['requiredLevel'] as int).clamp(0, 100)
-        : (int.tryParse(m['requiredLevel']?.toString() ?? '70') ?? 70).clamp(
+    final requiredLevel = m['requiredLevel'] is num
+        ? (m['requiredLevel'] as num).toInt().clamp(0, 100)
+        : (double.tryParse(m['requiredLevel']?.toString() ?? '70')?.toInt() ??
+                  70)
+              .clamp(
             0,
             100,
           );
-    final importance = m['importance'] is int
-        ? (m['importance'] as int).clamp(1, 3)
-        : (int.tryParse(m['importance']?.toString() ?? '2') ?? 2).clamp(1, 3);
+    final importance = m['importance'] is num
+        ? (m['importance'] as num).toInt().clamp(1, 3)
+        : (double.tryParse(m['importance']?.toString() ?? '2')?.toInt() ?? 2)
+            .clamp(1, 3);
     final w = m['weight'] is num
         ? (m['weight'] as num).toInt().clamp(1, 10)
         : null;

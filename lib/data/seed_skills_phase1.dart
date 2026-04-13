@@ -2,7 +2,6 @@
 /// Safe to run once: only inserts if document does not exist. Does not modify users or jobs.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 import '../models/skill_document.dart';
 
@@ -732,26 +731,16 @@ SkillDocument _git(DateTime now) {
 Future<void> seedSkillsPhase1() async {
   final db = FirebaseFirestore.instance;
   final skills = getPhase1Skills();
-  var inserted = 0;
-  var skipped = 0;
   for (final skill in skills) {
     try {
       final ref = db.collection('skills').doc(skill.skillId);
       final snap = await ref.get();
       if (snap.exists) {
-        skipped++;
-        if (kDebugMode) debugPrint('seedSkillsPhase1: skip (exists) ${skill.skillId}');
         continue;
       }
       await ref.set(skill.toFirestore());
-      inserted++;
-      if (kDebugMode) debugPrint('seedSkillsPhase1: inserted ${skill.skillId}');
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('seedSkillsPhase1: failed ${skill.skillId} – $e');
-        debugPrintStack(stackTrace: st);
-      }
+    } catch (_) {
     }
   }
-  if (kDebugMode) debugPrint('seedSkillsPhase1: done. inserted=$inserted skipped=$skipped');
+  
 }

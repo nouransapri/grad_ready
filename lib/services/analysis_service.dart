@@ -10,6 +10,44 @@ import '../models/course_model.dart';
 class AnalysisService {
   AnalysisService._();
 
+  /// Strongly-typed row for rendering user skills progress in UI.
+  static List<UserSkillProgress> parseUserSkillsProgress(dynamic raw) {
+    if (raw is! List) return const <UserSkillProgress>[];
+    final out = <UserSkillProgress>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      try {
+        final m = Map<String, dynamic>.from(
+          item.map((k, v) => MapEntry(k.toString(), v)),
+        );
+        final name = m['name']?.toString().trim() ?? '';
+        final skillId = m['skillId']?.toString().trim() ?? '';
+        final label = name.isNotEmpty ? name : skillId;
+        if (label.isEmpty) continue;
+        out.add(
+          UserSkillProgress(
+            label: label,
+            percent: skillLevelToPercent(m['level']),
+          ),
+        );
+      } catch (e, st) {
+        developer.log(
+          'parseUserSkillsProgress row skip: $e',
+          name: 'AnalysisService',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+    return out;
+  }
+
+  static List<UserCourseEntry> lastCourses(List<UserCourseEntry> rows, {int maxCount = 7}) {
+    final valid = rows.where((r) => r.isValid).toList();
+    if (valid.length <= maxCount) return valid;
+    return valid.sublist(valid.length - maxCount);
+  }
+
   /// Weighted GPA: Σ(gradePoints × credits) / Σ(credits).
   static double? computeWeightedGpa(List<UserCourseEntry> rows) {
     try {
@@ -94,7 +132,11 @@ class AnalysisService {
     if (s.isEmpty) return null;
     final letter = _letterToPoints(s);
     if (letter != null) return letter;
-    return _parseDouble(s);
+    final numeric = _parseDouble(s);
+    if (numeric == null) return null;
+    if (numeric >= 0 && numeric <= 4.5) return numeric.clamp(0.0, 4.0);
+    if (numeric > 4 && numeric <= 100) return (numeric / 100.0 * 4.0).clamp(0.0, 4.0);
+    return null;
   }
 
   static double? _letterToPoints(String s) {
@@ -135,7 +177,11 @@ class AnalysisService {
     if (slash.length == 2) {
       s = slash[0].trim();
     }
-    return double.tryParse(s);
+    final parsed = double.tryParse(s);
+    if (parsed == null) return null;
+    if (parsed >= 0 && parsed <= 4.5) return parsed.clamp(0.0, 4.0);
+    if (parsed > 4 && parsed <= 100) return (parsed / 100.0 * 4.0).clamp(0.0, 4.0);
+    return null;
   }
 
   /// Bar groups: average [Course.rating] per skill (top [maxBars] by count).
@@ -242,8 +288,16 @@ class AnalysisService {
   }
 
   /// Skills progress 0–100 from level strings (Basic/Intermediate/Advanced).
-  static double skillLevelToPercent(String? level) {
-    switch (level?.toLowerCase().trim()) {
+  static double skillLevelToPercent(dynamic level) {
+    if (level is num) {
+      return level.toDouble().clamp(0, 100);
+    }
+    final parsed = double.tryParse(level?.toString().trim() ?? '');
+    if (parsed != null) {
+      return parsed.clamp(0, 100);
+    }
+    final normalized = level?.toString().toLowerCase().trim();
+    switch (normalized) {
       case 'basic':
         return 33;
       case 'intermediate':
@@ -290,4 +344,14 @@ class AnalysisService {
       }
     });
   }
+}
+
+class UserSkillProgress {
+  final String label;
+  final double percent;
+
+  const UserSkillProgress({
+    required this.label,
+    required this.percent,
+  });
 }

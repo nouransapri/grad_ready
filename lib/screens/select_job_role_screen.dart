@@ -169,21 +169,35 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
                       ),
                       SliverPadding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
-                            final job = filteredJobs[index];
-                            final isSelected = _selectedJob?.id == job.id;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: _JobCard(
-                                job: job,
-                                isSelected: isSelected,
-                                onSelect: () =>
-                                    setState(() => _selectedJob = job),
+                        sliver: filteredJobs.isEmpty
+                            ? SliverToBoxAdapter(
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Text(
+                                    'No matching job roles found. Try a different keyword.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              )
+                            : SliverList(
+                                delegate: SliverChildBuilderDelegate((context, index) {
+                                  final job = filteredJobs[index];
+                                  final isSelected = _selectedJob?.id == job.id;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 14),
+                                    child: _JobCard(
+                                      job: job,
+                                      isSelected: isSelected,
+                                      onSelect: () =>
+                                          setState(() => _selectedJob = job),
+                                    ),
+                                  );
+                                }, childCount: filteredJobs.length),
                               ),
-                            );
-                          }, childCount: filteredJobs.length),
-                        ),
                       ),
                       const SliverToBoxAdapter(child: SizedBox(height: 24)),
                     ],

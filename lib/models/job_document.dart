@@ -246,7 +246,10 @@ class JobDocument {
   /// Converts to legacy JobRole for gap analysis and existing UI.
   JobRole toJobRole() {
     final allSkills = <JobRequiredSkill>[];
+    final requiredNames = <String>[];
     final criticalNames = <String>[];
+    final technicalWithLevel = <SkillProficiency>[];
+    final softWithLevel = <SkillProficiency>[];
     for (final s in technicalSkills) {
       allSkills.add(JobRequiredSkill(
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
@@ -254,6 +257,8 @@ class JobDocument {
         importance: _weightToImportance(s.weight),
         weight: s.weight.clamp(1, 10),
       ));
+      requiredNames.add(s.name);
+      technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
       if (s.priority == 'Critical') criticalNames.add(s.name);
     }
     for (final s in softSkills) {
@@ -263,6 +268,8 @@ class JobDocument {
         importance: _weightToImportance(s.weight),
         weight: s.weight.clamp(1, 10),
       ));
+      requiredNames.add(s.name);
+      softWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
       if (s.priority == 'Critical') criticalNames.add(s.name);
     }
     for (final s in tools) {
@@ -272,16 +279,13 @@ class JobDocument {
         importance: _weightToImportance(s.weight),
         weight: s.weight.clamp(1, 10),
       ));
+      requiredNames.add(s.name);
+      // Legacy model has no dedicated "tools" section; include them under technical.
+      technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
       if (s.priority == 'Critical') criticalNames.add(s.name);
     }
     final salaryMinK = salary.maximum > 0 ? (salary.minimum / 1000).round() : 0;
     final salaryMaxK = salary.maximum > 0 ? (salary.maximum / 1000).round() : 0;
-    final techWithLevel = technicalSkills
-        .map((s) => SkillProficiency(name: s.name, percent: s.requiredLevel))
-        .toList();
-    final softWithLevel = softSkills
-        .map((s) => SkillProficiency(name: s.name, percent: s.requiredLevel))
-        .toList();
     return JobRole(
       id: id,
       title: title,
@@ -290,9 +294,9 @@ class JobDocument {
       isHighDemand: isActive,
       salaryMinK: salaryMinK,
       salaryMaxK: salaryMaxK,
-      requiredSkills: allSkills.map((r) => r.skillId).toList(),
+      requiredSkills: requiredNames,
       requiredSkillsWithLevel: allSkills,
-      technicalSkillsWithLevel: techWithLevel,
+      technicalSkillsWithLevel: technicalWithLevel,
       softSkillsWithLevel: softWithLevel,
       criticalSkills: criticalNames,
     );

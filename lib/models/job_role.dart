@@ -12,9 +12,9 @@ class SkillProficiency {
   static SkillProficiency fromFirestore(Map<String, dynamic> data) {
     return SkillProficiency(
       name: data['name']?.toString() ?? '',
-      percent: (data['percent'] is int)
-          ? data['percent'] as int
-          : int.tryParse(data['percent']?.toString() ?? '0') ?? 0,
+      percent: (data['percent'] is num)
+          ? (data['percent'] as num).toInt()
+          : double.tryParse(data['percent']?.toString() ?? '0')?.toInt() ?? 0,
     );
   }
 }
@@ -123,18 +123,24 @@ class JobRole {
       requiredSkillsWithLevel: detailed,
       technicalSkillsWithLevel:
           techList
-              ?.map(
+              ?.whereType<Map>()
+              .map(
                 (e) => SkillProficiency.fromFirestore(
-                  Map<String, dynamic>.from(e as Map),
+                  Map<String, dynamic>.from(
+                    e.map((k, v) => MapEntry(k.toString(), v)),
+                  ),
                 ),
               )
               .toList() ??
           [],
       softSkillsWithLevel:
           softList
-              ?.map(
+              ?.whereType<Map>()
+              .map(
                 (e) => SkillProficiency.fromFirestore(
-                  Map<String, dynamic>.from(e as Map),
+                  Map<String, dynamic>.from(
+                    e.map((k, v) => MapEntry(k.toString(), v)),
+                  ),
                 ),
               )
               .toList() ??

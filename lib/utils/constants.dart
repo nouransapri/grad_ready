@@ -54,4 +54,21 @@ abstract final class AppConstants {
   static const String userFieldAddedCourses = 'added_courses';
   static const String userFieldGpa = 'gpa';
   static const String userFieldSkills = 'skills';
+  static const String userFieldName = 'name';
+  static const String userFieldFullName = 'full_name';
+  static const String userFieldAcademicYear = 'academic_year';
+  static const String userFieldIsSuspended = 'isSuspended';
+
+  static const String collectionUsers = 'users';
+  static const String collectionJobs = 'jobs';
+  static const String collectionSkills = 'skills';
+  static const String collectionCourses = 'courses';
+
+  static const String dialogConfirmTitle = 'Are you sure?';
+  static const String dialogConfirmDestructiveMessage =
+      'This action cannot be undone.';
+  static const String actionCancel = 'Cancel';
+  static const String actionDelete = 'Delete';
+  static const String actionSuspend = 'Suspend';
+  static const String actionUnsuspend = 'Unsuspend';
 }

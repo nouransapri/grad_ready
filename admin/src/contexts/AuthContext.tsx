@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 
-const ADMIN_EMAIL = 'admin@gradready'
-const ADMIN_PASSWORD = '1111'
+const ADMIN_EMAIL = 'admin@gradready.com'
+const ADMIN_PASSWORD = '111111'
 
 type AuthContextType = {
   isAdmin: boolean

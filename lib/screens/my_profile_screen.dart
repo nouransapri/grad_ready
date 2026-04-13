@@ -24,7 +24,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   static const _gradientEnd = Color(0xFF9226FF);
   static const _purple = Color(0xFF9226FF);
 
-  late Future<DocumentSnapshot> _profileFuture;
+  late Future<DocumentSnapshot?> _profileFuture;
   bool _uploadingPhoto = false;
 
   @override
@@ -33,8 +33,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     _profileFuture = _loadProfileFuture();
   }
 
-  Future<DocumentSnapshot> _loadProfileFuture() {
-    final user = FirebaseAuth.instance.currentUser!;
+  Future<DocumentSnapshot?> _loadProfileFuture() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Future.value(null);
     return FirebaseFirestore.instance.collection('users').doc(user.uid).get();
   }
 
@@ -68,7 +69,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: FutureBuilder<DocumentSnapshot>(
+      body: FutureBuilder<DocumentSnapshot?>(
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -76,9 +77,27 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               child: CircularProgressIndicator(color: _gradientStart),
             );
           }
-          if (snapshot.hasError ||
-              !snapshot.hasData ||
-              !snapshot.data!.exists) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 42, color: Colors.redAccent),
+                    const SizedBox(height: 12),
+                    const Text('Could not load profile.'),
+                    const SizedBox(height: 10),
+                    FilledButton(
+                      onPressed: _refreshProfile,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data == null || !snapshot.data!.exists) {
             return _buildBody(context, null);
           }
           final data = snapshot.data!.data() as Map<String, dynamic>?;

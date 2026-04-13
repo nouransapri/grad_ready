@@ -12,6 +12,7 @@ class AdminSkillsContent extends StatefulWidget {
 }
 
 class _AdminSkillsContentState extends State<AdminSkillsContent> {
+  static const int _pageStep = 20;
   final FirestoreService _firestore = FirestoreService();
   final TextEditingController _searchController = TextEditingController();
   List<SkillDocument> _skills = [];
@@ -25,6 +26,8 @@ class _AdminSkillsContentState extends State<AdminSkillsContent> {
   String _trendingFilter = 'All';
   String _orderBy = 'totalJobsUsingSkill';
   bool _orderDesc = true;
+  int _loadSeq = 0;
+  int _resultLimit = _pageStep;
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _AdminSkillsContentState extends State<AdminSkillsContent> {
   }
 
   Future<void> _load() async {
+    final requestId = ++_loadSeq;
     setState(() => _loading = true);
     try {
       final list = await _firestore.getSkillDocumentsOnce(
@@ -48,8 +52,9 @@ class _AdminSkillsContentState extends State<AdminSkillsContent> {
         trending: _trendingFilter == 'Yes' ? true : (_trendingFilter == 'No' ? false : null),
         orderBy: _orderBy,
         descending: _orderDesc,
+        limit: _resultLimit,
       );
-      if (mounted) {
+      if (mounted && requestId == _loadSeq) {
         setState(() {
           _skills = list;
           _applySearch();
@@ -57,7 +62,7 @@ class _AdminSkillsContentState extends State<AdminSkillsContent> {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && requestId == _loadSeq) {
         setState(() {
           _skills = [];
           _filtered = [];
@@ -176,6 +181,17 @@ class _AdminSkillsContentState extends State<AdminSkillsContent> {
                       child: _isGrid ? _buildGrid(theme, bottomPadding) : _buildList(theme, bottomPadding),
                     ),
         ),
+        if (!_loading && _filtered.length >= _resultLimit)
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottomPadding),
+            child: OutlinedButton(
+              onPressed: () {
+                setState(() => _resultLimit += _pageStep);
+                _load();
+              },
+              child: const Text('Load more'),
+            ),
+          ),
       ],
     );
   }
@@ -333,9 +349,9 @@ class _SkillCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                Expanded(child: OutlinedButton(onPressed: onView, child: const Text('View', style: TextStyle(fontSize: 12)), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap))),
+                Expanded(child: OutlinedButton(onPressed: onView, child: const Text('View', style: TextStyle(fontSize: 12)), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: const Size(0, 40)))),
                 const SizedBox(width: 6),
-                Expanded(child: FilledButton(onPressed: onEdit, child: const Text('Edit', style: TextStyle(fontSize: 12)), style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap))),
+                Expanded(child: FilledButton(onPressed: onEdit, child: const Text('Edit', style: TextStyle(fontSize: 12)), style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: const Size(0, 40)))),
               ],
             ),
           ],

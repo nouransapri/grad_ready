@@ -16,7 +16,7 @@ export default function Login() {
       toast.success('Welcome to GradReady Admin')
       navigate('/', { replace: true })
     } else {
-      toast.error('Invalid email or password. Use admin@gradready / 1111')
+      toast.error('Invalid email or password. Use admin@gradready.com / 111111')
     }
   }
 
@@ -59,7 +59,7 @@ export default function Login() {
           </button>
         </form>
         <p className="text-white/70 text-center text-sm mt-4">
-          Admin: admin@gradready / 1111
+          Admin: admin@gradready.com / 111111
         </p>
       </div>
     </div>

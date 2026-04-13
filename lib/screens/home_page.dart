@@ -9,7 +9,6 @@ import '../models/market_insights.dart';
 import '../services/firestore_service.dart';
 import '../services/market_insights_service.dart';
 import 'my_profile_screen.dart';
-import 'analysis_screen.dart';
 import 'select_job_role_screen.dart';
 import 'splash_screen.dart';
 
@@ -122,8 +121,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 10),
                       _buildStatGrid(stats),
-                      const SizedBox(height: 20),
-                      _buildAcademicAnalysisEntry(context),
                       const SizedBox(height: 25),
                       _buildMarketInsightsCard(),
                       const SizedBox(height: 25),
@@ -338,83 +335,6 @@ class _HomePageState extends State<HomePage> {
     if (parts.isEmpty) return fullName;
     if (parts.length == 1) return fullName;
     return parts.map((e) => e.isEmpty ? '' : '${e[0].toUpperCase()}${e.substring(1).toLowerCase()}').join(' ');
-  }
-
-  /// Opens [AnalysisScreen] (GPA, fl_chart, skill progress).
-  Widget _buildAcademicAnalysisEntry(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              settings: const RouteSettings(name: 'Academic Analysis'),
-              builder: (context) => const AnalysisScreen(),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2A6CFF), Color(0xFF9226FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.analytics_outlined,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Academic Analysis',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'GPA, course charts & animated skill progress',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.white),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   // --- 2. Stats Grid ---

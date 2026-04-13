@@ -15,6 +15,8 @@ import 'services/database_helper.dart';
 import 'services/firestore_service.dart';
 import 'services/hive_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/auth_service.dart';
+import 'utils/constants.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/create_profile.dart';
@@ -38,14 +40,26 @@ void main() async {
       await FirestoreService.seedCoursesIfEmpty();
       await FirestoreService.seedJobsIfEmpty();
       await FirestoreService.seedJobsUpsert();
-      debugPrint('Jobs seed completed successfully');
-    } catch (e, st) {
+    } catch (_) {
       // Do not crash if seed fails (e.g. Firestore rules before sign-in).
-      debugPrint('Debug seed/mock data skipped: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: st);
     }
   }
   runApp(const MyApp());
+}
+
+/// True if [user] has Auth custom claim `admin` or an `admins/{uid}` document (before token refresh).
+Future<bool> _isCurrentUserAdmin(User user) async {
+  try {
+    final token = await user.getIdTokenResult(true);
+    if (token.claims?['admin'] == true) return true;
+    final adminsSnap = await FirebaseFirestore.instance
+        .collection('admins')
+        .doc(user.uid)
+        .get();
+    return adminsSnap.exists;
+  } catch (_) {
+    return false;
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -79,7 +93,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Loads user profile from Firestore and routes to Home or CreateProfile. Supports retry on error.
+/// Loads admin status (claims or admins/{uid}) + user profile. Never trusts users.role.
 class _ProfileGate extends StatefulWidget {
   final User user;
 
@@ -90,114 +104,161 @@ class _ProfileGate extends StatefulWidget {
 }
 
 class _ProfileGateState extends State<_ProfileGate> {
-  late Future<DocumentSnapshot> _profileFuture;
-  late Future<bool> _isAdminFuture;
+  late Future<_ProfileGateData> _gateFuture;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.user.uid)
-        .get();
-    _isAdminFuture = _isAdminUser();
+    _gateFuture = _loadProfileGate();
   }
 
   void _retry() {
     setState(() {
-      _profileFuture = FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.user.uid)
-          .get();
-      _isAdminFuture = _isAdminUser();
+      _gateFuture = _loadProfileGate();
     });
   }
 
-  Future<bool> _isAdminUser() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return false;
-      final token = await user.getIdTokenResult(true);
-      return token.claims?['admin'] == true;
-    } catch (_) {
-      return false;
+  Widget _profileLoadErrorScaffold() {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Couldn't load your profile",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _retry,
+                icon: const Icon(Icons.refresh),
+                label: const Text("Retry"),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<_ProfileGateData> _loadProfileGate() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return _ProfileGateData.error();
     }
+    final isAdmin = await _isCurrentUserAdmin(user);
+    return _ProfileGateData(isAdmin: isAdmin, uid: user.uid);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: _profileFuture,
-      builder: (context, profileSnapshot) {
-        if (profileSnapshot.connectionState == ConnectionState.waiting) {
+    return FutureBuilder<_ProfileGateData>(
+      future: _gateFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (profileSnapshot.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Couldn't load your profile",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _retry,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text("Retry"),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
+        if (snapshot.hasError || snapshot.data == null) {
+          return _profileLoadErrorScaffold();
         }
 
-        if (profileSnapshot.hasData && profileSnapshot.data!.exists) {
-          final data = profileSnapshot.data!.data() as Map<String, dynamic>;
-          if (data['role'] == 'admin') {
-            return const AdminOverviewScreen();
-          }
-          final completed = data['profile_completed'] ?? false;
-          if (completed == true) {
-            return const HomePage();
-          }
-          return const CreateProfileScreen();
+        final gate = snapshot.data!;
+        if (gate.isAdmin) {
+          return const AdminOverviewScreen();
         }
-
-        if (profileSnapshot.hasData && !profileSnapshot.data!.exists) {
-          return FutureBuilder<bool>(
-            future: _isAdminFuture,
-            builder: (context, adminSnapshot) {
-              if (adminSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (adminSnapshot.data == true) {
-                return const AdminOverviewScreen();
-              }
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection(AppConstants.collectionUsers)
+              .doc(gate.uid)
+              .snapshots(),
+          builder: (context, profileSnapshot) {
+            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (profileSnapshot.hasError) {
+              return _profileLoadErrorScaffold();
+            }
+            final profileSnap = profileSnapshot.data;
+            if (profileSnap == null || !profileSnap.exists) {
               return const CreateProfileScreen();
-            },
-          );
-        }
-
-        return const CreateProfileScreen();
+            }
+            final data = profileSnap.data();
+            if (data?[AppConstants.userFieldIsSuspended] == true) {
+              return const _SuspendedAccountScreen();
+            }
+            final completed = data?['profile_completed'] ?? false;
+            if (completed == true) {
+              return const HomePage();
+            }
+            return const CreateProfileScreen();
+          },
+        );
       },
+    );
+  }
+}
+
+class _ProfileGateData {
+  final bool isAdmin;
+  final String uid;
+
+  const _ProfileGateData({required this.isAdmin, required this.uid});
+
+  factory _ProfileGateData.error() =>
+      const _ProfileGateData(isAdmin: false, uid: '');
+}
+
+class _SuspendedAccountScreen extends StatelessWidget {
+  const _SuspendedAccountScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.block_rounded, size: 52, color: Colors.red.shade400),
+              const SizedBox(height: 12),
+              const Text(
+                'Your account is suspended.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please contact support for assistance.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () async {
+                  await AuthService.signOut();
+                },
+                icon: const Icon(Icons.logout_rounded),
+                label: const Text('Sign out'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firestore_service.dart';
 import 'home_page.dart';
 
 class CreateProfileScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class CreateProfileScreen extends StatefulWidget {
 
 class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final FirestoreService _firestoreService = FirestoreService();
 
   List<Map<String, String>> addedSkillsList = [];
   List<Map<String, String>> addedInternships = [];
@@ -116,11 +118,15 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     majorController.text = d['major']?.toString() ?? '';
     gpaController.text = d['gpa']?.toString() ?? '';
     final year = d['academic_year']?.toString();
-    if (year != null && year.isNotEmpty) selectedYear = year;
+    if (year != null && year.isNotEmpty && academicYears.contains(year)) {
+      selectedYear = year;
+    } else {
+      selectedYear = "Select year";
+    }
     final skillsList = d['skills'] as List?;
     addedSkillsList =
-        skillsList?.map((e) {
-          final m = e as Map<dynamic, dynamic>;
+        skillsList?.whereType<Map>().map((e) {
+          final m = Map<dynamic, dynamic>.from(e);
           return Map<String, String>.from(
             m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
           );
@@ -163,6 +169,55 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         addedSkillsList.isNotEmpty;
   }
 
+  bool _hasDuplicateSkill(String skillName) {
+    final key = skillName.trim().toLowerCase();
+    if (key.isEmpty) return false;
+    return addedSkillsList.any(
+      (s) => (s['name'] ?? '').trim().toLowerCase() == key,
+    );
+  }
+
+  int _proficiencyToLevel(String value) {
+    final v = value.trim().toLowerCase();
+    if (v == 'advanced') return 95;
+    if (v == 'intermediate') return 65;
+    if (v == 'basic') return 35;
+    return (double.tryParse(value)?.toInt() ?? 35).clamp(0, 100);
+  }
+
+  Future<List<Map<String, dynamic>>> _normalizeSkillsForSave() async {
+    final entries = addedSkillsList
+        .map((e) => {
+              'name': (e['name'] ?? '').trim(),
+              'type': (e['type'] ?? 'Technical').trim(),
+              'levelText': (e['level'] ?? 'Basic').trim(),
+            })
+        .where((e) => (e['name'] ?? '').isNotEmpty)
+        .toList();
+    final normalized = await Future.wait(
+      entries.map((e) async {
+        final name = e['name']!;
+        final type = e['type']!;
+        final levelText = e['levelText']!;
+        final level = _proficiencyToLevel(levelText);
+        final skillId = await _firestoreService.resolveOrCreateSkillId(
+          name,
+          defaultCategory: type == 'Soft Skill' ? 'Soft' : 'Technical',
+          createIfMissing: true,
+          isVerified: false,
+        );
+        return <String, dynamic>{
+          'skillId': skillId,
+          'name': name,
+          'type': type,
+          'level': level,
+          'levelLabel': levelText,
+        };
+      }),
+    );
+    return normalized;
+  }
+
   Future<void> saveUserProfile() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -200,7 +255,10 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         return;
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      final normalizedSkills = await _normalizeSkillsForSave();
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final existingUser = await userRef.get();
+      final payload = <String, dynamic>{
         "uid": user.uid,
         "email": user.email,
         "full_name": nameController.text.trim(),
@@ -208,7 +266,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         "major": majorController.text.trim(),
         "academic_year": selectedYear,
         "gpa": gpaController.text.trim(),
-        "skills": addedSkillsList,
+        "skills": normalizedSkills,
         "internships": addedInternships
             .map(
               (i) => {
@@ -221,8 +279,11 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         "clubs": addedClubs,
         "projects": addedProjects,
         "profile_completed": true,
-        "created_at": FieldValue.serverTimestamp(),
-      });
+      };
+      if (!existingUser.exists) {
+        payload["createdAt"] = FieldValue.serverTimestamp();
+      }
+      await userRef.set(payload, SetOptions(merge: true));
 
       if (!mounted) return;
       Navigator.pop(context);
@@ -240,10 +301,9 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           (route) => false,
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       Navigator.pop(context);
-      debugPrint('Create profile error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -307,6 +367,15 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                         _buildInputField(
                           "e.g., 3.5",
                           controller: gpaController,
+                          customValidator: (value) {
+                            final input = value?.trim() ?? '';
+                            if (input.isEmpty) return null;
+                            final parsed = double.tryParse(input);
+                            if (parsed == null || parsed < 0 || parsed > 4) {
+                              return 'Enter GPA between 0 and 4';
+                            }
+                            return null;
+                          },
                         ),
                       ],
                     ),
@@ -358,11 +427,31 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                             ),
                             const SizedBox(width: 10),
                             _buildAddIconButton(isSkillInputActive, () {
+                              final rawName = showCustomSkillField
+                                  ? customSkillController.text
+                                  : selectedSkillName;
+                              final skillName = rawName.trim();
+                              if (skillName.isEmpty ||
+                                  skillName == "Select a skill" ||
+                                  skillName == "Other (Custom)") {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please choose a valid skill.'),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (_hasDuplicateSkill(skillName)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('This skill is already added.'),
+                                  ),
+                                );
+                                return;
+                              }
                               setState(() {
                                 addedSkillsList.add({
-                                  "name": showCustomSkillField
-                                      ? customSkillController.text
-                                      : selectedSkillName,
+                                  "name": skillName,
                                   "type": selectedSkillType,
                                   "level": selectedProficiency,
                                 });
@@ -741,13 +830,17 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     bool isRequired = false,
     TextEditingController? controller,
     ValueChanged<String>? onChanged,
+    String? Function(String?)? customValidator,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: TextFormField(
       controller: controller,
       onChanged: onChanged,
-      validator: (v) =>
-          isRequired && (v == null || v.isEmpty) ? "Required" : null,
+      validator: (v) {
+        if (isRequired && (v == null || v.trim().isEmpty)) return "Required";
+        if (customValidator != null) return customValidator(v);
+        return null;
+      },
       decoration: _inputDecoration(hint),
     ),
   );

@@ -8,8 +8,37 @@ import '../services/analysis_service.dart';
 import '../utils/constants.dart';
 
 /// Academic analysis: GPA (weighted), Firestore course charts, animated progress.
-class AnalysisScreen extends StatelessWidget {
+class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key});
+
+  @override
+  State<AnalysisScreen> createState() => _AnalysisScreenState();
+}
+
+class _AnalysisScreenState extends State<AnalysisScreen> {
+  int _refreshTick = 0;
+
+  Future<void> _forceRefresh(String uid) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get(const GetOptions(source: Source.server));
+    await FirebaseFirestore.instance
+        .collection('courses')
+        .limit(1)
+        .get(const GetOptions(source: Source.server));
+    if (mounted) {
+      setState(() {
+        _refreshTick++;
+      });
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _refreshTick++;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +57,7 @@ class AnalysisScreen extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        key: ValueKey('analysis-user-stream-$_refreshTick'),
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -41,7 +71,7 @@ class AnalysisScreen extends StatelessWidget {
           if (userSnapshot.hasError) {
             return _ErrorPane(
               message: userSnapshot.error.toString(),
-              onRetry: () {},
+              onRetry: _retry,
             );
           }
 
@@ -53,229 +83,259 @@ class AnalysisScreen extends StatelessWidget {
           final computedGpa = AnalysisService.computeWeightedGpa(transcript);
           final profileGpa =
               AnalysisService.parseProfileGpaField(data?[AppConstants.userFieldGpa]);
-          final skills = data?[AppConstants.userFieldSkills];
-          final skillList = skills is List
-              ? skills.whereType<Map>().map((e) {
-                  final m = Map<String, dynamic>.from(
-                    e.map((k, v) => MapEntry(k.toString(), v)),
-                  );
-                  return MapEntry(
-                    m['name']?.toString() ?? '',
-                    m['level']?.toString() ?? '',
-                  );
-                }).where((e) => e.key.isNotEmpty).toList()
-              : <MapEntry<String, String>>[];
+          final skillList = AnalysisService.parseUserSkillsProgress(
+            data?[AppConstants.userFieldSkills],
+          );
+          final trendRows = AnalysisService.lastCourses(validTranscript, maxCount: 7);
+          final lineSpots = AnalysisService.cumulativeGpaSpots(trendRows);
 
-          return StreamBuilder<List<Course>>(
-            stream: AnalysisService.watchCatalogCourses(),
-            builder: (context, courseSnapshot) {
-              final catalogLoading =
-                  courseSnapshot.connectionState == ConnectionState.waiting;
-              final catalog = courseSnapshot.data ?? [];
-              final catalogError = courseSnapshot.error;
-
-              final barGroups =
-                  AnalysisService.buildAvgRatingBySkillBars(catalog, maxBars: 8);
-              final barLabels =
-                  AnalysisService.avgRatingBarLabels(catalog, maxBars: 8);
-              final lineSpots = AnalysisService.cumulativeGpaSpots(transcript);
-
-              return RefreshIndicator(
-                onRefresh: () async {
-                  await Future<void>.delayed(const Duration(milliseconds: 300));
-                },
-                child: ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    _GpaCard(
-                      computedGpa: computedGpa,
-                      profileGpa: profileGpa,
-                      transcriptCount: validTranscript.length,
-                    ),
-                    const SizedBox(height: 20),
-                    _SectionTitle(
-                      icon: Icons.school_outlined,
-                      title: 'Your courses (GPA)',
-                    ),
-                    const SizedBox(height: 8),
-                    if (validTranscript.isEmpty)
-                      _EmptyHint(
-                        text: computedGpa == null && profileGpa == null
-                            ? 'Add courses under your profile (added_courses with name, grade, credits) or enter GPA in Academic Information.'
-                            : 'Add structured courses for a weighted GPA chart. Profile GPA is shown above if set.',
-                      )
-                    else ...[
-                      SizedBox(
-                        height: 220,
-                        child: lineSpots.isEmpty
-                            ? const Center(child: Text('No GPA trend'))
-                            : LineChart(
-                                LineChartData(
-                                  minY: 0,
-                                  maxY: 4,
-                                  gridData: const FlGridData(show: true),
-                                  titlesData: FlTitlesData(
-                                    bottomTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        getTitlesWidget: (v, m) {
-                                          final i = v.toInt();
-                                          if (i >= 0 && i < validTranscript.length) {
-                                            final short = validTranscript[i].name.length > 6
-                                                ? '${validTranscript[i].name.substring(0, 5)}…'
-                                                : validTranscript[i].name;
-                                            return Padding(
-                                              padding: const EdgeInsets.only(top: 8),
-                                              child: Text(
-                                                short,
-                                                style: const TextStyle(fontSize: 9),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        },
-                                      ),
-                                    ),
-                                    leftTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        reservedSize: 28,
-                                        getTitlesWidget: (v, m) => Text(
-                                          v.toStringAsFixed(1),
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                      ),
-                                    ),
-                                    topTitles: const AxisTitles(
-                                      sideTitles: SideTitles(showTitles: false),
-                                    ),
-                                    rightTitles: const AxisTitles(
-                                      sideTitles: SideTitles(showTitles: false),
-                                    ),
-                                  ),
-                                  borderData: FlBorderData(show: false),
-                                  lineBarsData: [
-                                    LineChartBarData(
-                                      spots: lineSpots,
-                                      isCurved: true,
-                                      color: const Color(0xFF9226FF),
-                                      barWidth: 3,
-                                      dotData: const FlDotData(show: true),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Cumulative GPA by course order (max 4.0)',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    _SectionTitle(
-                      icon: Icons.bar_chart_rounded,
-                      title: 'Course catalog (avg rating by skill)',
-                    ),
-                    const SizedBox(height: 8),
-                    if (catalogLoading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
-                        ),
-                      )
-                    else if (catalogError != null)
-                      _ErrorPane(
-                        message: catalogError.toString(),
-                        onRetry: () {},
-                      )
-                    else if (barGroups.isEmpty)
-                      const _EmptyHint(
-                        text:
-                            'No course catalog data in Firestore yet, or ratings could not be grouped.',
-                      )
-                    else
-                      SizedBox(
-                        height: 240,
-                        child: BarChart(
-                          BarChartData(
-                            alignment: BarChartAlignment.spaceAround,
-                            maxY: 5,
-                            gridData: const FlGridData(show: true),
-                            titlesData: FlTitlesData(
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  getTitlesWidget: (v, m) {
-                                    final i = v.toInt();
-                                    if (i >= 0 && i < barLabels.length) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          barLabels[i],
-                                          style: const TextStyle(fontSize: 9),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  },
-                                ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 24,
-                                  getTitlesWidget: (v, m) => Text(
-                                    v.toInt().toString(),
-                                    style: const TextStyle(fontSize: 10),
-                                  ),
-                                ),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            barGroups: barGroups,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    _SectionTitle(
-                      icon: Icons.star_outline,
-                      title: 'Skills progress',
-                    ),
-                    const SizedBox(height: 8),
-                    if (skillList.isEmpty)
-                      const _EmptyHint(
-                        text: 'No skills on profile yet.',
-                      )
-                    else
-                      ...skillList.map(
-                        (e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _AnimatedSkillBar(
-                            name: e.key,
-                            percent: AnalysisService.skillLevelToPercent(e.value),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 32),
-                  ],
+          return RefreshIndicator(
+            onRefresh: () => _forceRefresh(user.uid),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                _GpaCard(
+                  computedGpa: computedGpa,
+                  profileGpa: profileGpa,
+                  transcriptCount: validTranscript.length,
                 ),
-              );
-            },
+                const SizedBox(height: 20),
+                _SectionTitle(
+                  icon: Icons.school_outlined,
+                  title: 'Your courses (GPA)',
+                ),
+                const SizedBox(height: 8),
+                if (validTranscript.isEmpty)
+                  _EmptyHint(
+                    text: computedGpa == null && profileGpa == null
+                        ? 'Add courses under your profile (added_courses with name, grade, credits) or enter GPA in Academic Information.'
+                        : 'Add structured courses for a weighted GPA chart. Profile GPA is shown above if set.',
+                  )
+                else ...[
+                  SizedBox(
+                    height: 220,
+                    child: lineSpots.isEmpty
+                        ? const Center(child: Text('No GPA trend'))
+                        : LineChart(
+                            LineChartData(
+                              minY: 0,
+                              maxY: 4,
+                              gridData: const FlGridData(show: true),
+                              titlesData: FlTitlesData(
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 44,
+                                    getTitlesWidget: (v, m) {
+                                      final i = v.toInt();
+                                      if (i >= 0 && i < trendRows.length) {
+                                        final short = trendRows[i].name.length > 7
+                                            ? '${trendRows[i].name.substring(0, 6)}…'
+                                            : trendRows[i].name;
+                                        return SideTitleWidget(
+                                          axisSide: m.axisSide,
+                                          angle: -0.5,
+                                          child: Text(
+                                            short,
+                                            style: const TextStyle(fontSize: 9),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 32,
+                                    getTitlesWidget: (v, m) => Text(
+                                      v.toStringAsFixed(1),
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                  ),
+                                ),
+                                topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                              ),
+                              borderData: FlBorderData(show: false),
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: lineSpots,
+                                  isCurved: true,
+                                  color: const Color(0xFF9226FF),
+                                  barWidth: 3,
+                                  dotData: FlDotData(
+                                    show: true,
+                                    checkToShowDot: (spot, barData) =>
+                                        spot.x == 0 ||
+                                        spot.x == lineSpots.last.x ||
+                                        lineSpots.length <= 8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Cumulative GPA by course order (max 4.0)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                _CoursesCatalogSection(
+                  retryTick: _refreshTick,
+                  onRetry: _retry,
+                ),
+                const SizedBox(height: 24),
+                _SectionTitle(
+                  icon: Icons.star_outline,
+                  title: 'Skills progress',
+                ),
+                const SizedBox(height: 8),
+                if (skillList.isEmpty)
+                  const _EmptyHint(
+                    text: 'No skills on profile yet.',
+                  )
+                else
+                  ...skillList.map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _AnimatedSkillBar(
+                        name: e.label,
+                        percent: e.percent,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 32),
+              ],
+            ),
           );
         },
       ),
+    );
+  }
+}
+
+class _CoursesCatalogSection extends StatelessWidget {
+  final int retryTick;
+  final VoidCallback onRetry;
+
+  const _CoursesCatalogSection({
+    required this.retryTick,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Course>>(
+      key: ValueKey('analysis-catalog-stream-$retryTick'),
+      stream: AnalysisService.watchCatalogCourses(),
+      builder: (context, courseSnapshot) {
+        final catalogLoading = courseSnapshot.connectionState == ConnectionState.waiting;
+        final catalog = courseSnapshot.data ?? [];
+        final catalogError = courseSnapshot.error;
+        final barGroups = AnalysisService.buildAvgRatingBySkillBars(catalog, maxBars: 8);
+        final barLabels = AnalysisService.avgRatingBarLabels(catalog, maxBars: 8);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionTitle(
+              icon: Icons.bar_chart_rounded,
+              title: 'Course catalog (avg rating by skill)',
+            ),
+            const SizedBox(height: 8),
+            if (catalogLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
+                ),
+              )
+            else if (catalogError != null)
+              _ErrorPane(
+                message: catalogError.toString(),
+                onRetry: onRetry,
+              )
+            else if (barGroups.isEmpty)
+              const _EmptyHint(
+                text: 'No course catalog data in Firestore yet, or ratings could not be grouped.',
+              )
+            else
+              SizedBox(
+                height: 240,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: 5,
+                    gridData: const FlGridData(show: true),
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          final label =
+                              group.x >= 0 && group.x < barLabels.length ? barLabels[group.x] : 'Skill';
+                          return BarTooltipItem(
+                            '$label\n${rod.toY.toStringAsFixed(1)} / 5',
+                            const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (v, m) {
+                            final i = v.toInt();
+                            if (i >= 0 && i < barLabels.length) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  barLabels[i],
+                                  style: const TextStyle(fontSize: 9),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 24,
+                          getTitlesWidget: (v, m) => Text(
+                            v.toInt().toString(),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: barGroups,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -392,9 +452,18 @@ class _EmptyHint extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -419,6 +488,12 @@ class _ErrorPane extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
             ),
           ],
         ),

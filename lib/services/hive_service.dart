@@ -67,9 +67,7 @@ class HiveService {
         level: 1000,
       );
       _initialized = false;
-      if (kDebugMode) {
-        debugPrint('HiveService: continuing without local encrypted cache');
-      }
+      
     }
   }
 

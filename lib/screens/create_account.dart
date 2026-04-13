@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'home_page.dart';
+import 'create_profile.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -13,6 +13,7 @@ class CreateAccountScreen extends StatefulWidget {
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -29,11 +30,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> registerUser() async {
-    if (nameController.text.trim().isEmpty ||
-        emailController.text.trim().isEmpty ||
-        passwordController.text.trim().isEmpty ||
-        confirmController.text.trim().isEmpty) {
-      _showError("Please fill in all fields");
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) {
+      _showError('Please fix the highlighted fields.');
       return;
     }
 
@@ -62,6 +61,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       try {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'name': nameController.text.trim(),
+          'full_name': nameController.text.trim(),
           'email': emailController.text.trim(),
           'skills': <dynamic>[],
           'targetJobId': null,
@@ -79,7 +79,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const CreateProfileScreen()),
         (_) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -219,30 +219,37 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     ),
                                     const SizedBox(height: 25),
 
-                                    _buildTextField(
-                                      nameController,
-                                      'Full Name',
-                                      Icons.person_outline,
-                                    ),
-                                    const SizedBox(height: 18),
-                                    _buildTextField(
-                                      emailController,
-                                      'Email',
-                                      Icons.mail_outline,
-                                    ),
-                                    const SizedBox(height: 18),
-                                    _buildTextField(
-                                      passwordController,
-                                      'Password',
-                                      Icons.lock_outline,
-                                      isPass: true,
-                                    ),
-                                    const SizedBox(height: 18),
-                                    _buildTextField(
-                                      confirmController,
-                                      'Confirm Password',
-                                      Icons.lock_outline,
-                                      isPass: true,
+                                    Form(
+                                      key: _formKey,
+                                      child: Column(
+                                        children: [
+                                          _buildTextField(
+                                            nameController,
+                                            'Full Name',
+                                            Icons.person_outline,
+                                          ),
+                                          const SizedBox(height: 18),
+                                          _buildTextField(
+                                            emailController,
+                                            'Email',
+                                            Icons.mail_outline,
+                                          ),
+                                          const SizedBox(height: 18),
+                                          _buildTextField(
+                                            passwordController,
+                                            'Password',
+                                            Icons.lock_outline,
+                                            isPass: true,
+                                          ),
+                                          const SizedBox(height: 18),
+                                          _buildTextField(
+                                            confirmController,
+                                            'Confirm Password',
+                                            Icons.lock_outline,
+                                            isPass: true,
+                                          ),
+                                        ],
+                                      ),
                                     ),
 
                                     const SizedBox(height: 25),
@@ -321,10 +328,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     IconData icon, {
     bool isPass = false,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       obscureText: isPass,
       style: const TextStyle(color: Colors.white),
+      keyboardType: (!isPass && hint == 'Email')
+          ? TextInputType.emailAddress
+          : TextInputType.text,
+      textInputAction: TextInputAction.next,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white70),
@@ -340,6 +351,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
         prefixIcon: Icon(icon, color: Colors.white70),
       ),
+      validator: (value) {
+        final input = value?.trim() ?? '';
+        if (input.isEmpty) return '$hint is required';
+        if (hint == 'Email') {
+          final isEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(input);
+          if (!isEmail) return 'Enter a valid email address';
+        }
+        if (hint == 'Password' && input.length < 6) {
+          return 'Password must be at least 6 characters';
+        }
+        if (hint == 'Confirm Password' && input != passwordController.text.trim()) {
+          return 'Passwords do not match';
+        }
+        return null;
+      },
     );
   }
 }

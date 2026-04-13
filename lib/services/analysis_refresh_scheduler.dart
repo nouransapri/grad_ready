@@ -1,6 +1,5 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
+import 'dart:developer' as developer;
 
 /// Coalesces rapid skill updates into a single [refresh] call per [uid].
 class AnalysisRefreshScheduler {
@@ -18,8 +17,12 @@ class AnalysisRefreshScheduler {
       try {
         await refresh();
       } catch (e, st) {
-        debugPrint('AnalysisRefreshScheduler: refresh failed: $e');
-        if (kDebugMode) debugPrintStack(stackTrace: st);
+        developer.log(
+          'AnalysisRefreshScheduler: refresh failed: $e',
+          name: 'AnalysisRefreshScheduler',
+          error: e,
+          stackTrace: st,
+        );
       }
     });
   }

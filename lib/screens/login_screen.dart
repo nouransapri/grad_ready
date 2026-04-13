@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'create_account.dart';
+import 'home_page.dart';
+import 'create_profile.dart';
+import 'admin/admin_overview_screen.dart';
 import '../widgets/password_reset_dialog.dart';
 import '../services/auth_service.dart';
 
@@ -19,8 +25,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _emailLoading = false;
   bool _googleLoading = false;
 
   @override
@@ -30,47 +38,94 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<bool> _isCurrentUserAdmin(User user) async {
+    try {
+      final token = await user.getIdTokenResult(true);
+      if (token.claims?['admin'] == true) return true;
+      final adminsSnap = await FirebaseFirestore.instance
+          .collection('admins')
+          .doc(user.uid)
+          .get();
+      return adminsSnap.exists;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _goAfterLogin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !mounted) return;
+    final isAdmin = await _isCurrentUserAdmin(user);
+    if (!mounted) return;
+    if (isAdmin) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AdminOverviewScreen()),
+        (_) => false,
+      );
+      return;
+    }
+    final profile = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    if (!mounted) return;
+    final completed = profile.data()?['profile_completed'] == true;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => completed ? const HomePage() : const CreateProfileScreen(),
+      ),
+      (_) => false,
+    );
+  }
+
   // Firebase sign-in
   Future<void> _login() async {
-    // Validate non-empty fields
-    if (emailController.text.trim().isEmpty ||
-        passwordController.text.trim().isEmpty) {
-      _showError("Please enter your email and password");
+    if (_emailLoading || _googleLoading) return;
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) {
+      _showError('Please fix the highlighted fields.');
       return;
     }
 
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    // Firebase sign-in (including admin: create admin@gradready in Firebase Auth)
+    setState(() => _emailLoading = true);
     try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) =>
-            const Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
+      final methods = await FirebaseAuth.instance
+          .fetchSignInMethodsForEmail(email)
+          .timeout(const Duration(seconds: 10));
+      if (methods.isEmpty) {
+        _showError('No account found for this email.');
+        return;
+      }
+      if (!methods.contains('password')) {
+        _showError('This account uses Google sign-in. Please continue with Google.');
+        return;
+      }
 
-      // Run sign-in
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(const Duration(seconds: 12));
 
       if (!mounted) return;
-      _closeLoadingDialog();
-      // StreamBuilder rebuilds and routes by profile/admin
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      await _goAfterLogin();
+    } on TimeoutException {
+      if (!mounted) return;
+      _showError('Connection timeout. Check internet and try again.');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _closeLoadingDialog();
 
       String message = "Login Failed";
       if (e.code == 'user-not-found') {
         message = "No user found for that email.";
       } else if (e.code == 'wrong-password') {
         message = "Wrong password provided.";
+      } else if (e.code == 'invalid-credential') {
+        message = 'Invalid email or password.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'Network error. Please check internet connection.';
       } else {
         message = e.message ?? "An error occurred";
       }
@@ -78,15 +133,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError(message);
     } catch (_) {
       if (!mounted) return;
-      _closeLoadingDialog();
       _showError('Unexpected issue. Please try again.');
-    }
-  }
-
-  void _closeLoadingDialog() {
-    final navigator = Navigator.of(context, rootNavigator: true);
-    if (navigator.canPop()) {
-      navigator.pop();
+    } finally {
+      if (mounted) {
+        setState(() => _emailLoading = false);
+      }
     }
   }
 
@@ -105,23 +156,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signInWithGoogle() async {
     if (_googleLoading) return;
     setState(() => _googleLoading = true);
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          const Center(child: CircularProgressIndicator(color: Colors.white)),
-    );
     try {
       await AuthService.signInWithGoogle();
       if (!mounted) return;
-      _closeLoadingDialog();
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      await _goAfterLogin();
     } on GoogleSignInCanceledException {
       if (!mounted) return;
-      _closeLoadingDialog();
     } catch (e) {
       if (!mounted) return;
-      _closeLoadingDialog();
       _showError(
         e is FirebaseAuthException
             ? (e.message ?? 'Google sign-in failed')
@@ -133,14 +175,35 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showPasswordResetDialog() async {
-    final sent = await showDialog<bool>(
+    final sent = await showDialog<bool?>(
       context: context,
       builder: (_) => PasswordResetDialog(initialEmail: emailController.text),
     );
     if (!mounted) return;
     if (sent == true) {
-      _showSuccess('Password reset link sent to your email');
+      _showSuccess(
+        'If this email is registered, check your inbox and spam for a reset link.',
+      );
+    } else if (sent == false) {
+      _showError(
+        'Email not registered for password sign-in. Use a registered email or continue with Google.',
+      );
     }
+  }
+
+  /// Debug-only: plain [sendPasswordResetEmail] + console logs (see [AuthService.testResetEmail]).
+  Future<void> _testFirebaseEmail() async {
+    final email = emailController.text.trim();
+    if (email.isEmpty) {
+      _showError('Enter an email in the field above, then tap Test Firebase Email.');
+      return;
+    }
+    await AuthService.sendTestResetEmail(email);
+    if (!mounted) return;
+    _showSuccess(
+      'Check debug console for === EMAIL TEST === / projectId / sign-in methods. '
+      'If inbox is empty, verify Firebase Email/Password, templates, authorized domains, spam.',
+    );
   }
 
   @override
@@ -249,21 +312,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 25),
-                                    _buildTextField(
-                                      emailController,
-                                      'Email',
-                                      Icons.mail_outline,
-                                    ),
-                                    const SizedBox(height: 18),
-                                    _buildTextField(
-                                      passwordController,
-                                      'Password',
-                                      Icons.lock_outline,
-                                      isPass: true,
+                                    Form(
+                                      key: _formKey,
+                                      child: Column(
+                                        children: [
+                                          _buildTextField(
+                                            emailController,
+                                            'Email',
+                                            Icons.mail_outline,
+                                          ),
+                                          const SizedBox(height: 18),
+                                          _buildTextField(
+                                            passwordController,
+                                            'Password',
+                                            Icons.lock_outline,
+                                            isPass: true,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                     const SizedBox(height: 25),
                                     ElevatedButton(
-                                      onPressed: _login,
+                                      onPressed: _emailLoading ? null : _login,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
                                         foregroundColor: _accentBlue,
@@ -276,13 +346,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                       ),
-                                      child: const Text(
-                                        'Login',
-                                        style: TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                      child: _emailLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Login',
+                                              style: TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                     ),
                                     const SizedBox(height: 8),
                                     TextButton(
@@ -295,6 +373,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                                     ),
+                                    if (kDebugMode) ...[
+                                      const SizedBox(height: 8),
+                                      OutlinedButton(
+                                        onPressed: _testFirebaseEmail,
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white70,
+                                          side: BorderSide(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.45,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Test Firebase Email',
+                                          style: TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 16),
                                     Row(
                                       children: [
@@ -332,12 +431,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                     OutlinedButton.icon(
                                       onPressed:
                                           _googleLoading ? null : _signInWithGoogle,
-                                      icon: const FaIcon(
-                                        FontAwesomeIcons.google,
-                                        size: 18,
-                                        color: Colors.white,
+                                      icon: _googleLoading
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.0,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const FaIcon(
+                                              FontAwesomeIcons.google,
+                                              size: 18,
+                                              color: Colors.white,
+                                            ),
+                                      label: Text(
+                                        _googleLoading
+                                            ? 'Signing in...'
+                                            : 'Continue with Google',
                                       ),
-                                      label: const Text('Continue with Google'),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.white,
                                         side: BorderSide(
@@ -415,10 +527,12 @@ class _LoginScreenState extends State<LoginScreen> {
     IconData icon, {
     bool isPass = false,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       obscureText: isPass,
       style: const TextStyle(color: Colors.black),
+      keyboardType: isPass ? TextInputType.visiblePassword : TextInputType.emailAddress,
+      textInputAction: isPass ? TextInputAction.done : TextInputAction.next,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
@@ -429,6 +543,19 @@ class _LoginScreenState extends State<LoginScreen> {
           borderSide: BorderSide.none,
         ),
       ),
+      validator: (value) {
+        final input = value?.trim() ?? '';
+        if (input.isEmpty) {
+          return '$hint is required';
+        }
+        if (!isPass) {
+          final isEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(input);
+          if (!isEmail) return 'Enter a valid email address';
+        } else if (input.length < 6) {
+          return 'Password must be at least 6 characters';
+        }
+        return null;
+      },
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
@@ -46,11 +45,7 @@ class MarketInsightsService {
     MarketInsights? result;
     try {
       result = await _fetchFromNetwork();
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('MarketInsightsService: $e');
-        debugPrint('$st');
-      }
+    } catch (_) {
     }
 
     if (result != null && result.hasLiveData) {
@@ -67,11 +62,7 @@ class MarketInsightsService {
   }
 
   static Future<MarketInsights?> _fetchFromNetwork() async {
-    if (kIsWeb) {
-      debugPrint(
-        'MarketInsights: Web build — if feeds fail, try Android/iOS (CORS).',
-      );
-    }
+    
 
     final remotive = await _fromRemotive();
     if (remotive != null &&
@@ -129,9 +120,6 @@ class MarketInsightsService {
             .get(Uri.parse(url), headers: _browserHeaders)
             .timeout(const Duration(seconds: 20));
         if (response.statusCode != 200) {
-          if (kDebugMode) {
-            debugPrint('Remotive: $url → HTTP ${response.statusCode}');
-          }
           return null;
         }
         final decoded = jsonDecode(response.body);
@@ -173,8 +161,7 @@ class MarketInsightsService {
         list.take(20).toList(),
         jobListKind: 'remote job listings (sample)',
       );
-    } catch (e) {
-      if (kDebugMode) debugPrint('Remotive error: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -191,9 +178,6 @@ class MarketInsightsService {
           )
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
-        if (kDebugMode) {
-          debugPrint('Indeed RSS: HTTP ${response.statusCode}');
-        }
         return null;
       }
       final body = utf8.decode(response.bodyBytes);
@@ -201,11 +185,7 @@ class MarketInsightsService {
       if (!lower.contains('<rss') &&
           !lower.contains('<feed') &&
           !lower.contains('<item')) {
-        if (kDebugMode) {
-          debugPrint(
-            'Indeed RSS: not XML/RSS (${body.length} chars)',
-          );
-        }
+        
         return null;
       }
       final doc = XmlDocument.parse(body);
@@ -229,8 +209,7 @@ class MarketInsightsService {
         avgSalary: '—',
         jobListKind: 'jobs (Indeed RSS)',
       );
-    } catch (e) {
-      if (kDebugMode) debugPrint('Indeed RSS error: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -252,7 +231,6 @@ class MarketInsightsService {
     return null;
   }
 
-  @visibleForTesting
   static void clearCacheForTest() {
     _cached = null;
     _cachedAt = null;

@@ -34,11 +34,16 @@ class _SkillMatchResultsScreenState extends State<SkillMatchResultsScreen> {
     try {
       final rows = await SkillMatchCsvService.loadFromAssets();
       if (mounted) {
+        final availableUserIds = _uniqueUserIds(rows);
+        final selectedStillExists =
+            _selectedUserId != null && availableUserIds.contains(_selectedUserId);
         setState(() {
           _allRows = rows;
           _loading = false;
           if (_selectedUserId == null && rows.isNotEmpty) {
-            _selectedUserId = _uniqueUserIds(rows).first;
+            _selectedUserId = availableUserIds.first;
+          } else if (!selectedStillExists) {
+            _selectedUserId = null;
           }
         });
       }
@@ -132,6 +137,10 @@ class _SkillMatchResultsScreenState extends State<SkillMatchResultsScreen> {
 
   Widget _buildFilters(ThemeData theme) {
     final userIds = ['All users', ..._uniqueUserIds(_allRows)];
+    final selectedValue =
+        (_selectedUserId == null || _selectedUserId!.isEmpty || !userIds.contains(_selectedUserId))
+        ? 'All users'
+        : _selectedUserId;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -143,9 +152,7 @@ class _SkillMatchResultsScreenState extends State<SkillMatchResultsScreen> {
             Text('Filter by user', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: _selectedUserId == null || _selectedUserId!.isEmpty
-                  ? 'All users'
-                  : _selectedUserId,
+              initialValue: selectedValue,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(

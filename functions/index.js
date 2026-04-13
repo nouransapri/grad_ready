@@ -15,6 +15,7 @@ async function callerIsAdmin(uid) {
 
 /**
  * Promotes a user to admin: sets custom claim admin:true and creates admins/{uid}.
+ * Client apps must not rely on users/{uid}.role; privileges are claims + admins/* only.
  * Caller must already be an admin (claim or Firestore doc).
  *
  * data: { uid: string } — target user's Firebase Auth UID

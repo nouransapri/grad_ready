@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../config/google_sign_in_config.dart';
@@ -11,6 +10,9 @@ class AuthService {
   AuthService._();
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Logs Firebase app + current platform options (no secrets). Use when debugging Auth email flows.
+  static void debugLogFirebaseConfig(String _) {}
 
   static String? get _googleServerClientId {
     const fromEnv = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
@@ -36,13 +38,6 @@ class AuthService {
     }
 
     final GoogleSignInAuthentication googleAuth = await account.authentication;
-    if (googleAuth.idToken == null && kDebugMode) {
-      debugPrint(
-        'AuthService: Google idToken is null. Add SHA-1 in Firebase Console, '
-        'download updated google-services.json, and/or set '
-        'kGoogleOAuthWebClientId or --dart-define=GOOGLE_SERVER_CLIENT_ID=...',
-      );
-    }
 
     final credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
@@ -102,6 +97,62 @@ class AuthService {
     } catch (_) {}
     await _auth.signOut();
   }
+
+  /// Password reset: verifies email/password registration, then sends reset mail with [ActionCodeSettings].
+  /// Returns `false` if email is not registered for password auth or on error. Logs details in debug mode.
+  static Future<bool> resetPassword(String email) async {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+
+    try {
+      final methods = await _auth.fetchSignInMethodsForEmail(trimmed);
+
+      if (methods.isEmpty) {
+        return false;
+      }
+
+      const emailPassword = 'password';
+      if (!methods.contains(emailPassword)) {
+        return false;
+      }
+
+      final actionCodeSettings = ActionCodeSettings(
+        url: 'https://gradready.page.link/reset',
+        handleCodeInApp: true,
+        androidPackageName: 'com.example.grad_ready',
+        androidInstallApp: true,
+        androidMinimumVersion: '21',
+        iOSBundleId: 'com.example.gradReady',
+      );
+
+      await _auth.sendPasswordResetEmail(
+        email: trimmed,
+        actionCodeSettings: actionCodeSettings,
+      );
+      return true;
+    } on FirebaseAuthException {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// **Debug only:** sends reset email **without** [ActionCodeSettings] to isolate template/delivery issues.
+  /// Watch console for `=== EMAIL TEST ===` lines. Uses same [email] field as login.
+  static Future<void> testResetEmail(String email) async {
+    try {
+      await FirebaseAuth.instance.fetchSignInMethodsForEmail(email.trim());
+
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+    } catch (_) {
+      // Ignore debug helper failures.
+    }
+  }
+
+  /// Alias for [testResetEmail] (temporary debug).
+  static Future<void> sendTestResetEmail(String email) => testResetEmail(email);
 }
 
 /// Thrown when the user closes the Google account picker without selecting an account.

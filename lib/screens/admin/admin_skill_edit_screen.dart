@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/skill_document.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/constants.dart';
 
 /// Add or Edit Skill screen. viewOnly = true for View Details from Library.
 class AdminSkillEditScreen extends StatefulWidget {
@@ -38,6 +39,32 @@ String _coerceSkillCategory(String? raw) {
   if (t == 'Tools') return 'Tool';
   if (_skillCategoryOptions.contains(t)) return t;
   return 'Programming';
+}
+
+Future<void> _openExternalUrl(BuildContext context, String rawUrl) async {
+  final uri = Uri.tryParse(rawUrl.trim());
+  if (uri == null || (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https'))) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invalid link.')),
+    );
+    return;
+  }
+  final canOpen = await canLaunchUrl(uri);
+  if (!canOpen) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open this link.')),
+    );
+    return;
+  }
+  try {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open this link.')),
+    );
+  }
 }
 
 class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
@@ -134,6 +161,28 @@ class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
     }
   }
 
+  Future<bool> _confirmDestructiveAction() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text(AppConstants.dialogConfirmTitle),
+        content: const Text(AppConstants.dialogConfirmDestructiveMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text(AppConstants.actionCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text(AppConstants.actionDelete),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -149,18 +198,12 @@ class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
             : [
                 if (!isNew)
                   IconButton(
+                    color: Colors.red,
                     icon: const Icon(Icons.delete_outline_rounded),
                     onPressed: () async {
-                      final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
-                        title: const Text('Delete skill?'),
-                        content: const Text('This will remove the skill from the library. Jobs referencing it may need to be updated.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete')),
-                        ],
-                      ));
+                      final confirm = await _confirmDestructiveAction();
                       if (confirm == true && mounted) {
-                        // Optional: implement delete in FirestoreService and call here
+                        await _firestore.deleteSkillDocument(skill.skillId);
                         Navigator.pop(context);
                       }
                     },
@@ -226,22 +269,38 @@ class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
               ],
               const SizedBox(height: 24),
               _sectionTitle(theme, 'Courses (${_courses.length})'),
-              ..._courses.map((c) => _CourseTile(course: c, viewOnly: viewOnly, onRemove: () => setState(() => _courses.remove(c)))),
+              ..._courses.map((c) => _CourseTile(course: c, viewOnly: viewOnly, onRemove: () async {
+                if (await _confirmDestructiveAction()) {
+                  setState(() => _courses.remove(c));
+                }
+              })),
               if (_courses.isEmpty) Text('No courses yet.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
               if (!viewOnly) Padding(padding: const EdgeInsets.only(top: 8), child: OutlinedButton.icon(icon: const Icon(Icons.add_rounded, size: 20), label: const Text('Add Course'), onPressed: _addCourse)),
               const SizedBox(height: 16),
               _sectionTitle(theme, 'Certifications (${_certifications.length})'),
-              ..._certifications.map((c) => _CertTile(cert: c, viewOnly: viewOnly, onRemove: () => setState(() => _certifications.remove(c)))),
+              ..._certifications.map((c) => _CertTile(cert: c, viewOnly: viewOnly, onRemove: () async {
+                if (await _confirmDestructiveAction()) {
+                  setState(() => _certifications.remove(c));
+                }
+              })),
               if (_certifications.isEmpty) Text('No certifications.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
               if (!viewOnly) Padding(padding: const EdgeInsets.only(top: 8), child: OutlinedButton.icon(icon: const Icon(Icons.add_rounded, size: 20), label: const Text('Add Certification'), onPressed: _addCertification)),
               const SizedBox(height: 16),
               _sectionTitle(theme, 'Free Resources (${_learningResources.length})'),
-              ..._learningResources.map((r) => _ResourceTile(resource: r, viewOnly: viewOnly, onRemove: () => setState(() => _learningResources.remove(r)))),
+              ..._learningResources.map((r) => _ResourceTile(resource: r, viewOnly: viewOnly, onRemove: () async {
+                if (await _confirmDestructiveAction()) {
+                  setState(() => _learningResources.remove(r));
+                }
+              })),
               if (_learningResources.isEmpty) Text('No resources.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
               if (!viewOnly) Padding(padding: const EdgeInsets.only(top: 8), child: OutlinedButton.icon(icon: const Icon(Icons.add_rounded, size: 20), label: const Text('Add Resource'), onPressed: _addResource)),
               const SizedBox(height: 16),
               _sectionTitle(theme, 'Practice Projects (${_practiceProjects.length})'),
-              ..._practiceProjects.map((p) => _ProjectTile(project: p, viewOnly: viewOnly, onRemove: () => setState(() => _practiceProjects.remove(p)))),
+              ..._practiceProjects.map((p) => _ProjectTile(project: p, viewOnly: viewOnly, onRemove: () async {
+                if (await _confirmDestructiveAction()) {
+                  setState(() => _practiceProjects.remove(p));
+                }
+              })),
               if (_practiceProjects.isEmpty) Text('No projects.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
               if (!viewOnly) Padding(padding: const EdgeInsets.only(top: 8), child: OutlinedButton.icon(icon: const Icon(Icons.add_rounded, size: 20), label: const Text('Add Project'), onPressed: _addProject)),
               const SizedBox(height: 16),
@@ -428,7 +487,7 @@ class _AdminSkillEditScreenState extends State<AdminSkillEditScreen> {
 class _CourseTile extends StatelessWidget {
   final SkillCourse course;
   final bool viewOnly;
-  final VoidCallback? onRemove;
+  final Future<void> Function()? onRemove;
 
   const _CourseTile({required this.course, this.viewOnly = false, this.onRemove});
 
@@ -446,8 +505,13 @@ class _CourseTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => launchUrl(Uri.parse(course.url), mode: LaunchMode.externalApplication), tooltip: 'Open link'),
-            if (!viewOnly && onRemove != null) IconButton(icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error), onPressed: onRemove, tooltip: 'Remove'),
+            IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => _openExternalUrl(context, course.url), tooltip: 'Open link'),
+            if (!viewOnly && onRemove != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
+                onPressed: () => onRemove?.call(),
+                tooltip: 'Remove',
+              ),
           ],
         ),
       ),
@@ -458,7 +522,7 @@ class _CourseTile extends StatelessWidget {
 class _CertTile extends StatelessWidget {
   final SkillCertification cert;
   final bool viewOnly;
-  final VoidCallback? onRemove;
+  final Future<void> Function()? onRemove;
 
   const _CertTile({required this.cert, this.viewOnly = false, this.onRemove});
 
@@ -473,8 +537,13 @@ class _CertTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => launchUrl(Uri.parse(cert.url), mode: LaunchMode.externalApplication), tooltip: 'Open link'),
-            if (!viewOnly && onRemove != null) IconButton(icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error), onPressed: onRemove, tooltip: 'Remove'),
+            IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => _openExternalUrl(context, cert.url), tooltip: 'Open link'),
+            if (!viewOnly && onRemove != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
+                onPressed: () => onRemove?.call(),
+                tooltip: 'Remove',
+              ),
           ],
         ),
       ),
@@ -485,7 +554,7 @@ class _CertTile extends StatelessWidget {
 class _ResourceTile extends StatelessWidget {
   final SkillLearningResource resource;
   final bool viewOnly;
-  final VoidCallback? onRemove;
+  final Future<void> Function()? onRemove;
 
   const _ResourceTile({required this.resource, this.viewOnly = false, this.onRemove});
 
@@ -501,8 +570,13 @@ class _ResourceTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => launchUrl(Uri.parse(resource.url), mode: LaunchMode.externalApplication), tooltip: 'Open link'),
-            if (!viewOnly && onRemove != null) IconButton(icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error), onPressed: onRemove, tooltip: 'Remove'),
+            IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => _openExternalUrl(context, resource.url), tooltip: 'Open link'),
+            if (!viewOnly && onRemove != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
+                onPressed: () => onRemove?.call(),
+                tooltip: 'Remove',
+              ),
           ],
         ),
       ),
@@ -522,7 +596,7 @@ class _ResourceTile extends StatelessWidget {
 class _ProjectTile extends StatelessWidget {
   final SkillPracticeProject project;
   final bool viewOnly;
-  final VoidCallback? onRemove;
+  final Future<void> Function()? onRemove;
 
   const _ProjectTile({required this.project, this.viewOnly = false, this.onRemove});
 
@@ -537,8 +611,13 @@ class _ProjectTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (project.tutorialUrl != null) IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => launchUrl(Uri.parse(project.tutorialUrl!), mode: LaunchMode.externalApplication), tooltip: 'Tutorial'),
-            if (!viewOnly && onRemove != null) IconButton(icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error), onPressed: onRemove, tooltip: 'Remove'),
+            if (project.tutorialUrl != null) IconButton(icon: const Icon(Icons.open_in_new_rounded), onPressed: () => _openExternalUrl(context, project.tutorialUrl!), tooltip: 'Tutorial'),
+            if (!viewOnly && onRemove != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
+                onPressed: () => onRemove?.call(),
+                tooltip: 'Remove',
+              ),
           ],
         ),
       ),

@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Uploads profile images to Firebase Storage and stores the download URL in Firestore (`photoUrl`).
@@ -53,10 +53,12 @@ class ProfilePhotoService {
     try {
       await user.updatePhotoURL(url);
     } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('updatePhotoURL skipped: $e');
-        debugPrintStack(stackTrace: st);
-      }
+      developer.log(
+        'updatePhotoURL skipped: $e',
+        name: 'ProfilePhotoService',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     return url;

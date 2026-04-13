@@ -6,7 +6,7 @@ class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   void _goNext(BuildContext context) {
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
     );

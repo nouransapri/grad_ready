@@ -7,6 +7,7 @@ import '../../app_theme.dart';
 import 'admin_jobs_screen.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_skills_screen.dart';
+import 'admin_users_screen.dart';
 
 class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({super.key});
@@ -22,6 +23,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   static const List<({String label, IconData icon})> _tabs = [
     (label: 'Overview', icon: Icons.dashboard_rounded),
     (label: 'Jobs', icon: Icons.work_outline_rounded),
+    (label: 'Users', icon: Icons.people_outline_rounded),
     (label: 'Analytics', icon: Icons.analytics_outlined),
     (label: 'Skills', icon: Icons.school_rounded),
   ];
@@ -425,6 +427,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                 : _selectedTabIndex == 1
                 ? const AdminJobsContent()
                 : _selectedTabIndex == 2
+                ? const AdminUsersContent()
+                : _selectedTabIndex == 3
                 ? const AdminAnalyticsContent()
                 : const AdminSkillsContent(),
           ),

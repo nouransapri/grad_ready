@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/course.dart';
 import '../services/firestore_service.dart';
+import '../utils/skill_utils.dart';
 
 /// Recommendations tab content: course cards per missing skill (top 3), from Firestore `courses`.
 class RecommendationsTab extends StatefulWidget {
@@ -158,7 +159,9 @@ class _RecommendationsTabState extends State<RecommendationsTab>
                 final index = e.key;
                 final skillName = e.value.key;
                 final courses = e.value.value;
-                final isCritical = widget.criticalGapNames.contains(skillName);
+                final isCritical = widget.criticalGapNames.contains(
+                  normalizeSkillName(skillName),
+                );
                 return TweenAnimationBuilder<double>(
                   key: ValueKey('skill_$skillName'),
                   tween: Tween(begin: 0.2, end: 0),

@@ -17,10 +17,62 @@ service cloud.firestore {
     }
 
     // Users: read own doc or any user doc if admin (analytics / streamUsers).
-    // Write only own profile (no client-side admin edits to other users).
+    // Clients cannot set or change `role` (admin is claim + admins/{uid} + makeAdmin Cloud Function only).
     match /users/{userId} {
       allow read: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && !('role' in request.resource.data)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'name',
+          'full_name',
+          'university',
+          'major',
+          'academic_year',
+          'gpa',
+          'skills',
+          'internships',
+          'clubs',
+          'projects',
+          'profile_completed',
+          'createdAt',
+          'targetJobId',
+          'added_courses',
+          'analysis_results',
+          'last_analysis',
+          'last_analysis_title',
+          'last_analysis_at',
+          'photoUrl',
+          'fcmToken',
+          'fcmTokenUpdatedAt',
+          'age'
+        ]);
+      allow update: if isSignedIn() && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'full_name',
+          'university',
+          'major',
+          'academic_year',
+          'gpa',
+          'skills',
+          'internships',
+          'clubs',
+          'projects',
+          'profile_completed',
+          'targetJobId',
+          'added_courses',
+          'analysis_results',
+          'last_analysis',
+          'last_analysis_title',
+          'last_analysis_at',
+          'photoUrl',
+          'fcmToken',
+          'fcmTokenUpdatedAt',
+          'age'
+        ]);
+      allow delete: if isSignedIn() && request.auth.uid == userId;
     }
     match /jobs/{jobId} {
       allow read: if isSignedIn();
@@ -42,8 +94,12 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+    // Own admins/{uid} readable to verify promotion before ID token refresh; full list only for admins.
     match /admins/{adminUid} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn() && (
+        request.auth.uid == adminUid ||
+        isAdmin()
+      );
       allow write: if isAdmin();
     }
   }

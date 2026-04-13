@@ -1,6 +1,6 @@
 # GradReady Admin Panel
 
-React admin dashboard for GradReady Management. Login with **admin@gradready** / **1111**.
+React admin dashboard for GradReady Management. Login with **admin@gradready.com** / **111111**.
 
 ## Run locally
 
@@ -20,4 +20,4 @@ npm run build
 
 ## Access from the Flutter app
 
-When you log in on the **Flutter app** with email `admin@gradready` and password `1111`, you are taken to a screen that explains how to open the web Admin Panel. Run this admin app (`npm run dev`) and open the URL shown (e.g. http://localhost:5173) in your browser to use the panel.
+When you log in on the **Flutter app** with email `admin@gradready.com` and password `111111`, you are taken to a screen that explains how to open the web Admin Panel. Run this admin app (`npm run dev`) and open the URL shown (e.g. http://localhost:5173) in your browser to use the panel.

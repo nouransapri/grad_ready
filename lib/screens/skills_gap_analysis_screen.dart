@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -71,7 +71,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSub;
   StreamSubscription<JobRole?>? _jobSub;
   final FirestoreService _firestore = FirestoreService();
-  final Set<String> _lastAnalysisSavedJobIds = {};
+  String? _lastAnalysisSignature;
   Map<String, Skill>? _skillsCatalog;
   int _updateAnalysisVersion = 0;
 
@@ -343,11 +343,10 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     return bySkill.values.toList();
   }
 
-  /// Updates user profile `last_analysis` once per job role per session.
+  /// Updates user profile `last_analysis` when analysis payload changes.
   void _saveLastAnalysisIfNeeded() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || _currentJob.id.isEmpty) return;
-    if (_lastAnalysisSavedJobIds.contains(_currentJob.id)) return;
     final coverage = (_gapResult?.matchPercentage ?? 0).round().clamp(0, 100);
     List<String> uniqueNames(Iterable<SkillGapItem> source) {
       final seen = <String>{};
@@ -371,7 +370,15 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
       'criticalSkills': criticalSkills,
       'generatedAt': FieldValue.serverTimestamp(),
     };
-    _lastAnalysisSavedJobIds.add(_currentJob.id);
+    final signature = [
+      _currentJob.id,
+      coverage,
+      strongSkills.join('|'),
+      developingSkills.join('|'),
+      criticalSkills.join('|'),
+    ].join('::');
+    if (_lastAnalysisSignature == signature) return;
+    _lastAnalysisSignature = signature;
     FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -381,8 +388,12 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           'last_analysis_at': FieldValue.serverTimestamp(),
         })
         .catchError((e, st) {
-          debugPrint('_saveLastAnalysisIfNeeded failed: $e');
-          if (kDebugMode) debugPrintStack(stackTrace: st);
+          developer.log(
+            '_saveLastAnalysisIfNeeded failed: $e',
+            name: 'SkillsGapAnalysisScreen',
+            error: e,
+            stackTrace: st,
+          );
         });
   }
 
@@ -432,8 +443,12 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           }
         })
         .catchError((e, st) {
-          debugPrint('getSkills failed: $e');
-          if (kDebugMode) debugPrintStack(stackTrace: st);
+          developer.log(
+            'getSkills failed: $e',
+            name: 'SkillsGapAnalysisScreen',
+            error: e,
+            stackTrace: st,
+          );
         });
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
@@ -488,7 +503,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   /// Developing: not used when we only care about skill existence; always 0 from service.
   int get _displayDevelopingCount {
     if (_gapResult == null) return _developingCount;
-    return 0;
+    final developing = _items.where((e) => e.isDeveloping).length;
+    return developing;
   }
 
   /// Critical gaps from gap result: number of missing required skills.
@@ -506,10 +522,15 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 
   /// Category match for Technical/Soft cards. When gap result exists we use the same unified match %
-  /// (level-based calculation disabled temporarily; skill existence only).
+  /// fallback only when no detailed category distribution is available.
   int _categoryMatch(bool technical) {
     if (_gapResult != null) {
-      return _displayMatchPercent;
+      final d = _gapResult!.skillMatchDistribution;
+      final matched = technical ? d.technicalMatched : d.softMatched;
+      final total = technical ? d.technicalTotal : d.softTotal;
+      if (total > 0) {
+        return ((matched / total) * 100).round().clamp(0, 100);
+      }
     }
     final list = _items.where((e) => e.isTechnical == technical).toList();
     if (list.isEmpty) return 0;
@@ -1424,23 +1445,6 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               ),
               const SizedBox(height: 24),
             ],
-            const Text(
-              'All Skills Analysis',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1C1E),
-              ),
-            ),
-            const SizedBox(height: 14),
-            ..._items.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _SkillAnalysisCard(item: item),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildStatusGuide(),
           ],
         ),
       ),
@@ -1883,8 +1887,6 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 
   Widget _buildSkillsBreakdownTab() {
-    final technicalMatch = _categoryMatch(true);
-    final softMatch = _categoryMatch(false);
     final technicalItems = _items.where((e) => e.isTechnical).toList();
     final softItems = _items.where((e) => !e.isTechnical).toList();
 
@@ -1895,28 +1897,6 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSkillCoverageSummaryCard(),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _breakdownSummaryCard(
-                    'Technical Skills',
-                    technicalMatch,
-                    const Color(0xFF2563EB),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _breakdownSummaryCard(
-                    'Soft Skills',
-                    softMatch,
-                    const Color(0xFF7C3AED),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
             _buildSkillCategoryComparisonCard(),
             const SizedBox(height: 24),
             if (technicalItems.isNotEmpty) ...[
@@ -2018,7 +1998,10 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     final top3 = _gapResult?.missingSkillsByPriority.take(3).toList() ??
         _gapResult?.missingSkills.take(3).toList() ??
         [];
-    final criticalSet = _currentJob.criticalSkills.map((s) => s.trim()).toSet();
+    final criticalSet = _currentJob.criticalSkills
+        .map((s) => normalizeSkillName(s))
+        .where((s) => s.isNotEmpty)
+        .toSet();
 
     return RecommendationsTab(
       skillNames: top3,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -84,10 +85,12 @@ class PushNotificationService {
       final token = await _messaging.getToken();
       if (token != null) await _persistToken(token);
     } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('FCM getToken failed: $e');
-        debugPrintStack(stackTrace: st);
-      }
+      developer.log(
+        'FCM getToken failed: $e',
+        name: 'PushNotificationService',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 

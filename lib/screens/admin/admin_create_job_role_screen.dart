@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import '../../models/job_document.dart';
 import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/constants.dart';
 import '../../utils/skill_utils.dart';
 import 'job_skills_editor.dart';
 
@@ -269,6 +270,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     const tabs = [
       (label: 'Overview', icon: Icons.dashboard_rounded),
       (label: 'Jobs', icon: Icons.work_outline_rounded),
+      (label: 'Users', icon: Icons.people_outline_rounded),
       (label: 'Analytics', icon: Icons.analytics_outlined),
       (label: 'Skills', icon: Icons.school_rounded),
     ];
@@ -399,6 +401,25 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
               padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + bottomInset),
               child: Row(
                 children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (_saving || _editingJob == null) ? null : _deleteCurrentJob,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text(
+                        AppConstants.actionDelete,
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _saving ? null : () => Navigator.maybePop(context),
@@ -752,6 +773,51 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<bool> _confirmDelete() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppConstants.dialogConfirmTitle),
+        content: const Text(AppConstants.dialogConfirmDestructiveMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(AppConstants.actionCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(AppConstants.actionDelete),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  Future<void> _deleteCurrentJob() async {
+    final doc = _editingJob;
+    if (doc == null || _saving) return;
+    final confirmed = await _confirmDelete();
+    if (!confirmed) return;
+    setState(() => _saving = true);
+    try {
+      await _firestore.deleteJobSoft(doc.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job deleted.')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

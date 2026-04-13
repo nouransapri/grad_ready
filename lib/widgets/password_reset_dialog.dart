@@ -1,5 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
 
 class PasswordResetDialog extends StatefulWidget {
   final String initialEmail;
@@ -34,28 +35,13 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
     final email = _emailController.text.trim();
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      final ok = await AuthService.resetPassword(email);
       if (!mounted) return;
-      Navigator.pop(context, true);
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      String message = 'Error sending reset link';
-      if (e.code == 'user-not-found') {
-        message = 'Email not found';
-      } else if (e.code == 'invalid-email') {
-        message = 'Please enter a valid email';
+      if (ok) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pop(context, false);
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unexpected issue. Please try again.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -98,7 +84,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
         TextButton(
-          onPressed: _loading ? null : () => Navigator.pop(context, false),
+          onPressed: _loading ? null : () => Navigator.pop<bool?>(context),
           child: const Text('Cancel'),
         ),
         FilledButton(
