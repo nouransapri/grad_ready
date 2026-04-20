@@ -1,6 +1,17 @@
+// Gap analysis compares a Firestore user profile (`skills`, legacy string lists, etc.)
+// to a [JobDocument]. When the job exposes structured [JobRequiredSkill] rows
+// (`requiredSkillsWithLevel` / `gapRequiredSkillsWithLevel` on the document), we use
+// weighted level-based scoring: each requirement contributes
+// `min(userLevel/requiredLevel, 1) × importance`. User levels are resolved from
+// profile skill entries via the master skills catalog (canonical ids, aliases, and
+// composite ids like `machine-learning-python` → `python`). [mergeJobRequiredSkillsCatalog]
+// injects placeholder [Skill] rows for any job requirement id missing from the cache so
+// analysis still runs offline of a full catalog. If structured requirements are absent,
+// we fall back to legacy [JobRole]-style technical/soft lists and name-based matching.
 import 'dart:developer' as developer;
 
 import '../models/course.dart';
+import '../models/job_document.dart';
 import '../models/job_role.dart';
 import '../models/skill.dart';
 import '../utils/skill_utils.dart';
@@ -91,8 +102,13 @@ class GapAnalysisResult {
   }
 }
 
-/// Service for gap analysis between user profile and job requirements. Skills only.
-/// Uses level-based weighted scoring when job has [JobRequiredSkill] and skills catalog is provided.
+/// Stateless helpers for computing skill gaps, match percentages, learning paths, and
+/// course recommendations between a user document and a [JobDocument].
+///
+/// **Two modes:** (1) *Level-based* when [JobDocument] exposes structured requirements
+/// (`gapRequiredSkillsWithLevel` / legacy `requiredSkillsWithLevel` via [JobRole] projection).
+/// (2) *Legacy* when only flat skill names / tech-soft splits exist — binary or percent-based
+/// comparison using [collectUserLevelsBySkillId] and name normalization.
 class GapAnalysisService {
   static const int _criticalPriorityThreshold = 1000;
   static const int _priorityWeightBase = 500;
@@ -415,21 +431,22 @@ class GapAnalysisService {
         .join(' ');
   }
 
-  /// Merges Firestore [skills] cache with synthetic [Skill] rows for every [JobRequiredSkill] so
-  /// level-based analysis always runs when the job lists structured requirements, even if the
-  /// catalog is empty or still loading.
+  /// Builds a catalog map that includes every [JobRequiredSkill.skillId] on the job, creating
+  /// minimal [Skill] rows (Technical vs Soft inferred from the job’s soft-skill set) when the
+  /// Firestore `skills` collection does not yet contain that id.
   static Map<String, Skill> mergeJobRequiredSkillsCatalog(
-    JobRole job,
+    JobDocument job,
     Map<String, Skill>? catalog,
   ) {
+    final jobRole = job.toJobRole();
     final out = <String, Skill>{
       if (catalog != null) ...catalog,
     };
-    final softIds = job.softSkillsWithLevel
+    final softIds = jobRole.softSkillsWithLevel
         .map((s) => canonicalSkillId(s.name))
         .where((id) => id.isNotEmpty)
         .toSet();
-    for (final req in job.requiredSkillsWithLevel) {
+    for (final req in jobRole.requiredSkillsWithLevel) {
       if (_catalogSkill(out, req.skillId) != null) {
         continue;
       }
@@ -444,7 +461,7 @@ class GapAnalysisService {
     return out;
   }
 
-  static List<String> getRequiredSkillNames(JobRole job) {
+  static List<String> _getRequiredSkillNamesFromRole(JobRole job) {
     final fromLevels = <String>[
       ...job.technicalSkillsWithLevel.map((s) => s.name),
       ...job.softSkillsWithLevel.map((s) => s.name),
@@ -467,15 +484,17 @@ class GapAnalysisService {
         .toList();
   }
 
-  /// Runs gap analysis (skills only). If [fetchRecommendations] is provided, uses it to load suggested courses per skill (e.g. from Firestore).
-  /// When the job has [requiredSkillsWithLevel], uses level-based weighted formula:
-  /// skillScore = min(userLevel/requiredLevel, 1), matchScore = sum(skillScore×importance)/sum(importance).
-  /// [skillsCatalog] is merged with placeholder [Skill] rows for any required id missing from cache
-  /// (see [mergeJobRequiredSkillsCatalog]) so analysis still runs if Firestore skills are empty.
-  /// Otherwise uses legacy binary / tech-soft level match.
+  static List<String> getRequiredSkillNames(JobDocument job) =>
+      _getRequiredSkillNamesFromRole(job.toJobRole());
+
+  /// Main entry: computes [GapAnalysisResult] (match %, missing skills, recommendations, learning path).
+  ///
+  /// Routes to [_runLevelBasedGapAnalysis] when [JobDocument] (via [JobRole] projection) has
+  /// `requiredSkillsWithLevel`; otherwise [_runLegacyGapAnalysis]. Optional Firestore-backed
+  /// callbacks load course titles and URLs for the UI without embedding course data in the job.
   static Future<GapAnalysisResult> runGapAnalysis(
     Map<String, dynamic> userData,
-    JobRole job, {
+    JobDocument job, {
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
     fetchRecommendations,
     Future<Map<String, List<String>>> Function(
@@ -487,7 +506,8 @@ class GapAnalysisService {
     fetchCourseDetails,
     Map<String, Skill>? skillsCatalog,
   }) async {
-    if (job.requiredSkillsWithLevel.isEmpty && job.requiredSkills.isEmpty) {
+    final jobRole = job.toJobRole();
+    if (jobRole.requiredSkillsWithLevel.isEmpty && jobRole.requiredSkills.isEmpty) {
       return const GapAnalysisResult(
         matchedSkills: <String>[],
         missingSkills: <String>[],
@@ -507,11 +527,11 @@ class GapAnalysisService {
         missingSkillsByPriority: <String>[],
       );
     }
-    if (job.requiredSkillsWithLevel.isNotEmpty) {
+    if (jobRole.requiredSkillsWithLevel.isNotEmpty) {
       final merged = mergeJobRequiredSkillsCatalog(job, skillsCatalog);
       return _runLevelBasedGapAnalysis(
         userData,
-        job,
+        jobRole,
         merged,
         fetchRecommendations,
         fetchSmartRecommendations,
@@ -520,7 +540,7 @@ class GapAnalysisService {
     }
     return _runLegacyGapAnalysis(
       userData,
-      job,
+      jobRole,
       fetchRecommendations,
       fetchSmartRecommendations,
       fetchCourseDetails,
@@ -732,7 +752,7 @@ class GapAnalysisService {
     fetchCourseDetails,
   ) async {
     final user = collectAllUserSkillNames(userData);
-    final requiredSkills = getRequiredSkillNames(job);
+    final requiredSkills = _getRequiredSkillNamesFromRole(job);
     final userSkillNormalized = user.normalized;
 
     final technicalSkills = job.technicalSkillsWithLevel

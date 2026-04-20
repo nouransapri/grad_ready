@@ -20,6 +20,13 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   int _selectedTabIndex = 0;
   late Future<_AdminOverviewKpis> _kpisFuture;
   late Future<_AdminOverviewCharts> _chartsFuture;
+  static const int _chartsUsersSampleLimit = 500;
+  static const int _chartsJobsSampleLimit = 500;
+  static const Duration _overviewCacheTtl = Duration(minutes: 2);
+  static _AdminOverviewKpis? _kpisCache;
+  static DateTime? _kpisCacheAt;
+  static _AdminOverviewCharts? _chartsCache;
+  static DateTime? _chartsCacheAt;
   static const List<({String label, IconData icon})> _tabs = [
     (label: 'Overview', icon: Icons.dashboard_rounded),
     (label: 'Jobs', icon: Icons.work_outline_rounded),
@@ -36,33 +43,58 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   }
 
   Future<_AdminOverviewKpis> _loadLiveKpis() async {
-    final usersFuture = FirebaseFirestore.instance.collection('users').get();
-    final jobsFuture = FirebaseFirestore.instance.collection('jobs').get();
-    final skillsFuture = FirebaseFirestore.instance.collection('skills').get();
-
-    final usersSnap = await usersFuture;
-    final jobsSnap = await jobsFuture;
-    final skillsSnap = await skillsFuture;
-
-    var highDemandSkills = 0;
-    for (final doc in skillsSnap.docs) {
-      final demand = doc.data()['demandLevel']?.toString().trim() ?? '';
-      if (demand == 'Very High' || demand == 'High') {
-        highDemandSkills++;
-      }
+    final now = DateTime.now();
+    if (_kpisCache != null &&
+        _kpisCacheAt != null &&
+        now.difference(_kpisCacheAt!) < _overviewCacheTtl) {
+      return _kpisCache!;
     }
+    final usersCountFuture = FirebaseFirestore.instance.collection('users').count().get();
+    final jobsCountFuture = FirebaseFirestore.instance.collection('jobs').count().get();
+    final skillsCountFuture = FirebaseFirestore.instance.collection('skills').count().get();
+    final veryHighDemandFuture = FirebaseFirestore.instance
+        .collection('skills')
+        .where('demandLevel', isEqualTo: 'Very High')
+        .count()
+        .get();
+    final highDemandFuture = FirebaseFirestore.instance
+        .collection('skills')
+        .where('demandLevel', isEqualTo: 'High')
+        .count()
+        .get();
 
-    return _AdminOverviewKpis(
-      totalUsers: usersSnap.size,
-      activeJobs: jobsSnap.size,
-      totalSkills: skillsSnap.size,
-      highDemandSkills: highDemandSkills,
+    final usersCount = await usersCountFuture;
+    final jobsCount = await jobsCountFuture;
+    final skillsCount = await skillsCountFuture;
+    final veryHighDemand = await veryHighDemandFuture;
+    final highDemand = await highDemandFuture;
+
+    final result = _AdminOverviewKpis(
+      totalUsers: usersCount.count ?? 0,
+      activeJobs: jobsCount.count ?? 0,
+      totalSkills: skillsCount.count ?? 0,
+      highDemandSkills: (veryHighDemand.count ?? 0) + (highDemand.count ?? 0),
     );
+    _kpisCache = result;
+    _kpisCacheAt = now;
+    return result;
   }
 
   Future<_AdminOverviewCharts> _loadLiveCharts() async {
-    final jobsFuture = FirebaseFirestore.instance.collection('jobs').get();
-    final usersFuture = FirebaseFirestore.instance.collection('users').get();
+    final now = DateTime.now();
+    if (_chartsCache != null &&
+        _chartsCacheAt != null &&
+        now.difference(_chartsCacheAt!) < _overviewCacheTtl) {
+      return _chartsCache!;
+    }
+    final jobsFuture = FirebaseFirestore.instance
+        .collection('jobs')
+        .limit(_chartsJobsSampleLimit)
+        .get();
+    final usersFuture = FirebaseFirestore.instance
+        .collection('users')
+        .limit(_chartsUsersSampleLimit)
+        .get();
 
     final jobsSnap = await jobsFuture;
     final usersSnap = await usersFuture;
@@ -79,10 +111,10 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       return _BarDatum(label: e.key, value: e.value.toDouble());
     }).toList();
 
-    final now = DateTime.now();
+    final today = DateTime.now();
     final weekDays = List<DateTime>.generate(
       7,
-      (i) => DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - i)),
+      (i) => DateTime(today.year, today.month, today.day).subtract(Duration(days: 6 - i)),
     );
     final weekCounts = List<int>.filled(7, 0);
     for (final doc in usersSnap.docs) {
@@ -127,12 +159,15 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       _PieDatum(label: 'Other', percent: pct(other), color: const Color(0xFF2E7D32)),
     ];
 
-    return _AdminOverviewCharts(
+    final result = _AdminOverviewCharts(
       topRoles: topRoleBars,
       weeklyLabels: weekLabels,
       weeklyValues: weeklyValues,
       academicSegments: academicSegments,
     );
+    _chartsCache = result;
+    _chartsCacheAt = now;
+    return result;
   }
 
   static String _weekdayShortLabel(int weekday) {
@@ -259,7 +294,10 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
                           child: InkWell(
-                            onTap: () => setState(() => _selectedTabIndex = i),
+                            onTap: () {
+                              if (_selectedTabIndex == i) return;
+                              setState(() => _selectedTabIndex = i);
+                            },
                             borderRadius: BorderRadius.circular(10),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -420,7 +458,30 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                         ),
                         const SizedBox(height: 16),
                         // Quick Insights
-                        _QuickInsightsCard(),
+                        FutureBuilder<_AdminOverviewKpis>(
+                          future: _kpisFuture,
+                          builder: (context, kpisSnapshot) {
+                            return FutureBuilder<_AdminOverviewCharts>(
+                              future: _chartsFuture,
+                              builder: (context, chartsSnapshot) {
+                                final kpis = kpisSnapshot.data;
+                                final charts = chartsSnapshot.data;
+                                if (kpis == null || charts == null) {
+                                  return const _QuickInsightsCard(
+                                    bullets: <String>[
+                                      'Loading live insights from current dashboard data...',
+                                    ],
+                                    isLiveData: false,
+                                  );
+                                }
+                                return _QuickInsightsCard(
+                                  bullets: _buildLiveInsights(kpis, charts),
+                                  isLiveData: true,
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ],
                     ),
                   )
@@ -447,6 +508,30 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       if (remaining > 0 && remaining % 3 == 0) out.write(',');
     }
     return out.toString();
+  }
+
+  List<String> _buildLiveInsights(
+    _AdminOverviewKpis kpis,
+    _AdminOverviewCharts charts,
+  ) {
+    final insights = <String>[];
+    if (charts.topRoles.isNotEmpty) {
+      final topRole = charts.topRoles.first;
+      insights.add(
+        '${topRole.label} is the most represented role (${topRole.value.toInt()} entries).',
+      );
+    }
+    if (charts.academicSegments.isNotEmpty) {
+      final topSegment = charts.academicSegments
+          .reduce((a, b) => a.percent >= b.percent ? a : b);
+      insights.add(
+        '${topSegment.label} is the largest academic segment (${topSegment.percent.toStringAsFixed(0)}%).',
+      );
+    }
+    final weeklyTotal = charts.weeklyValues.fold<double>(0, (a, b) => a + b);
+    insights.add('Weekly assessments captured: ${weeklyTotal.toInt()} (last 7 days).');
+    insights.add('High demand skills tracked: ${_formatCount(kpis.highDemandSkills)}.');
+    return insights;
   }
 }
 
@@ -616,7 +701,20 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
         maxY: maxY,
-        barTouchData: BarTouchData(enabled: false),
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final label = (groupIndex >= 0 && groupIndex < data.length)
+                  ? data[groupIndex].label
+                  : 'Role';
+              return BarTooltipItem(
+                '$label\n${rod.toY.toInt()}',
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              );
+            },
+          ),
+        ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -717,7 +815,22 @@ class _WeeklyActivityChart extends StatelessWidget {
       LineChartData(
         minY: 0,
         maxY: maxY,
-        lineTouchData: const LineTouchData(enabled: false),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final index = spot.x.toInt();
+                final label =
+                    (index >= 0 && index < labels.length) ? labels[index] : 'Day';
+                return LineTooltipItem(
+                  '$label: ${spot.y.toInt()}',
+                  const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                );
+              }).toList();
+            },
+          ),
+        ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -846,15 +959,16 @@ class _AcademicLevelDonut extends StatelessWidget {
 }
 
 class _QuickInsightsCard extends StatelessWidget {
+  final List<String> bullets;
+  final bool isLiveData;
+
+  const _QuickInsightsCard({
+    required this.bullets,
+    required this.isLiveData,
+  });
+
   @override
   Widget build(BuildContext context) {
-    const bullets = [
-      'Frontend Developer is the most popular career choice (342 selections)',
-      'Machine Learning has the largest skill gap across users (42%)',
-      'User engagement peaks on Thursdays with 61 assessments',
-      '45% of users hold Bachelor\'s degrees',
-    ];
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -879,16 +993,25 @@ class _QuickInsightsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.bar_chart_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text(
+              const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              const Text(
                 'Quick Insights',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                isLiveData ? 'Live' : 'Loading',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

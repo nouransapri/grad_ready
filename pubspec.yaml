@@ -32,6 +32,7 @@ dependencies:
   path: ^1.9.1
   http: ^1.2.0
   xml: ^6.5.0
+  firebase_crashlytics: ^4.3.10
 
 dev_dependencies:
   flutter_test:
@@ -42,6 +43,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Declares bundled folders: `assets/logo.svg` (login/home/splash UI),
+  # `assets/data/skill_match_results.csv` (skill match screen). Keep folders small for release.
+  # Launcher/splash tools reference `assets/logo_app.png` — that file must exist for those steps.
   assets:
     - assets/
     - assets/data/

@@ -107,17 +107,6 @@ class AuthService {
     }
 
     try {
-      final methods = await _auth.fetchSignInMethodsForEmail(trimmed);
-
-      if (methods.isEmpty) {
-        return false;
-      }
-
-      const emailPassword = 'password';
-      if (!methods.contains(emailPassword)) {
-        return false;
-      }
-
       final actionCodeSettings = ActionCodeSettings(
         url: 'https://gradready.page.link/reset',
         handleCodeInApp: true,
@@ -132,8 +121,13 @@ class AuthService {
         actionCodeSettings: actionCodeSettings,
       );
       return true;
-    } on FirebaseAuthException {
-      return false;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-email') {
+        return false;
+      }
+      // Treat unknown/user-not-found as success response to avoid leaking account existence
+      // and to keep flow resilient when provider-enumeration is restricted.
+      return true;
     } catch (_) {
       return false;
     }

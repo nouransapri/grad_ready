@@ -40,12 +40,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<bool> _isCurrentUserAdmin(User user) async {
     try {
-      final token = await user.getIdTokenResult(true);
+      // Cached token works offline; force-refresh would block without network.
+      final token =
+          await user.getIdTokenResult(false).timeout(const Duration(seconds: 8));
       if (token.claims?['admin'] == true) return true;
       final adminsSnap = await FirebaseFirestore.instance
           .collection('admins')
           .doc(user.uid)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 8));
       return adminsSnap.exists;
     } catch (_) {
       return false;
@@ -55,27 +58,48 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _goAfterLogin() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || !mounted) return;
-    final isAdmin = await _isCurrentUserAdmin(user);
-    if (!mounted) return;
-    if (isAdmin) {
+    try {
+      final isAdmin = await _isCurrentUserAdmin(user).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => false,
+      );
+      if (!mounted) return;
+      if (isAdmin) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AdminOverviewScreen()),
+          (_) => false,
+        );
+        return;
+      }
+
+      final profile = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 8));
+      if (!mounted) return;
+      final completed = profile.data()?['profile_completed'] == true;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AdminOverviewScreen()),
+        MaterialPageRoute(
+          builder: (_) =>
+              completed ? const HomePage() : const CreateProfileScreen(),
+        ),
         (_) => false,
       );
-      return;
+    } on TimeoutException {
+      if (!mounted) return;
+      _showError('Login succeeded, but loading profile took too long.');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (_) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (_) => false,
+      );
     }
-    final profile = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    if (!mounted) return;
-    final completed = profile.data()?['profile_completed'] == true;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => completed ? const HomePage() : const CreateProfileScreen(),
-      ),
-      (_) => false,
-    );
   }
 
   // Firebase sign-in
@@ -92,18 +116,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _emailLoading = true);
     try {
-      final methods = await FirebaseAuth.instance
-          .fetchSignInMethodsForEmail(email)
-          .timeout(const Duration(seconds: 10));
-      if (methods.isEmpty) {
-        _showError('No account found for this email.');
-        return;
-      }
-      if (!methods.contains('password')) {
-        _showError('This account uses Google sign-in. Please continue with Google.');
-        return;
-      }
-
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -122,6 +134,15 @@ class _LoginScreenState extends State<LoginScreen> {
         message = "No user found for that email.";
       } else if (e.code == 'wrong-password') {
         message = "Wrong password provided.";
+      } else if (e.code == 'invalid-email') {
+        message = 'Invalid email address.';
+      } else if (e.code == 'user-disabled') {
+        message = 'This account has been disabled.';
+      } else if (e.code == 'too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
+      } else if (e.code == 'account-exists-with-different-credential') {
+        message =
+            'This email is linked to another sign-in method. Try Google sign-in.';
       } else if (e.code == 'invalid-credential') {
         message = 'Invalid email or password.';
       } else if (e.code == 'network-request-failed') {
@@ -162,6 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await _goAfterLogin();
     } on GoogleSignInCanceledException {
       if (!mounted) return;
+      _showError('Google sign-in was cancelled.');
     } catch (e) {
       if (!mounted) return;
       _showError(

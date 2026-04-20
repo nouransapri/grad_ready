@@ -1,13 +1,14 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import '../services/profile_photo_service.dart';
 import 'create_profile.dart';
 import 'splash_screen.dart';
@@ -24,7 +25,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   static const _gradientEnd = Color(0xFF9226FF);
   static const _purple = Color(0xFF9226FF);
 
-  late Future<DocumentSnapshot?> _profileFuture;
+  final FirestoreService _firestore = FirestoreService();
+  late Future<UserModel?> _profileFuture;
   bool _uploadingPhoto = false;
 
   @override
@@ -33,11 +35,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     _profileFuture = _loadProfileFuture();
   }
 
-  Future<DocumentSnapshot?> _loadProfileFuture() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return Future.value(null);
-    return FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-  }
+  Future<UserModel?> _loadProfileFuture() => _firestore.getCurrentUserModel();
 
   void _refreshProfile() {
     setState(() => _profileFuture = _loadProfileFuture());
@@ -46,18 +44,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Future<void> _refreshData() async {
     _refreshProfile();
     await _profileFuture;
-  }
-
-  List<Map<String, dynamic>> _safeMapList(dynamic raw) {
-    if (raw is! List) return [];
-    return raw
-        .whereType<Map>()
-        .map(
-          (e) => Map<String, dynamic>.from(
-            e.map((k, v) => MapEntry(k.toString(), v)),
-          ),
-        )
-        .toList();
   }
 
   @override
@@ -69,7 +55,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: FutureBuilder<DocumentSnapshot?>(
+      body: FutureBuilder<UserModel?>(
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -97,18 +83,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               ),
             );
           }
-          if (!snapshot.hasData || snapshot.data == null || !snapshot.data!.exists) {
+          if (!snapshot.hasData || snapshot.data == null) {
             return _buildBody(context, null);
           }
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
-          return _buildBody(context, data);
+          return _buildBody(context, snapshot.data);
         },
       ),
     );
   }
 
-  String? _effectivePhotoUrl(Map<String, dynamic>? data) {
-    final fromDoc = data?['photoUrl']?.toString().trim();
+  String? _effectivePhotoUrl(UserModel? userModel) {
+    final fromDoc = userModel?.photoUrl.trim();
     if (fromDoc != null && fromDoc.isNotEmpty) return fromDoc;
     return FirebaseAuth.instance.currentUser?.photoURL;
   }
@@ -175,17 +160,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
   }
 
-  Widget _buildBody(BuildContext context, Map<String, dynamic>? data) {
-    final name = data?['full_name'] as String? ?? '—';
-    final university = data?['university'] as String? ?? '';
-    final major = data?['major'] as String? ?? '';
-    final academicYear = data?['academic_year'] as String? ?? '';
-    final gpa = data?['gpa'] as String? ?? '';
-    final skills = _safeMapList(data?['skills']);
-    final internships = _safeMapList(data?['internships']);
-    final clubs = _safeMapList(data?['clubs']);
-    final projects = _safeMapList(data?['projects']);
-    final photoUrl = _effectivePhotoUrl(data);
+  Widget _buildBody(BuildContext context, UserModel? userModel) {
+    final name = userModel?.fullName.isNotEmpty == true ? userModel!.fullName : '—';
+    final university = userModel?.university ?? '';
+    final major = userModel?.major ?? '';
+    final academicYear = userModel?.academicYear ?? '';
+    final gpa = userModel?.gpa ?? '';
+    final skills = userModel?.skills.map((s) => s.toMap()).toList() ?? const <Map<String, dynamic>>[];
+    final internships = userModel?.internships.map((i) => i.toMap()).toList() ?? const <Map<String, dynamic>>[];
+    final clubs = userModel?.clubs.map((c) => c.toMap()).toList() ?? const <Map<String, dynamic>>[];
+    final projects = userModel?.projects.map((p) => p.toMap()).toList() ?? const <Map<String, dynamic>>[];
+    final photoUrl = _effectivePhotoUrl(userModel);
 
     return RefreshIndicator(
       onRefresh: _refreshData,
@@ -797,16 +782,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> _shareProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    final data = snap.data();
-    final name = data?['full_name']?.toString().trim();
-    final major = data?['major']?.toString().trim();
-    final uni = data?['university']?.toString().trim();
+    final model = await _firestore.getCurrentUserModel();
+    final name = model?.fullName.trim();
+    final major = model?.major.trim();
+    final uni = model?.university.trim();
     final text = [
       if (name != null && name.isNotEmpty) name,
       if (major != null && major.isNotEmpty) 'Major: $major',

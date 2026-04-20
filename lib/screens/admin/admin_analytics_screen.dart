@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../app_theme.dart';
-import '../../models/job_role.dart';
+import '../../models/job_document.dart';
 import '../../services/firestore_service.dart';
 import '../../services/gap_analysis_service.dart';
 import '../../widgets/error_boundary.dart';
@@ -43,7 +43,7 @@ String _analysisTitle(Map<String, dynamic> user) {
 
 List<(String, double)> computeMostSelectedJobRoles(
   List<Map<String, dynamic>> users,
-  List<JobRole> jobs, {
+  List<JobDocument> jobs, {
   int top = 7,
 }) {
   final countByTitle = <String, int>{};
@@ -105,17 +105,7 @@ List<(String, int)> computeMostFrequentSkills(
     final skills = u['skills'] as List<dynamic>?;
     if (skills == null) continue;
     for (final s in skills) {
-      String name;
-      if (s is String) {
-        name = s.trim();
-      } else if (s is Map) {
-        name = (s['name']?.toString() ?? '').trim();
-        if (name.isEmpty) {
-          name = (s['skillId']?.toString() ?? '').trim();
-        }
-      } else {
-        continue;
-      }
+      final name = _skillNameOrId(s);
       if (name.isEmpty) continue;
       final norm = GapAnalysisService.normalize(name);
       if (norm.isEmpty) continue;
@@ -127,8 +117,16 @@ List<(String, int)> computeMostFrequentSkills(
   return sorted.take(top).map((e) => (e.key, e.value)).toList();
 }
 
+String _skillNameOrId(dynamic raw) {
+  if (raw is String) return raw.trim();
+  if (raw is! Map) return '';
+  final name = (raw['name']?.toString() ?? '').trim();
+  if (name.isNotEmpty) return name;
+  return (raw['skillId']?.toString() ?? '').trim();
+}
+
 /// 4. Job Category Distribution: from jobs collection, group by category, percent of total.
-List<(String, int)> computeCategoryDistribution(List<JobRole> jobs) {
+List<(String, int)> computeCategoryDistribution(List<JobDocument> jobs) {
   final byCat = <String, int>{};
   for (final j in jobs) {
     final cat = j.category.trim().isEmpty ? 'Other' : j.category;
@@ -220,11 +218,9 @@ String _monthShort(int m) {
 }
 
 String computeActivityTrendMessage(
-  List<Map<String, dynamic>> users,
+  List<FlSpot> spots,
   int periodIndex,
 ) {
-  final series = computeActivityTrendSeries(users, periodIndex);
-  final spots = series.spots;
   if (spots.length < 2) {
     return 'Trend: Add more activity data to see trends.';
   }
@@ -251,7 +247,7 @@ String computeActivityTrendMessage(
 /// 6. Key Insights Summary: generated from real analytics.
 List<String> computeKeyInsights({
   required List<Map<String, dynamic>> users,
-  required List<JobRole> jobs,
+  required List<JobDocument> jobs,
   required List<(String, double)> jobRolesBarData,
   required double totalSelections,
   required List<({String label, double percent, int count, Color color})>
@@ -301,12 +297,12 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
 
   final FirestoreService _firestore = FirestoreService();
   List<Map<String, dynamic>>? _users;
-  List<JobRole>? _jobs;
+  List<JobDocument>? _jobs;
   Object? _usersError;
   Object? _jobsError;
 
   StreamSubscription<List<Map<String, dynamic>>>? _usersSub;
-  StreamSubscription<List<JobRole>>? _jobsSub;
+  StreamSubscription<List<JobDocument>>? _jobsSub;
 
   @override
   void initState() {
@@ -329,7 +325,7 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
         }
       },
     );
-    _jobsSub = _firestore.getJobs().listen(
+    _jobsSub = _firestore.getJobDocuments().listen(
       (list) {
         if (mounted) {
           setState(() {
@@ -341,7 +337,7 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
       onError: (Object e) {
         if (mounted) {
           setState(() {
-            _jobs = <JobRole>[];
+            _jobs = <JobDocument>[];
             _jobsError = e;
           });
         }
@@ -390,7 +386,10 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
       categoryDistribution = [];
     }
     final activitySeries = computeActivityTrendSeries(users, _periodIndex);
-    final activityTrendMessage = computeActivityTrendMessage(users, _periodIndex);
+    final activityTrendMessage = computeActivityTrendMessage(
+      activitySeries.spots,
+      _periodIndex,
+    );
     final keyInsights = computeKeyInsights(
       users: users,
       jobs: jobs,
@@ -432,7 +431,10 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
               ),
             _AnalyticsPeriodFilterCard(
               periodIndex: _periodIndex,
-              onPeriodChanged: (i) => setState(() => _periodIndex = i),
+              onPeriodChanged: (i) {
+                if (_periodIndex == i) return;
+                setState(() => _periodIndex = i);
+              },
             ),
             const SizedBox(height: 16),
             _MostSelectedJobRolesAnalyticsCard(
@@ -729,7 +731,7 @@ class _MostSelectedJobRolesAnalyticsCard extends StatelessWidget {
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
                       maxY: maxY,
-                      barTouchData: BarTouchData(enabled: false),
+                      barTouchData: BarTouchData(enabled: true),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
@@ -903,7 +905,7 @@ class _AssessmentActivityTrendCard extends StatelessWidget {
                     LineChartData(
                       minY: 0,
                       maxY: maxY,
-                      lineTouchData: const LineTouchData(enabled: false),
+                      lineTouchData: const LineTouchData(enabled: true),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(

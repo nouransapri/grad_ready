@@ -8,6 +8,14 @@ class CachedDataService {
 
   /// Cache key for [FirestoreService.getJobsOnce].
   static const String keyJobsOnce = 'firestore_jobs_once';
+  static const String _keyJobDocumentsOncePrefix = 'firestore_job_documents_once_';
+  static const String _keyUsersOncePrefix = 'firestore_users_once_';
+  static const String _keyUsersSearchPrefix = 'firestore_users_search_';
+
+  static String keyJobDocumentsOnce(int limit) => '$_keyJobDocumentsOncePrefix$limit';
+  static String keyUsersOnce(int limit) => '$_keyUsersOncePrefix$limit';
+  static String keyUsersSearch({required String query, required int limit}) =>
+      '$_keyUsersSearchPrefix${query.trim().toLowerCase()}_$limit';
 
   static Future<T> getCached<T extends Object>(
     String key,

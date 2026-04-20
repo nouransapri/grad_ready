@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../models/job_document.dart';
-import '../../models/job_role.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/skill_utils.dart';
@@ -36,7 +35,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
   List<JobSkillItem> _softSkills = [];
   List<JobSkillItem> _tools = [];
   final FirestoreService _firestore = FirestoreService();
-  late final Stream<List<JobRole>> _jobsStream = _firestore.getJobs();
+  late final Stream<List<JobDocument>> _jobsStream = _firestore.getJobDocuments();
   bool _saving = false;
   JobDocument? get _editingJob => widget.job;
   bool get _isCreate => widget.job == null;
@@ -112,7 +111,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
         children: [
           _createGradientHeader(context, topPadding, primary, secondary),
           Expanded(
-            child: StreamBuilder<List<JobRole>>(
+            child: StreamBuilder<List<JobDocument>>(
               stream: _jobsStream,
               builder: (context, snapshot) {
                 final jobs = snapshot.data ?? [];
@@ -122,7 +121,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
                     .toSet()
                     .toList()
                   ..sort();
-                final highDemandCount = jobs.where((j) => j.isHighDemand).length;
+                final highDemandCount = jobs.where((j) => j.isActive).length;
 
                 return SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),

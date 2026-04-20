@@ -1,40 +1,138 @@
 import 'package:flutter/material.dart';
-import '../models/job_role.dart';
+import '../models/job_document.dart';
+import '../services/firestore_service.dart';
 import 'skills_gap_analysis_screen.dart';
 
+/// Loads the latest job document from Firestore so admin edits sync while viewing.
 class JobRequirementsScreen extends StatelessWidget {
-  final JobRole job;
+  final JobDocument job;
 
   const JobRequirementsScreen({super.key, required this.job});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final firestore = FirestoreService();
+    return StreamBuilder<JobDocument?>(
+      stream: firestore.getJobStream(job.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF0F0F0),
+            body: Center(
+              child: CircularProgressIndicator(color: theme.colorScheme.primary),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF0F0F0),
+            appBar: AppBar(
+              title: const Text('Job requirements'),
+              backgroundColor: const Color(0xFF2A6CFF),
+              foregroundColor: Colors.white,
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_off_outlined,
+                      size: 48,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Could not load job details. Check your connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go back'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        final live = snapshot.data;
+        if (live == null) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF0F0F0),
+            appBar: AppBar(
+              title: const Text('Job requirements'),
+              backgroundColor: const Color(0xFF2A6CFF),
+              foregroundColor: Colors.white,
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.work_off_outlined,
+                      size: 48,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No data available for this job.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go back'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return _JobRequirementsContent(job: live);
+      },
+    );
+  }
+}
+
+class _JobRequirementsContent extends StatelessWidget {
+  final JobDocument job;
+
+  const _JobRequirementsContent({required this.job});
 
   static const _gradientStart = Color(0xFF2A6CFF);
   static const _gradientEnd = Color(0xFF9226FF);
   static const _purple = Color(0xFF9226FF);
   static const _blue = Color(0xFF2A6CFF);
 
-  List<SkillProficiency> get _technicalSkills {
-    if (job.technicalSkillsWithLevel.isNotEmpty) {
-      return job.technicalSkillsWithLevel;
-    }
-    final n = (job.requiredSkills.length / 2).ceil();
-    return job.requiredSkills
-        .take(n)
-        .map((s) => SkillProficiency(name: s, percent: 70))
-        .toList();
-  }
+  List<JobSkillItem> get _technicalSkills => job.technicalSkills;
 
-  List<SkillProficiency> get _softSkills {
-    if (job.softSkillsWithLevel.isNotEmpty) return job.softSkillsWithLevel;
-    final n = (job.requiredSkills.length / 2).ceil();
-    return job.requiredSkills
-        .skip(n)
-        .map((s) => SkillProficiency(name: s, percent: 70))
-        .toList();
-  }
+  List<JobSkillItem> get _softSkills => job.softSkills;
 
   List<String> get _criticalSkills {
-    if (job.criticalSkills.isNotEmpty) return job.criticalSkills;
-    return job.requiredSkills.take(4).toList();
+    final all = [...job.technicalSkills, ...job.softSkills, ...job.tools];
+    final critical = all
+        .where((s) => s.priority.toLowerCase() == 'critical')
+        .map((s) => s.name.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+    if (critical.isNotEmpty) return critical;
+    return all
+        .map((s) => s.name.trim())
+        .where((s) => s.isNotEmpty)
+        .take(4)
+        .toList();
   }
 
   @override
@@ -63,6 +161,38 @@ class JobRequirementsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildJobRequirementsSection(context),
+                          if (_technicalSkills.isEmpty &&
+                              _softSkills.isEmpty &&
+                              job.tools.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                              child: Material(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'No skill requirements are listed for this role yet.',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade800,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           _buildTechnicalSkills(),
                           _buildSoftSkills(),
                           _buildCriticalSkillsSection(),
@@ -194,7 +324,7 @@ class JobRequirementsScreen extends StatelessWidget {
             runSpacing: 8,
             children: [
               _headerTag(job.category, const Color(0xFFB0BEC5)),
-              if (job.isHighDemand)
+              if (job.isActive)
                 _headerTag(
                   'High Demand',
                   const Color(0xFFE8F5E9),
@@ -224,7 +354,7 @@ class JobRequirementsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        job.salaryRangeShort,
+                        _salaryRangeShort(job),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -249,7 +379,7 @@ class JobRequirementsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${job.requiredSkillsCount}',
+                        '${_requiredSkillsCount(job)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -412,7 +542,9 @@ class JobRequirementsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ...list.map((s) => _buildSkillCard(s.name, s.percent, _purple)),
+          ...list.map(
+            (s) => _buildSkillCard(s.name, s.requiredLevel.clamp(0, 100), _purple),
+          ),
         ],
       ),
     );
@@ -441,7 +573,9 @@ class JobRequirementsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ...list.map((s) => _buildSkillCard(s.name, s.percent, _blue)),
+          ...list.map(
+            (s) => _buildSkillCard(s.name, s.requiredLevel.clamp(0, 100), _blue),
+          ),
         ],
       ),
     );
@@ -581,5 +715,17 @@ class JobRequirementsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _salaryRangeShort(JobDocument job) {
+    final min = job.salary.minimum;
+    final max = job.salary.maximum;
+    if (min <= 0 && max <= 0) return 'Not specified';
+    return '\$${(min / 1000).round()}K - \$${(max / 1000).round()}K';
+  }
+
+  static int _requiredSkillsCount(JobDocument job) {
+    if (job.totalSkillsCount > 0) return job.totalSkillsCount;
+    return job.technicalSkills.length + job.softSkills.length + job.tools.length;
   }
 }

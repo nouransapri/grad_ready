@@ -243,47 +243,28 @@ class JobDocument {
     this.averageRequiredLevel = 0,
   });
 
+  /// Structured [JobRequiredSkill] rows (technical + soft + tools), same order as [toJobRole].
+  List<JobRequiredSkill> get gapRequiredSkillsWithLevel {
+    return _gapRoleParts(this).requiredWithLevel;
+  }
+
+  /// Names marked Critical on the job (for gap UI / legacy critical tags).
+  List<String> get gapCriticalSkillNames => _gapRoleParts(this).criticalNames;
+
+  /// Technical + tools as legacy [SkillProficiency] rows (for legacy gap UI path).
+  List<SkillProficiency> get gapTechnicalProficiencies =>
+      _gapRoleParts(this).technicalWithLevel;
+
+  /// Soft skills as legacy [SkillProficiency] rows.
+  List<SkillProficiency> get gapSoftProficiencies =>
+      _gapRoleParts(this).softWithLevel;
+
+  /// Ordered flat names (technical, soft, tools) for legacy string-only jobs.
+  List<String> get gapOrderedRequiredNames => _gapRoleParts(this).orderedNames;
+
   /// Converts to legacy JobRole for gap analysis and existing UI.
   JobRole toJobRole() {
-    final allSkills = <JobRequiredSkill>[];
-    final requiredNames = <String>[];
-    final criticalNames = <String>[];
-    final technicalWithLevel = <SkillProficiency>[];
-    final softWithLevel = <SkillProficiency>[];
-    for (final s in technicalSkills) {
-      allSkills.add(JobRequiredSkill(
-        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
-        requiredLevel: s.requiredLevel,
-        importance: _weightToImportance(s.weight),
-        weight: s.weight.clamp(1, 10),
-      ));
-      requiredNames.add(s.name);
-      technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
-      if (s.priority == 'Critical') criticalNames.add(s.name);
-    }
-    for (final s in softSkills) {
-      allSkills.add(JobRequiredSkill(
-        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
-        requiredLevel: s.requiredLevel,
-        importance: _weightToImportance(s.weight),
-        weight: s.weight.clamp(1, 10),
-      ));
-      requiredNames.add(s.name);
-      softWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
-      if (s.priority == 'Critical') criticalNames.add(s.name);
-    }
-    for (final s in tools) {
-      allSkills.add(JobRequiredSkill(
-        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
-        requiredLevel: s.requiredLevel,
-        importance: _weightToImportance(s.weight),
-        weight: s.weight.clamp(1, 10),
-      ));
-      requiredNames.add(s.name);
-      // Legacy model has no dedicated "tools" section; include them under technical.
-      technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
-      if (s.priority == 'Critical') criticalNames.add(s.name);
-    }
+    final parts = _gapRoleParts(this);
     final salaryMinK = salary.maximum > 0 ? (salary.minimum / 1000).round() : 0;
     final salaryMaxK = salary.maximum > 0 ? (salary.maximum / 1000).round() : 0;
     return JobRole(
@@ -294,11 +275,11 @@ class JobDocument {
       isHighDemand: isActive,
       salaryMinK: salaryMinK,
       salaryMaxK: salaryMaxK,
-      requiredSkills: requiredNames,
-      requiredSkillsWithLevel: allSkills,
-      technicalSkillsWithLevel: technicalWithLevel,
-      softSkillsWithLevel: softWithLevel,
-      criticalSkills: criticalNames,
+      requiredSkills: parts.orderedNames,
+      requiredSkillsWithLevel: parts.requiredWithLevel,
+      technicalSkillsWithLevel: parts.technicalWithLevel,
+      softSkillsWithLevel: parts.softWithLevel,
+      criticalSkills: parts.criticalNames,
     );
   }
 
@@ -407,4 +388,65 @@ class JobDocument {
   static bool isNewFormat(Map<String, dynamic> data) {
     return data['technicalSkills'] is List && data['title'] != null;
   }
+}
+
+/// Shared projection for gap analysis / [JobDocument.toJobRole] (single source of truth).
+({
+  List<JobRequiredSkill> requiredWithLevel,
+  List<String> criticalNames,
+  List<SkillProficiency> technicalWithLevel,
+  List<SkillProficiency> softWithLevel,
+  List<String> orderedNames,
+}) _gapRoleParts(JobDocument d) {
+  final allSkills = <JobRequiredSkill>[];
+  final requiredNames = <String>[];
+  final criticalNames = <String>[];
+  final technicalWithLevel = <SkillProficiency>[];
+  final softWithLevel = <SkillProficiency>[];
+  for (final s in d.technicalSkills) {
+    allSkills.add(
+      JobRequiredSkill(
+        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
+        requiredLevel: s.requiredLevel,
+        importance: JobDocument._weightToImportance(s.weight),
+        weight: s.weight.clamp(1, 10),
+      ),
+    );
+    requiredNames.add(s.name);
+    technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
+    if (s.priority == 'Critical') criticalNames.add(s.name);
+  }
+  for (final s in d.softSkills) {
+    allSkills.add(
+      JobRequiredSkill(
+        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
+        requiredLevel: s.requiredLevel,
+        importance: JobDocument._weightToImportance(s.weight),
+        weight: s.weight.clamp(1, 10),
+      ),
+    );
+    requiredNames.add(s.name);
+    softWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
+    if (s.priority == 'Critical') criticalNames.add(s.name);
+  }
+  for (final s in d.tools) {
+    allSkills.add(
+      JobRequiredSkill(
+        skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
+        requiredLevel: s.requiredLevel,
+        importance: JobDocument._weightToImportance(s.weight),
+        weight: s.weight.clamp(1, 10),
+      ),
+    );
+    requiredNames.add(s.name);
+    technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
+    if (s.priority == 'Critical') criticalNames.add(s.name);
+  }
+  return (
+    requiredWithLevel: allSkills,
+    criticalNames: criticalNames,
+    technicalWithLevel: technicalWithLevel,
+    softWithLevel: softWithLevel,
+    orderedNames: requiredNames,
+  );
 }

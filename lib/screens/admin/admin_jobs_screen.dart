@@ -1,7 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../models/job_role.dart';
+import '../../models/job_document.dart';
 import '../../services/firestore_service.dart';
 import 'admin_create_job_role_screen.dart';
 
@@ -29,7 +30,7 @@ class AdminJobsContent extends StatefulWidget {
 class _AdminJobsContentState extends State<AdminJobsContent> {
   final FirestoreService _firestore = FirestoreService();
   /// Stable stream so [StreamBuilder] does not reset subscription every build.
-  late final Stream<List<JobRole>> _jobsStream = _firestore.getJobs();
+  late final Stream<List<JobDocument>> _jobsStream = _firestore.getJobDocuments();
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All Categories';
   Timer? _searchDebounce;
@@ -53,7 +54,7 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     const horizontalPadding = 16.0;
 
-    return StreamBuilder<List<JobRole>>(
+    return StreamBuilder<List<JobDocument>>(
       stream: _jobsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -77,7 +78,7 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                 .toSet()
                 .toList()
               ..sort();
-        final highDemandCount = jobs.where((j) => j.isHighDemand).length;
+        final highDemandCount = jobs.where((j) => j.isActive).length;
         final filtered = _filterJobs(jobs);
         const displayCount = 15;
         final listCount =
@@ -165,58 +166,72 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text(
-                              'Replace all jobs with 15 new roles?',
-                            ),
-                            content: const Text(
-                              'This deletes every job in the database and replaces them with 15 new roles (technical, soft skills, and tools per role). This cannot be undone.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Cancel'),
+                  if (kDebugMode)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          if (!kDebugMode) return;
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text(
+                                'Replace all jobs with 15 new roles?',
                               ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Yes, replace'),
+                              content: const Text(
+                                'This deletes every job in the database and replaces them with 15 new roles (technical, soft skills, and tools per role). This cannot be undone.',
                               ),
-                            ],
-                          ),
-                        );
-                        if (confirm != true || !context.mounted) return;
-                        try {
-                          await FirestoreService.clearAllJobsAndSeed();
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Done: all jobs replaced with 15 new roles.',
-                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Yes, replace'),
+                                ),
+                              ],
                             ),
                           );
-                        } catch (e) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Update failed. Sign in as admin and ensure the admin account has the custom claim (admin). Error: $e',
+                          if (confirm != true || !context.mounted) return;
+                          try {
+                            await FirestoreService.clearAllJobsAndSeed();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Done: all jobs replaced with 15 new roles.',
+                                ),
                               ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Replace all jobs with 15 new roles'),
+                            );
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Update failed. Sign in as admin and ensure the admin account has the custom claim (admin). Error: $e',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Replace all jobs with 15 new roles'),
+                      ),
                     ),
-                  ),
+                  if (!kDebugMode)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Danger actions are disabled in production mode.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 18),
                   Container(
                     decoration: BoxDecoration(
@@ -344,26 +359,17 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
     );
   }
 
-  Future<void> _openEditJob(BuildContext context, JobRole job) async {
-    final doc = await _firestore.getJobDocumentById(job.id);
+  Future<void> _openEditJob(BuildContext context, JobDocument job) async {
     if (!context.mounted) return;
-    if (doc == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This job uses the legacy format. Edit is only supported for jobs created with the new format.'),
-        ),
-      );
-      return;
-    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AdminCreateJobRoleScreen(job: doc),
+        builder: (_) => AdminCreateJobRoleScreen(job: job),
       ),
     );
   }
 
-  List<JobRole> _filterJobs(List<JobRole> jobs) {
+  List<JobDocument> _filterJobs(List<JobDocument> jobs) {
     var list = jobs;
     final q = _searchController.text.trim().toLowerCase();
     if (q.isNotEmpty) {
@@ -427,14 +433,19 @@ class _JobsStatCard extends StatelessWidget {
 }
 
 class _JobRoleCard extends StatelessWidget {
-  final JobRole job;
+  final JobDocument job;
   final VoidCallback onEdit;
 
   const _JobRoleCard({required this.job, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
-    final count = job.requiredSkillsCount;
+    final count = job.totalSkillsCount > 0
+        ? job.totalSkillsCount
+        : (job.technicalSkills.length + job.softSkills.length + job.tools.length);
+    final salaryRange = job.salary.maximum > 0
+        ? '\$${(job.salary.minimum / 1000).round()}K - \$${(job.salary.maximum / 1000).round()}K'
+        : 'Not specified';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -496,9 +507,9 @@ class _JobRoleCard extends StatelessWidget {
                 _chipCategoryText,
               ),
               _chip(
-                job.isHighDemand ? 'High Demand' : 'Growing Demand',
-                job.isHighDemand ? _chipHighDemandBg : _chipGrowingBg,
-                job.isHighDemand ? _chipHighDemandText : _chipGrowingText,
+                job.isActive ? 'High Demand' : 'Growing Demand',
+                job.isActive ? _chipHighDemandBg : _chipGrowingBg,
+                job.isActive ? _chipHighDemandText : _chipGrowingText,
               ),
               _chip('$count skills', _chipSkillsBg, _chipSkillsText),
             ],
@@ -511,7 +522,7 @@ class _JobRoleCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              job.salaryRangeShort,
+              salaryRange,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

@@ -97,13 +97,23 @@ class PushNotificationService {
   static Future<void> _persistToken(String token) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
-      {
-        'fcmToken': token,
-        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+            {
+              'fcmToken': token,
+              'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+    } catch (e, st) {
+      // Offline / permission-denied: token sync can fail without breaking startup.
+      developer.log(
+        'FCM persistToken failed: $e',
+        name: 'PushNotificationService',
+        error: e,
+        stackTrace: st,
+      );
+    }
   }
 
   static Future<void> _onForegroundMessage(RemoteMessage message) async {

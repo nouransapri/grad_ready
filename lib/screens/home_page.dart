@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/insight_model.dart';
@@ -85,8 +86,9 @@ class _HomePageState extends State<HomePage> {
           }
 
           final data = snapshot.data?.data();
-          final stats = _DashboardStats.fromUserData(data);
-          final userName = data?['full_name']?.toString().trim();
+          final userModel = data == null ? null : UserModel.fromFirestore(user.uid, data);
+          final stats = _DashboardStats.fromUserData(data, userModel);
+          final userName = userModel?.fullName.trim();
 
           return Column(
             children: [
@@ -161,14 +163,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// 6 sections: Academic Info, Courses, Skills, Internships, Clubs, Projects.
-  static int _profileCompletionPercentage(Map<String, dynamic>? data) {
-    if (data == null) return 0;
+  static int _profileCompletionPercentage(
+    Map<String, dynamic>? data,
+    UserModel? userModel,
+  ) {
+    if (data == null && userModel == null) return 0;
     int completed = 0;
-    final name = (data['full_name'] as String?)?.trim().isNotEmpty ?? false;
-    final university =
-        (data['university'] as String?)?.trim().isNotEmpty ?? false;
-    final major = (data['major'] as String?)?.trim().isNotEmpty ?? false;
-    final year = data['academic_year'] as String?;
+    final name = userModel?.fullName.trim().isNotEmpty == true;
+    final university = userModel?.university.trim().isNotEmpty == true;
+    final major = userModel?.major.trim().isNotEmpty == true;
+    final year = userModel?.academicYear;
     final academicOk =
         name &&
         university &&
@@ -177,16 +181,22 @@ class _HomePageState extends State<HomePage> {
         year.isNotEmpty &&
         year != 'Select year';
     if (academicOk) completed++;
-    final courses = data['added_courses'] as List?;
+    final courses = data?['added_courses'] as List?;
     if (courses != null && courses.isNotEmpty) completed++;
-    final skills = data['skills'] as List?;
-    if (skills != null && skills.isNotEmpty) completed++;
-    final internships = data['internships'] as List?;
-    if (internships != null && internships.isNotEmpty) completed++;
-    final clubs = data['clubs'] as List?;
-    if (clubs != null && clubs.isNotEmpty) completed++;
-    final projects = data['projects'] as List?;
-    if (projects != null && projects.isNotEmpty) completed++;
+    final skillsCount =
+        userModel?.skills.length ?? (data?['skills'] as List?)?.length ?? 0;
+    if (skillsCount > 0) completed++;
+    final internshipsCount =
+        userModel?.internships.length ??
+        (data?['internships'] as List?)?.length ??
+        0;
+    if (internshipsCount > 0) completed++;
+    final clubsCount =
+        userModel?.clubs.length ?? (data?['clubs'] as List?)?.length ?? 0;
+    if (clubsCount > 0) completed++;
+    final projectsCount =
+        userModel?.projects.length ?? (data?['projects'] as List?)?.length ?? 0;
+    if (projectsCount > 0) completed++;
     if (completed == 0) return 0;
     return ((completed / 6) * 100).round();
   }
@@ -1122,7 +1132,10 @@ class _DashboardStats {
     required this.lastAnalysis,
   });
 
-  factory _DashboardStats.fromUserData(Map<String, dynamic>? data) {
+  factory _DashboardStats.fromUserData(
+    Map<String, dynamic>? data,
+    UserModel? userModel,
+  ) {
     if (data == null) {
       return const _DashboardStats(
         skillsCount: 0,
@@ -1131,7 +1144,8 @@ class _DashboardStats {
         lastAnalysis: 'N/A',
       );
     }
-    final skills = data['skills'] as List?;
+    final skillsCount =
+        userModel?.skills.length ?? (data['skills'] as List?)?.length ?? 0;
     final courses = data['added_courses'] as List?;
     final lastAnalysisValue = data['last_analysis'];
     String resolvedLastAnalysis() {
@@ -1146,10 +1160,11 @@ class _DashboardStats {
       return 'N/A';
     }
     return _DashboardStats(
-      skillsCount: skills?.length ?? 0,
+      skillsCount: skillsCount,
       coursesCount: courses?.length ?? 0,
       profileCompletionPercent: _HomePageState._profileCompletionPercentage(
         data,
+        userModel,
       ),
       lastAnalysis: resolvedLastAnalysis(),
     );

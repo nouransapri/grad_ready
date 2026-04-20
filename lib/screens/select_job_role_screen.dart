@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/job_role.dart';
+import '../models/job_document.dart';
 import '../models/skill.dart';
 import '../services/firestore_service.dart';
 import '../utils/skill_utils.dart';
@@ -14,17 +14,17 @@ class SelectJobRoleScreen extends StatefulWidget {
 
 class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
   final TextEditingController _searchController = TextEditingController();
-  JobRole? _selectedJob;
+  JobDocument? _selectedJob;
 
   static const _gradientStart = Color(0xFF2A6CFF);
   static const _gradientEnd = Color(0xFF9226FF);
 
   final _firestoreService = FirestoreService();
-  late Stream<List<JobRole>> _jobsStream;
+  late Stream<List<JobDocument>> _jobsStream;
   Map<String, Skill> _skillsCatalog = const {};
   bool _refreshing = false;
 
-  List<JobRole> _filterJobs(List<JobRole> jobs, String query) {
+  List<JobDocument> _filterJobs(List<JobDocument> jobs, String query) {
     final q = query.trim();
     final dedupedJobs = _dedupeJobs(jobs);
     if (q.isEmpty) return dedupedJobs;
@@ -40,8 +40,8 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
     }).toList();
   }
 
-  List<JobRole> _dedupeJobs(List<JobRole> jobs) {
-    final out = <JobRole>[];
+  List<JobDocument> _dedupeJobs(List<JobDocument> jobs) {
+    final out = <JobDocument>[];
     final seen = <String>{};
     for (final j in jobs) {
       final key = canonicalJobId(j.title, j.category);
@@ -54,16 +54,14 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
 
   void _onSearchChanged() => setState(() {});
 
-  List<String> _jobSearchTerms(JobRole j) {
+  List<String> _jobSearchTerms(JobDocument j) {
     final terms = <String>[
       j.title,
       j.description,
       j.category,
-      ...j.requiredSkills,
-      ...j.criticalSkills,
     ];
 
-    for (final req in j.requiredSkillsWithLevel) {
+    for (final req in [...j.technicalSkills, ...j.softSkills, ...j.tools]) {
       final sid = canonicalSkillId(req.skillId);
       if (sid.isEmpty) continue;
       terms.add(sid);
@@ -101,7 +99,7 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
   @override
   void initState() {
     super.initState();
-    _jobsStream = _firestoreService.getJobs();
+    _jobsStream = _firestoreService.getJobDocuments();
     _searchController.addListener(_onSearchChanged);
     _loadSkillsCatalog();
   }
@@ -115,7 +113,7 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<JobRole>>(
+    return StreamBuilder<List<JobDocument>>(
       stream: _jobsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -276,7 +274,7 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
     if (mounted) {
       setState(() {
         // Recreate stream to force a fresh subscription.
-        _jobsStream = _firestoreService.getJobs();
+        _jobsStream = _firestoreService.getJobDocuments();
       });
     }
     await _loadSkillsCatalog();
@@ -421,7 +419,7 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
 }
 
 class _JobCard extends StatelessWidget {
-  final JobRole job;
+  final JobDocument job;
   final bool isSelected;
   final VoidCallback onSelect;
 
@@ -491,7 +489,7 @@ class _JobCard extends StatelessWidget {
               children: [
                 _tag(job.category, Colors.grey[200]!, Colors.grey[800]!),
                 const SizedBox(width: 8),
-                if (job.isHighDemand)
+                if (job.isActive)
                   _tag(
                     'High Demand',
                     const Color(0xFFE8F5E9),
@@ -505,7 +503,7 @@ class _JobCard extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    job.salaryRange,
+                    _salaryRange(job),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -516,7 +514,7 @@ class _JobCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${job.requiredSkillsCount} required skills',
+                  '${_requiredSkillsCount(job)} required skills',
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -556,5 +554,17 @@ class _JobCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _salaryRange(JobDocument job) {
+    final min = job.salary.minimum;
+    final max = job.salary.maximum;
+    if (min <= 0 && max <= 0) return 'Salary not specified';
+    return '\$${(min / 1000).round()}K - \$${(max / 1000).round()}K /year';
+  }
+
+  static int _requiredSkillsCount(JobDocument job) {
+    if (job.totalSkillsCount > 0) return job.totalSkillsCount;
+    return job.technicalSkills.length + job.softSkills.length + job.tools.length;
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/firestore_service.dart';
+import '../models/user_model.dart';
 import 'home_page.dart';
 
 class CreateProfileScreen extends StatefulWidget {
@@ -15,7 +15,6 @@ class CreateProfileScreen extends StatefulWidget {
 
 class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final FirestoreService _firestoreService = FirestoreService();
 
   List<Map<String, String>> addedSkillsList = [];
   List<Map<String, String>> addedInternships = [];
@@ -112,61 +111,53 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         .doc(user.uid)
         .get();
     if (!doc.exists || !mounted) return;
-    final d = doc.data()!;
-    nameController.text = d['full_name']?.toString() ?? '';
-    universityController.text = d['university']?.toString() ?? '';
-    majorController.text = d['major']?.toString() ?? '';
-    gpaController.text = d['gpa']?.toString() ?? '';
-    final year = d['academic_year']?.toString();
-    if (year != null && year.isNotEmpty && academicYears.contains(year)) {
+    final userModel = UserModel.fromFirestore(user.uid, doc.data()!);
+    nameController.text = userModel.fullName;
+    universityController.text = userModel.university;
+    majorController.text = userModel.major;
+    gpaController.text = userModel.gpa;
+    final year = userModel.academicYear;
+    if (year.isNotEmpty && academicYears.contains(year)) {
       selectedYear = year;
     } else {
       selectedYear = "Select year";
     }
-    final skillsList = d['skills'] as List?;
-    addedSkillsList =
-        skillsList?.whereType<Map>().map((e) {
-          final m = Map<dynamic, dynamic>.from(e);
-          return Map<String, String>.from(
-            m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
-          );
-        }).toList() ??
-        [];
-    final internshipsList = d['internships'] as List?;
-    addedInternships =
-        internshipsList?.map((e) {
-          final m = e as Map<dynamic, dynamic>;
-          return Map<String, String>.from(
-            m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
-          );
-        }).toList() ??
-        [];
-    final clubsList = d['clubs'] as List?;
-    addedClubs =
-        clubsList?.map((e) {
-          final m = e as Map<dynamic, dynamic>;
-          return Map<String, String>.from(
-            m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
-          );
-        }).toList() ??
-        [];
-    final projectsList = d['projects'] as List?;
-    addedProjects =
-        projectsList?.map((e) {
-          final m = e as Map<dynamic, dynamic>;
-          return Map<String, String>.from(
-            m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
-          );
-        }).toList() ??
-        [];
+    addedSkillsList = userModel.skills
+        .map(
+          (s) => <String, String>{
+            'skillId': s.skillId,
+            'name': s.name,
+            'type': s.type,
+            'level': s.levelLabel,
+          },
+        )
+        .toList();
+    addedInternships = userModel.internships
+        .map(
+          (i) => <String, String>{
+            'title': i.title,
+            'company': i.company,
+            'duration': i.duration,
+          },
+        )
+        .toList();
+    addedClubs = userModel.clubs
+        .map(
+          (c) => <String, String>{
+            'name': c.name,
+            'role': c.role,
+          },
+        )
+        .toList();
+    addedProjects = userModel.projects
+        .map(
+          (p) => <String, String>{
+            'name': p.name,
+            'description': p.description,
+          },
+        )
+        .toList();
     if (mounted) setState(() {});
-  }
-
-  bool get isFormValid {
-    return nameController.text.trim().isNotEmpty &&
-        universityController.text.trim().isNotEmpty &&
-        majorController.text.trim().isNotEmpty &&
-        addedSkillsList.isNotEmpty;
   }
 
   bool _hasDuplicateSkill(String skillName) {
@@ -175,47 +166,6 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     return addedSkillsList.any(
       (s) => (s['name'] ?? '').trim().toLowerCase() == key,
     );
-  }
-
-  int _proficiencyToLevel(String value) {
-    final v = value.trim().toLowerCase();
-    if (v == 'advanced') return 95;
-    if (v == 'intermediate') return 65;
-    if (v == 'basic') return 35;
-    return (double.tryParse(value)?.toInt() ?? 35).clamp(0, 100);
-  }
-
-  Future<List<Map<String, dynamic>>> _normalizeSkillsForSave() async {
-    final entries = addedSkillsList
-        .map((e) => {
-              'name': (e['name'] ?? '').trim(),
-              'type': (e['type'] ?? 'Technical').trim(),
-              'levelText': (e['level'] ?? 'Basic').trim(),
-            })
-        .where((e) => (e['name'] ?? '').isNotEmpty)
-        .toList();
-    final normalized = await Future.wait(
-      entries.map((e) async {
-        final name = e['name']!;
-        final type = e['type']!;
-        final levelText = e['levelText']!;
-        final level = _proficiencyToLevel(levelText);
-        final skillId = await _firestoreService.resolveOrCreateSkillId(
-          name,
-          defaultCategory: type == 'Soft Skill' ? 'Soft' : 'Technical',
-          createIfMissing: true,
-          isVerified: false,
-        );
-        return <String, dynamic>{
-          'skillId': skillId,
-          'name': name,
-          'type': type,
-          'level': level,
-          'levelLabel': levelText,
-        };
-      }),
-    );
-    return normalized;
   }
 
   Future<void> saveUserProfile() async {
@@ -255,31 +205,58 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         return;
       }
 
-      final normalizedSkills = await _normalizeSkillsForSave();
       final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final existingUser = await userRef.get();
-      final payload = <String, dynamic>{
-        "uid": user.uid,
-        "email": user.email,
-        "full_name": nameController.text.trim(),
-        "university": universityController.text.trim(),
-        "major": majorController.text.trim(),
-        "academic_year": selectedYear,
-        "gpa": gpaController.text.trim(),
-        "skills": normalizedSkills,
-        "internships": addedInternships
+      final model = UserModel(
+        uid: user.uid,
+        email: user.email ?? '',
+        fullName: nameController.text.trim(),
+        university: universityController.text.trim(),
+        major: majorController.text.trim(),
+        academicYear: selectedYear,
+        gpa: gpaController.text.trim(),
+        skills: addedSkillsList
             .map(
-              (i) => {
-                "title": i["title"],
-                "company": i["company"],
-                "duration": i["duration"] ?? "",
-              },
+              (s) => UserSkillModel.fromMap({
+                'skillId': s['skillId'],
+                'name': (s['name'] ?? '').trim(),
+                'type': (s['type'] ?? 'Technical').trim(),
+                'levelLabel': (s['level'] ?? 'Basic').trim(),
+              }),
             )
+            .where((s) => s.name.isNotEmpty)
             .toList(),
-        "clubs": addedClubs,
-        "projects": addedProjects,
-        "profile_completed": true,
-      };
+        internships: addedInternships
+            .map(
+              (i) => InternshipModel(
+                title: (i['title'] ?? '').trim(),
+                company: (i['company'] ?? '').trim(),
+                duration: (i['duration'] ?? '').trim(),
+              ),
+            )
+            .where((i) => i.title.isNotEmpty || i.company.isNotEmpty)
+            .toList(),
+        clubs: addedClubs
+            .map(
+              (c) => ClubModel(
+                name: (c['name'] ?? '').trim(),
+                role: (c['role'] ?? '').trim(),
+              ),
+            )
+            .where((c) => c.name.isNotEmpty || c.role.isNotEmpty)
+            .toList(),
+        projects: addedProjects
+            .map(
+              (p) => ProjectModel(
+                name: (p['name'] ?? '').trim(),
+                description: (p['description'] ?? '').trim(),
+              ),
+            )
+            .where((p) => p.name.isNotEmpty || p.description.isNotEmpty)
+            .toList(),
+        profileCompleted: true,
+      );
+      final payload = model.toFirestore();
       if (!existingUser.exists) {
         payload["createdAt"] = FieldValue.serverTimestamp();
       }
@@ -301,13 +278,23 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           (route) => false,
         );
       }
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      final isPermissionIssue = e.code == 'permission-denied';
+      final message = isPermissionIssue
+          ? 'You do not have permission to update some profile fields right now. Please try again later.'
+          : 'Could not save profile right now (${e.code}). Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     } catch (_) {
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Something went wrong. Please check your connection and try again.',
+            'Something went wrong while saving your profile. Please try again.',
           ),
         ),
       );
@@ -318,7 +305,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   Widget build(BuildContext context) {
     bool isSkillInputActive =
         (selectedSkillName != "Select a skill" && !showCustomSkillField) ||
-        (showCustomSkillField && customSkillController.text.isNotEmpty);
+        showCustomSkillField;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -330,7 +317,6 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
-                onChanged: () => setState(() {}),
                 child: Column(
                   children: [
                     _buildSectionCard(
@@ -341,27 +327,52 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                           "Enter your full name",
                           controller: nameController,
                           isRequired: true,
-                          onChanged: (_) => setState(() {}),
+                          customValidator: (v) {
+                            final value = v?.trim() ?? '';
+                            if (value.isEmpty) return 'Required';
+                            if (!RegExp(r'^[a-zA-Z\s\u0621-\u064A]+$').hasMatch(value)) {
+                              return 'Invalid characters';
+                            }
+                            return null;
+                          },
                         ),
                         _buildLabel("University *"),
                         _buildInputField(
                           "Enter your university name",
                           controller: universityController,
                           isRequired: true,
-                          onChanged: (_) => setState(() {}),
+                          customValidator: (v) {
+                            final value = v?.trim() ?? '';
+                            if (value.isEmpty) return 'Required';
+                            if (!RegExp(r'^[a-zA-Z0-9\s\u0621-\u064A\-\.\(\)]+$')
+                                .hasMatch(value)) {
+                              return 'Invalid characters';
+                            }
+                            return null;
+                          },
                         ),
                         _buildLabel("Major *"),
                         _buildInputField(
                           "e.g., Computer Science",
                           controller: majorController,
                           isRequired: true,
-                          onChanged: (_) => setState(() {}),
+                          customValidator: (v) {
+                            final value = v?.trim() ?? '';
+                            if (value.isEmpty) return 'Required';
+                            if (!RegExp(r'^[a-zA-Z\s\u0621-\u064A&/\-]+$').hasMatch(value)) {
+                              return 'Invalid characters';
+                            }
+                            return null;
+                          },
                         ),
                         _buildLabel("Academic Year"),
                         _buildDropdownField(
                           academicYears,
                           value: selectedYear,
-                          onChanged: (v) => setState(() => selectedYear = v!),
+                          onChanged: (v) {
+                            if (v == null || v == selectedYear) return;
+                            setState(() => selectedYear = v);
+                          },
                         ),
                         _buildLabel("GPA (Optional)"),
                         _buildInputField(
@@ -392,7 +403,8 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                                 ["Technical", "Soft Skill"],
                                 value: selectedSkillType,
                                 onChanged: (v) => setState(() {
-                                  selectedSkillType = v!;
+                                  if (v == null || v == selectedSkillType) return;
+                                  selectedSkillType = v;
                                   selectedSkillName = "Select a skill";
                                   showCustomSkillField = false;
                                 }),
@@ -403,8 +415,10 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                               child: _buildDropdownField(
                                 ["Basic", "Intermediate", "Advanced"],
                                 value: selectedProficiency,
-                                onChanged: (v) =>
-                                    setState(() => selectedProficiency = v!),
+                                onChanged: (v) {
+                                  if (v == null || v == selectedProficiency) return;
+                                  setState(() => selectedProficiency = v);
+                                },
                               ),
                             ),
                           ],
@@ -419,7 +433,8 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                                     : softSkills,
                                 value: selectedSkillName,
                                 onChanged: (val) => setState(() {
-                                  selectedSkillName = val!;
+                                  if (val == null || val == selectedSkillName) return;
+                                  selectedSkillName = val;
                                   showCustomSkillField =
                                       (val == "Other (Custom)");
                                 }),
@@ -468,7 +483,6 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                             child: TextFormField(
                               controller: customSkillController,
                               decoration: _inputDecoration("Enter skill name"),
-                              onChanged: (_) => setState(() {}),
                             ),
                           ),
                         ...addedSkillsList.map(
@@ -499,12 +513,21 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                           controller: clubRoleController,
                         ),
                         _buildAddIconButton(
-                          clubNameController.text.isNotEmpty,
+                          true,
                           () {
+                            final clubName = clubNameController.text.trim();
+                            if (clubName.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter club name first.'),
+                                ),
+                              );
+                              return;
+                            }
                             setState(() {
                               addedClubs.add({
-                                "name": clubNameController.text,
-                                "role": clubRoleController.text,
+                                "name": clubName,
+                                "role": clubRoleController.text.trim(),
                               });
                               clubNameController.clear();
                               clubRoleController.clear();
@@ -537,12 +560,21 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                           controller: projectDescController,
                         ),
                         _buildAddIconButton(
-                          projectNameController.text.isNotEmpty,
+                          true,
                           () {
+                            final projectName = projectNameController.text.trim();
+                            if (projectName.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter project name first.'),
+                                ),
+                              );
+                              return;
+                            }
                             setState(() {
                               addedProjects.add({
-                                "name": projectNameController.text,
-                                "description": projectDescController.text,
+                                "name": projectName,
+                                "description": projectDescController.text.trim(),
                               });
                               projectNameController.clear();
                               projectDescController.clear();
@@ -693,61 +725,61 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             _buildInputField(
               "Internship/Training Title",
               controller: internTitleController,
-              onChanged: (_) => setState(() {}),
             ),
             _buildInputField(
               "Company/Organization",
               controller: internCompanyController,
-              onChanged: (_) => setState(() {}),
             ),
             _buildInputField(
               "Duration (e.g., 3 months, Summer 2024)",
               controller: internDurationController,
-              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 8),
             Builder(
               builder: (context) {
-                final canAdd =
-                    internTitleController.text.trim().isNotEmpty &&
-                    internCompanyController.text.trim().isNotEmpty &&
-                    internDurationController.text.trim().isNotEmpty;
                 return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: canAdd
-                        ? () {
-                            setState(() {
-                              addedInternships.add({
-                                "title": internTitleController.text.trim(),
-                                "company": internCompanyController.text.trim(),
-                                "duration": internDurationController.text
-                                    .trim(),
-                              });
-                              internTitleController.clear();
-                              internCompanyController.clear();
-                              internDurationController.clear();
-                            });
-                          }
-                        : null,
+                    onPressed: () {
+                      final title = internTitleController.text.trim();
+                      final company = internCompanyController.text.trim();
+                      final duration = internDurationController.text.trim();
+                      if (title.isEmpty || company.isEmpty || duration.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please complete internship title, company, and duration.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() {
+                        addedInternships.add({
+                          "title": title,
+                          "company": company,
+                          "duration": duration,
+                        });
+                        internTitleController.clear();
+                        internCompanyController.clear();
+                        internDurationController.clear();
+                      });
+                    },
                     icon: Icon(
                       Icons.add,
-                      color: canAdd ? Colors.white : Colors.grey,
+                      color: Colors.white,
                       size: 20,
                     ),
                     label: Text(
                       "Add Internship",
                       style: TextStyle(
-                        color: canAdd ? Colors.white : Colors.grey,
+                        color: Colors.white,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: canAdd
-                          ? _internshipsBlue
-                          : Colors.grey[400],
-                      disabledBackgroundColor: Colors.grey[400],
+                      backgroundColor: _internshipsBlue,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -992,7 +1024,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   );
 
   Widget _buildFinalSubmitButton() => ElevatedButton(
-    onPressed: isFormValid ? saveUserProfile : null,
+    onPressed: saveUserProfile,
     style: ElevatedButton.styleFrom(
       minimumSize: const Size(double.infinity, 55),
       backgroundColor: const Color(0xFF2A6CFF),

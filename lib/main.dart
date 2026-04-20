@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'app_theme.dart';
@@ -17,48 +18,197 @@ import 'services/hive_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/auth_service.dart';
 import 'utils/constants.dart';
-import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/create_profile.dart';
 import 'screens/admin/admin_overview_screen.dart';
 
-void main() async {
+/// Paints [runApp] immediately so the **native** splash (flutter_native_splash) is replaced
+/// by a Flutter frame. Firebase/Hive init runs **after** that — otherwise `await
+/// Firebase.initializeApp()` can block indefinitely offline and the logo screen never leaves.
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await HiveService.initialize();
-  unawaited(DatabaseHelper.performAutoBackup());
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  if (!kIsWeb) {
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  }
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
+  runZonedGuarded(
+    () => runApp(const _GradReadyBootstrap()),
+    (error, stack) {
+      try {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      } catch (_) {
+        debugPrint('Zone error (Crashlytics not ready): $error\n$stack');
+      }
+    },
   );
-  await PushNotificationService.initialize();
-  if (kDebugMode) {
-    try {
-      await FirestoreService().uploadHomeMockDataIfEmpty();
-      await FirestoreService.seedCoursesIfEmpty();
-      await FirestoreService.seedJobsIfEmpty();
-      await FirestoreService.seedJobsUpsert();
-    } catch (_) {
-      // Do not crash if seed fails (e.g. Firestore rules before sign-in).
-    }
-  }
-  runApp(const MyApp());
 }
 
-/// True if [user] has Auth custom claim `admin` or an `admins/{uid}` document (before token refresh).
+class _GradReadyBootstrap extends StatefulWidget {
+  const _GradReadyBootstrap();
+
+  @override
+  State<_GradReadyBootstrap> createState() => _GradReadyBootstrapState();
+}
+
+class _GradReadyBootstrapState extends State<_GradReadyBootstrap> {
+  bool _ready = false;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _warmStart();
+  }
+
+  Future<void> _warmStart() async {
+    if (mounted) {
+      setState(() => _error = null);
+    }
+    try {
+      await HiveService.initialize().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('HiveService.initialize'),
+      );
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(
+        const Duration(seconds: 25),
+        onTimeout: () => throw TimeoutException(
+          'Firebase.initializeApp exceeded 25s (often offline / Play Services).',
+        ),
+      );
+      if (!kIsWeb) {
+        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      }
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+      unawaited(DatabaseHelper.performAutoBackup());
+      unawaited(
+        Future<void>(() async {
+          try {
+            await PushNotificationService.initialize();
+          } catch (_) {}
+        }),
+      );
+      if (kDebugMode) {
+        unawaited(
+          Future<void>(() async {
+            try {
+              await FirestoreService().uploadHomeMockDataIfEmpty();
+              await FirestoreService.seedCoursesIfEmpty();
+              await FirestoreService.seedJobsIfEmpty();
+              await FirestoreService.seedJobsUpsert();
+            } catch (_) {}
+          }),
+        );
+      }
+      if (mounted) setState(() => _ready = true);
+    } catch (e, st) {
+      try {
+        FirebaseCrashlytics.instance.recordError(e, st, fatal: false);
+      } catch (_) {}
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.theme,
+        home: Scaffold(
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off_rounded, size: 56, color: Colors.grey.shade700),
+                  const SizedBox(height: 16),
+                  Text(
+                    'تعذّر تهيئة التطبيق. تحقّق من الإنترنت ثم أعد المحاولة.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _warmStart,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (!_ready) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.theme,
+        home: const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+    return const MyApp();
+  }
+}
+
+/// True if [user] has Auth custom claim `admin` or an `admins/{uid}` document.
+/// Uses cached ID token ([getIdTokenResult(false)]) so startup does not wait on the network
+/// when the device is offline (force-refresh would block or time out).
 Future<bool> _isCurrentUserAdmin(User user) async {
   try {
-    final token = await user.getIdTokenResult(true);
+    final token =
+        await user.getIdTokenResult(false).timeout(const Duration(seconds: 8));
     if (token.claims?['admin'] == true) return true;
+    // Prefer cache offline; default get() can wait on the server.
     final adminsSnap = await FirebaseFirestore.instance
         .collection('admins')
         .doc(user.uid)
-        .get();
+        .get(const GetOptions(source: Source.serverAndCache))
+        .timeout(const Duration(seconds: 8));
     return adminsSnap.exists;
   } catch (_) {
-    return false;
+    try {
+      final adminsSnap = await FirebaseFirestore.instance
+          .collection('admins')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.cache));
+      return adminsSnap.exists;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+/// Resolves `users/{uid}` without hanging offline: cache first, then bounded server read.
+Future<DocumentSnapshot<Map<String, dynamic>>> _userProfileSnapshotOnce(
+  String uid,
+) async {
+  final ref = FirebaseFirestore.instance
+      .collection(AppConstants.collectionUsers)
+      .doc(uid);
+  try {
+    final cached = await ref.get(const GetOptions(source: Source.cache));
+    if (cached.exists) return cached;
+  } catch (_) {}
+  try {
+    return await ref
+        .get(const GetOptions(source: Source.serverAndCache))
+        .timeout(const Duration(seconds: 12));
+  } on TimeoutException {
+    return ref.get(const GetOptions(source: Source.cache));
+  } catch (_) {
+    return ref.get(const GetOptions(source: Source.cache));
   }
 }
 
@@ -74,15 +224,15 @@ class MyApp extends StatelessWidget {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // Not signed in → Splash
+          // Not signed in → Login
           if (!snapshot.hasData) {
-            return const SplashScreen();
+            return const LoginScreen();
           }
 
           final user = snapshot.data;
 
           if (user == null) {
-            return const SplashScreen();
+            return const LoginScreen();
           }
 
           // Signed in → check profile_completed in Firestore
@@ -156,7 +306,15 @@ class _ProfileGateState extends State<_ProfileGate> {
       return _ProfileGateData.error();
     }
     final isAdmin = await _isCurrentUserAdmin(user);
-    return _ProfileGateData(isAdmin: isAdmin, uid: user.uid);
+    if (isAdmin) {
+      return _ProfileGateData.admin(uid: user.uid);
+    }
+    try {
+      final profileSnap = await _userProfileSnapshotOnce(user.uid);
+      return _ProfileGateData.member(uid: user.uid, profileSnap: profileSnap);
+    } catch (_) {
+      return _ProfileGateData.error();
+    }
   }
 
   @override
@@ -175,38 +333,28 @@ class _ProfileGateState extends State<_ProfileGate> {
         }
 
         final gate = snapshot.data!;
+        if (gate.uid.isEmpty) {
+          return _profileLoadErrorScaffold();
+        }
         if (gate.isAdmin) {
           return const AdminOverviewScreen();
         }
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection(AppConstants.collectionUsers)
-              .doc(gate.uid)
-              .snapshots(),
-          builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (profileSnapshot.hasError) {
-              return _profileLoadErrorScaffold();
-            }
-            final profileSnap = profileSnapshot.data;
-            if (profileSnap == null || !profileSnap.exists) {
-              return const CreateProfileScreen();
-            }
-            final data = profileSnap.data();
-            if (data?[AppConstants.userFieldIsSuspended] == true) {
-              return const _SuspendedAccountScreen();
-            }
-            final completed = data?['profile_completed'] ?? false;
-            if (completed == true) {
-              return const HomePage();
-            }
-            return const CreateProfileScreen();
-          },
-        );
+        final profileSnap = gate.profileSnap;
+        if (profileSnap == null) {
+          return _profileLoadErrorScaffold();
+        }
+        if (!profileSnap.exists) {
+          return const CreateProfileScreen();
+        }
+        final data = profileSnap.data();
+        if (data?[AppConstants.userFieldIsSuspended] == true) {
+          return const _SuspendedAccountScreen();
+        }
+        final completed = data?['profile_completed'] ?? false;
+        if (completed == true) {
+          return const HomePage();
+        }
+        return const CreateProfileScreen();
       },
     );
   }
@@ -215,11 +363,29 @@ class _ProfileGateState extends State<_ProfileGate> {
 class _ProfileGateData {
   final bool isAdmin;
   final String uid;
+  /// Loaded for non-admin flow (cache-first + timeout; avoids [snapshots] stuck offline).
+  final DocumentSnapshot<Map<String, dynamic>>? profileSnap;
 
-  const _ProfileGateData({required this.isAdmin, required this.uid});
+  const _ProfileGateData({
+    required this.isAdmin,
+    required this.uid,
+    this.profileSnap,
+  });
 
-  factory _ProfileGateData.error() =>
-      const _ProfileGateData(isAdmin: false, uid: '');
+  factory _ProfileGateData.admin({required String uid}) =>
+      _ProfileGateData(isAdmin: true, uid: uid, profileSnap: null);
+
+  factory _ProfileGateData.member({
+    required String uid,
+    required DocumentSnapshot<Map<String, dynamic>> profileSnap,
+  }) =>
+      _ProfileGateData(isAdmin: false, uid: uid, profileSnap: profileSnap);
+
+  factory _ProfileGateData.error() => const _ProfileGateData(
+        isAdmin: false,
+        uid: '',
+        profileSnap: null,
+      );
 }
 
 class _SuspendedAccountScreen extends StatelessWidget {
