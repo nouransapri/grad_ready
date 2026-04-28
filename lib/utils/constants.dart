@@ -69,6 +69,6 @@ abstract final class AppConstants {
       'This action cannot be undone.';
   static const String actionCancel = 'Cancel';
   static const String actionDelete = 'Delete';
-  static const String actionSuspend = 'Suspend';
-  static const String actionUnsuspend = 'Unsuspend';
+  static const String actionSuspend = 'Deactivate / Block';
+  static const String actionUnsuspend = 'Activate';
 }

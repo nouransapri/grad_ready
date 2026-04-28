@@ -220,7 +220,7 @@ class _AdminUsersContentState extends State<AdminUsersContent> {
                                     ),
                                     if (user.isSuspended)
                                       _chip(
-                                        label: 'Suspended',
+                                        label: 'Inactive',
                                         bg: _usersSuspendedBg,
                                         fg: _usersSuspendedText,
                                       ),

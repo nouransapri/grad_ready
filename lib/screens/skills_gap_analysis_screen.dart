@@ -9,6 +9,7 @@ import '../app_theme.dart';
 import '../models/job_document.dart';
 import '../models/job_role.dart' show SkillProficiency;
 import '../models/skill.dart';
+import '../models/skill_model.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 import '../services/gap_analysis_service.dart';
@@ -93,6 +94,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   final FirestoreService _firestore = FirestoreService();
   String? _lastAnalysisSignature;
   Map<String, Skill>? _skillsCatalog;
+  Map<String, SkillModel>? _skillModelsCache;
   int _updateAnalysisVersion = 0;
 
   List<SkillProficiency> get _technicalSkills {
@@ -152,7 +154,9 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     return null;
   }
 
-  static Map<String, int> _userSkillPercentByName(Map<String, dynamic>? userData) {
+  static Map<String, int> _userSkillPercentByName(
+    Map<String, dynamic>? userData,
+  ) {
     if (userData == null) return {};
     final model = UserModel.fromFirestore('', userData);
     final out = <String, int>{};
@@ -235,7 +239,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               userSkillIds,
               verifiedOnly: true,
             ),
-        fetchCourseDetails: (names) => _firestore.getCoursesForSkills(names, 3),
+
         skillsCatalog: _skillsCatalog,
       );
     } else {
@@ -290,8 +294,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                 userSkillIds,
                 verifiedOnly: true,
               ),
-          fetchCourseDetails: (names) =>
-              _firestore.getCoursesForSkills(names, 3),
+
         );
       }
     }
@@ -320,7 +323,9 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         continue;
       }
       bySkill[key] = SkillGapItem(
-        name: existing.name.length >= item.name.length ? existing.name : item.name,
+        name: existing.name.length >= item.name.length
+            ? existing.name
+            : item.name,
         isTechnical: existing.isTechnical || item.isTechnical,
         requiredPercent: existing.requiredPercent > item.requiredPercent
             ? existing.requiredPercent
@@ -349,6 +354,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
       }
       return out;
     }
+
     final strongSkills = uniqueNames(_items.where((e) => e.isStrong));
     final developingSkills = uniqueNames(_items.where((e) => e.isDeveloping));
     final criticalSkills = uniqueNames(_items.where((e) => e.isCriticalGap));
@@ -359,6 +365,8 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
       'strongSkills': strongSkills,
       'developingSkills': developingSkills,
       'criticalSkills': criticalSkills,
+      'isQualified': _gapResult?.isQualified ?? false,
+      'missingMandatorySkills': _gapResult?.missingMandatorySkills ?? const [],
       'generatedAt': FieldValue.serverTimestamp(),
     };
     final signature = [
@@ -392,9 +400,9 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     final uri = Uri.tryParse(url.trim());
     if (uri == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid course link.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid course link.')));
       return;
     }
     try {
@@ -442,6 +450,18 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             stackTrace: st,
           );
         });
+        
+    _firestore.getSkillModelsOnce().then((models) {
+      if (mounted) {
+        final cache = <String, SkillModel>{};
+        for (final m in models) {
+          cache[smartNormalize(m.skillName)] = m;
+        }
+        setState(() => _skillModelsCache = cache);
+      }
+    }).catchError((e) {
+      developer.log('getSkillModelsOnce failed: $e');
+    });
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       _userSub = FirebaseFirestore.instance
@@ -505,11 +525,10 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 
   String get _displayLabel {
-    final p = _displayMatchPercent;
-    if (p >= 80) return 'Strong Match';
-    if (p >= 50) return 'Moderate Gap';
-    if (p >= 30) return 'Significant Gap';
-    return 'Large Gap';
+    if (_gapResult == null) return 'loading analysis...';
+    return _gapResult!.isQualified
+        ? 'qualified for this job'
+        : 'not currently qualified';
   }
 
   /// Category match for Technical/Soft cards. When gap result exists we use the same unified match %
@@ -581,6 +600,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
 
     return AnalysisMarketDemandCard(topCriticalItems: topCritical);
   }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -658,7 +678,11 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.login_rounded, size: 48, color: Colors.grey.shade600),
+                Icon(
+                  Icons.login_rounded,
+                  size: 48,
+                  color: Colors.grey.shade600,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Sign in to compare your profile with this job.',
@@ -691,12 +715,13 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.data_saver_off_rounded, size: 48, color: Colors.grey.shade600),
-                const SizedBox(height: 16),
-                Text(
-                  'No data available',
-                  style: theme.textTheme.titleMedium,
+                Icon(
+                  Icons.data_saver_off_rounded,
+                  size: 48,
+                  color: Colors.grey.shade600,
                 ),
+                const SizedBox(height: 16),
+                Text('No data available', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   'There are no skill requirements to analyze for this role yet, or your profile has no skills to compare.',
@@ -800,10 +825,15 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
 
   /// Readiness level from match %: Beginner (<50), Needs Improvement (50-69), Almost Job Ready (70-89), Job Ready (90+).
   Widget _buildReadinessLevelCard() {
+    final totalSkills = _gapResult != null
+        ? _gapResult!.matchedSkills.length + _gapResult!.missingSkills.length
+        : _items.length;
     return AnalysisReadinessCard(
       score: _displayMatchPercent,
       matchedSkillsCount: _displayStrongCount,
-      totalSkillsCount: _items.length,
+      totalSkillsCount: totalSkills,
+      isQualified: _gapResult?.isQualified ?? false,
+      missingMandatorySkills: _gapResult?.missingMandatorySkills ?? const [],
     );
   }
 
@@ -833,7 +863,71 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildReadinessLevelCard(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            if (_gapResult != null &&
+                !_gapResult!.isQualified &&
+                _gapResult!.missingMandatorySkills.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2), // Red 50
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFECACA)), // Red 200
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.lock_rounded, color: Color(0xFFDC2626), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: const Text(
+                            'Missing Mandatory Skills',
+                            style: TextStyle(
+                              color: Color(0xFF991B1B), // Red 800
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'You must master these required skills to be considered qualified for this role:',
+                      style: TextStyle(
+                        color: Color(0xFF991B1B),
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _gapResult!.missingMandatorySkills.map((s) {
+                        return Chip(
+                          label: Text(
+                            s,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          backgroundColor: const Color(0xFFDC2626),
+                          side: BorderSide.none,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
             if (_items.any((e) => e.isCriticalGap)) ...[
               _buildTopPrioritySkillGapCard(),
               const SizedBox(height: 24),
@@ -879,6 +973,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                 highPrioritySkills: _gapResult!.missingSkills
                     .where((s) => _gapResult!.isHighPriority(s))
                     .toSet(),
+                mandatorySkills: _gapResult!.missingMandatorySkills.toSet(),
               ),
               const SizedBox(height: 24),
             ],
@@ -970,17 +1065,25 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
   }
 
   Widget _buildRecommendationsTab() {
-    final top3 = _gapResult?.missingSkillsByPriority.take(3).toList() ??
-        _gapResult?.missingSkills.take(3).toList() ??
-        [];
+    final allMissing =
+        _gapResult?.missingSkillsByPriority ??
+        _gapResult?.missingSkills ??
+        const <String>[];
     final criticalSet = _currentJob.gapCriticalSkillNames
         .map((s) => normalizeSkillName(s))
         .where((s) => s.isNotEmpty)
         .toSet();
 
+    final mandatorySet = _gapResult?.missingMandatorySkills
+            .map((s) => normalizeSkillName(s))
+            .where((s) => s.isNotEmpty)
+            .toSet() ??
+        const <String>{};
+
     return RecommendationsTab(
-      skillNames: top3,
+      skillNames: allMissing,
       criticalGapNames: criticalSet,
+      mandatorySkillNames: mandatorySet,
     );
   }
 
@@ -1036,9 +1139,10 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
             highPrioritySkills: r.missingSkills
                 .where((s) => r.isHighPriority(s))
                 .toSet(),
+            mandatorySkillNames: r.missingMandatorySkills.toSet(),
             skillRecommendations: r.skillRecommendations,
-            skillCourseResources: r.skillCourseResources,
             skillGapSeverity: r.skillGapSeverity,
+            skillModelsCache: _skillModelsCache,
             onOpenCourseUrl: _openCourseUrl,
           ),
           AnalysisLearningPathSection(
@@ -1069,9 +1173,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
         improvement: improvement,
       );
     }).toList();
-    return AnalysisHighPrioritySkillsSection(
-      skills: skills,
-    );
+    return AnalysisHighPrioritySkillsSection(skills: skills);
   }
 
   Widget _buildMediumPrioritySkillsSection(
@@ -1091,6 +1193,4 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
     }).toList();
     return AnalysisMediumPrioritySkillsSection(skills: skills);
   }
-
 }
-

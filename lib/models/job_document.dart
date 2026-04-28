@@ -243,6 +243,22 @@ class JobDocument {
     this.averageRequiredLevel = 0,
   });
 
+  List<JobSkillItem> get allSkills => [
+        ...technicalSkills,
+        ...softSkills,
+        ...tools,
+      ];
+
+  /// Mandatory skills are the hard-gate requirements.
+  List<JobSkillItem> get mandatorySkills => allSkills
+      .where((s) => s.priority.toLowerCase() == 'critical')
+      .toList();
+
+  /// Optional skills improve fit score but never override hard-gate.
+  List<JobSkillItem> get optionalSkills => allSkills
+      .where((s) => s.priority.toLowerCase() != 'critical')
+      .toList();
+
   /// Structured [JobRequiredSkill] rows (technical + soft + tools), same order as [toJobRole].
   List<JobRequiredSkill> get gapRequiredSkillsWithLevel {
     return _gapRoleParts(this).requiredWithLevel;
@@ -250,6 +266,12 @@ class JobDocument {
 
   /// Names marked Critical on the job (for gap UI / legacy critical tags).
   List<String> get gapCriticalSkillNames => _gapRoleParts(this).criticalNames;
+
+  /// Mandatory names used by hard-gate checks.
+  List<String> get gapMandatorySkillNames => _gapRoleParts(this).mandatoryNames;
+
+  /// Canonical ids used by hard-gate checks.
+  Set<String> get gapMandatorySkillIds => _gapRoleParts(this).mandatoryIds;
 
   /// Technical + tools as legacy [SkillProficiency] rows (for legacy gap UI path).
   List<SkillProficiency> get gapTechnicalProficiencies =>
@@ -300,6 +322,8 @@ class JobDocument {
       'technicalSkills': technicalSkills.map((s) => s.toFirestore()).toList(),
       'softSkills': softSkills.map((s) => s.toFirestore()).toList(),
       'tools': tools.map((s) => s.toFirestore()).toList(),
+      'mandatorySkills': mandatorySkills.map((s) => s.toFirestore()).toList(),
+      'optionalSkills': optionalSkills.map((s) => s.toFirestore()).toList(),
       'certifications': certifications.map((c) => c.toFirestore()).toList(),
       'education': education.toFirestore(),
       'experience': experience.toFirestore(),
@@ -318,17 +342,19 @@ class JobDocument {
     final softRaw = data['softSkills'] as List<dynamic>?;
     final toolsRaw = data['tools'] as List<dynamic>?;
     final certRaw = data['certifications'] as List<dynamic>?;
-    final technicalSkills = techRaw
+    final mandatoryRaw = data['mandatorySkills'] as List<dynamic>?;
+    final optionalRaw = data['optionalSkills'] as List<dynamic>?;
+    var technicalSkills = techRaw
             ?.map((e) => JobSkillItem.fromFirestore(e))
             .whereType<JobSkillItem>()
             .toList() ??
         [];
-    final softSkills = softRaw
+    var softSkills = softRaw
             ?.map((e) => JobSkillItem.fromFirestore(e))
             .whereType<JobSkillItem>()
             .toList() ??
         [];
-    final tools = toolsRaw
+    var tools = toolsRaw
             ?.map((e) => JobSkillItem.fromFirestore(e))
             .whereType<JobSkillItem>()
             .toList() ??
@@ -338,6 +364,76 @@ class JobDocument {
             .whereType<CertificationItem>()
             .toList() ??
         [];
+    final mandatorySkills = mandatoryRaw
+            ?.map((e) => JobSkillItem.fromFirestore(e))
+            .whereType<JobSkillItem>()
+            .toList() ??
+        [];
+    final optionalSkills = optionalRaw
+            ?.map((e) => JobSkillItem.fromFirestore(e))
+            .whereType<JobSkillItem>()
+            .toList() ??
+        [];
+    final hasStructuredGroups =
+        technicalSkills.isNotEmpty || softSkills.isNotEmpty || tools.isNotEmpty;
+
+    // When structured groups exist, individual skill items may lack
+    // priority:'Critical' if the job was saved with a separate top-level
+    // mandatorySkills array (older admin format). Promote any skill whose
+    // id or name matches an entry in that array so the hard-gate sees it.
+    if (hasStructuredGroups && mandatorySkills.isNotEmpty) {
+      final mandatorySkillIdSet = {
+        ...mandatorySkills
+            .map((s) => s.skillId.toLowerCase().trim())
+            .where((s) => s.isNotEmpty),
+      };
+      final mandatorySkillNameSet = {
+        ...mandatorySkills
+            .map((s) => s.name.toLowerCase().trim())
+            .where((s) => s.isNotEmpty),
+      };
+
+      JobSkillItem promote(JobSkillItem s) {
+        final matchesId = mandatorySkillIdSet.contains(s.skillId.toLowerCase().trim());
+        final matchesName = mandatorySkillNameSet.contains(s.name.toLowerCase().trim());
+        if (!matchesId && !matchesName) return s;
+        return JobSkillItem(
+          skillId: s.skillId,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: 'Critical',
+          weight: s.weight,
+          category: s.category,
+        );
+      }
+
+      technicalSkills = technicalSkills.map(promote).toList();
+      softSkills = softSkills.map(promote).toList();
+      tools = tools.map(promote).toList();
+    }
+
+    final fallbackCombined = <JobSkillItem>[
+      ...mandatorySkills.map(
+        (s) => JobSkillItem(
+          skillId: s.skillId,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: 'Critical',
+          weight: s.weight,
+          category: s.category,
+        ),
+      ),
+      ...optionalSkills.map(
+        (s) => JobSkillItem(
+          skillId: s.skillId,
+          name: s.name,
+          requiredLevel: s.requiredLevel,
+          priority: s.priority,
+          weight: s.weight,
+          category: s.category,
+        ),
+      ),
+    ];
     final created = data['createdAt'];
     final updated = data['updatedAt'];
     return JobDocument(
@@ -348,7 +444,7 @@ class JobDocument {
       industry: data['industry']?.toString().trim() ?? '',
       experienceLevel: data['experienceLevel']?.toString().trim() ?? 'Mid-Level',
       description: data['description']?.toString().trim() ?? '',
-      technicalSkills: technicalSkills,
+      technicalSkills: hasStructuredGroups ? technicalSkills : fallbackCombined,
       softSkills: softSkills,
       tools: tools,
       certifications: certifications,
@@ -394,6 +490,8 @@ class JobDocument {
 ({
   List<JobRequiredSkill> requiredWithLevel,
   List<String> criticalNames,
+  List<String> mandatoryNames,
+  Set<String> mandatoryIds,
   List<SkillProficiency> technicalWithLevel,
   List<SkillProficiency> softWithLevel,
   List<String> orderedNames,
@@ -401,50 +499,75 @@ class JobDocument {
   final allSkills = <JobRequiredSkill>[];
   final requiredNames = <String>[];
   final criticalNames = <String>[];
+  final mandatoryNames = <String>[];
+  final mandatoryIds = <String>{};
   final technicalWithLevel = <SkillProficiency>[];
   final softWithLevel = <SkillProficiency>[];
   for (final s in d.technicalSkills) {
+    final isMandatory = s.priority.toLowerCase() == 'critical';
     allSkills.add(
       JobRequiredSkill(
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
-        importance: JobDocument._weightToImportance(s.weight),
+        importance: isMandatory ? 3 : JobDocument._weightToImportance(s.weight),
         weight: s.weight.clamp(1, 10),
       ),
     );
     requiredNames.add(s.name);
     technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
-    if (s.priority == 'Critical') criticalNames.add(s.name);
+    if (isMandatory) {
+      criticalNames.add(s.name);
+      mandatoryNames.add(s.name);
+      mandatoryIds.add(
+        s.skillId.trim().isNotEmpty ? canonicalSkillId(s.skillId) : canonicalSkillId(skillNameToSkillId(s.name)),
+      );
+    }
   }
   for (final s in d.softSkills) {
+    final isMandatory = s.priority.toLowerCase() == 'critical';
     allSkills.add(
       JobRequiredSkill(
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
-        importance: JobDocument._weightToImportance(s.weight),
+        importance: isMandatory ? 3 : JobDocument._weightToImportance(s.weight),
         weight: s.weight.clamp(1, 10),
       ),
     );
     requiredNames.add(s.name);
     softWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
-    if (s.priority == 'Critical') criticalNames.add(s.name);
+    if (isMandatory) {
+      criticalNames.add(s.name);
+      mandatoryNames.add(s.name);
+      mandatoryIds.add(
+        s.skillId.trim().isNotEmpty ? canonicalSkillId(s.skillId) : canonicalSkillId(skillNameToSkillId(s.name)),
+      );
+    }
   }
   for (final s in d.tools) {
+    final isMandatory = s.priority.toLowerCase() == 'critical';
     allSkills.add(
       JobRequiredSkill(
         skillId: s.skillId.trim().isNotEmpty ? s.skillId.trim() : skillNameToSkillId(s.name),
         requiredLevel: s.requiredLevel,
-        importance: JobDocument._weightToImportance(s.weight),
+        importance: isMandatory ? 3 : JobDocument._weightToImportance(s.weight),
         weight: s.weight.clamp(1, 10),
       ),
     );
     requiredNames.add(s.name);
     technicalWithLevel.add(SkillProficiency(name: s.name, percent: s.requiredLevel));
-    if (s.priority == 'Critical') criticalNames.add(s.name);
+    if (isMandatory) {
+      criticalNames.add(s.name);
+      mandatoryNames.add(s.name);
+      mandatoryIds.add(
+        s.skillId.trim().isNotEmpty ? canonicalSkillId(s.skillId) : canonicalSkillId(skillNameToSkillId(s.name)),
+      );
+    }
   }
   return (
     requiredWithLevel: allSkills,
     criticalNames: criticalNames,
+    mandatoryNames: mandatoryNames,
+    mandatoryIds: mandatoryIds,
     technicalWithLevel: technicalWithLevel,
     softWithLevel: softWithLevel,
     orderedNames: requiredNames,

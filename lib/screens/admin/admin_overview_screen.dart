@@ -8,6 +8,7 @@ import 'admin_jobs_screen.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_skills_screen.dart';
 import 'admin_users_screen.dart';
+import '../login_screen.dart';
 
 class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({super.key});
@@ -49,9 +50,18 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
         now.difference(_kpisCacheAt!) < _overviewCacheTtl) {
       return _kpisCache!;
     }
-    final usersCountFuture = FirebaseFirestore.instance.collection('users').count().get();
-    final jobsCountFuture = FirebaseFirestore.instance.collection('jobs').count().get();
-    final skillsCountFuture = FirebaseFirestore.instance.collection('skills').count().get();
+    final usersCountFuture = FirebaseFirestore.instance
+        .collection('users')
+        .count()
+        .get();
+    final jobsCountFuture = FirebaseFirestore.instance
+        .collection('jobs')
+        .count()
+        .get();
+    final skillsCountFuture = FirebaseFirestore.instance
+        .collection('skills')
+        .count()
+        .get();
     final veryHighDemandFuture = FirebaseFirestore.instance
         .collection('skills')
         .where('demandLevel', isEqualTo: 'Very High')
@@ -114,7 +124,11 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     final today = DateTime.now();
     final weekDays = List<DateTime>.generate(
       7,
-      (i) => DateTime(today.year, today.month, today.day).subtract(Duration(days: 6 - i)),
+      (i) => DateTime(
+        today.year,
+        today.month,
+        today.day,
+      ).subtract(Duration(days: 6 - i)),
     );
     final weekCounts = List<int>.filled(7, 0);
     for (final doc in usersSnap.docs) {
@@ -139,7 +153,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     var phd = 0;
     var other = 0;
     for (final doc in usersSnap.docs) {
-      final y = doc.data()['academic_year']?.toString().trim().toLowerCase() ?? '';
+      final y =
+          doc.data()['academic_year']?.toString().trim().toLowerCase() ?? '';
       if (y.contains('bachelor')) {
         bachelor++;
       } else if (y.contains('master')) {
@@ -153,10 +168,26 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     final total = (bachelor + master + phd + other);
     double pct(int c) => total == 0 ? 0 : (c * 100.0 / total);
     final academicSegments = <_PieDatum>[
-      _PieDatum(label: 'Bachelor', percent: pct(bachelor), color: const Color(0xFF6B5BAE)),
-      _PieDatum(label: 'Master', percent: pct(master), color: const Color(0xFF2A6CFF)),
-      _PieDatum(label: 'PhD', percent: pct(phd), color: const Color(0xFF1565C0)),
-      _PieDatum(label: 'Other', percent: pct(other), color: const Color(0xFF2E7D32)),
+      _PieDatum(
+        label: 'Bachelor',
+        percent: pct(bachelor),
+        color: const Color(0xFF6B5BAE),
+      ),
+      _PieDatum(
+        label: 'Master',
+        percent: pct(master),
+        color: const Color(0xFF2A6CFF),
+      ),
+      _PieDatum(
+        label: 'PhD',
+        percent: pct(phd),
+        color: const Color(0xFF1565C0),
+      ),
+      _PieDatum(
+        label: 'Other',
+        percent: pct(other),
+        color: const Color(0xFF2E7D32),
+      ),
     ];
 
     final result = _AdminOverviewCharts(
@@ -259,11 +290,14 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                     ),
                     IconButton(
                       onPressed: () async {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                          (_) => false,
+                        );
+                        await Future.delayed(const Duration(milliseconds: 50));
                         await AuthService.signOut();
-                        if (!context.mounted) return;
-                        Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst);
                       },
                       icon: const Icon(
                         Icons.logout_rounded,
@@ -393,11 +427,14 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                                     const SizedBox(width: cardSpacing),
                                     Expanded(
                                       child: _StatCard(
-                                        icon: Icons.local_fire_department_rounded,
+                                        icon:
+                                            Icons.local_fire_department_rounded,
                                         iconColor: theme.colorScheme.secondary,
                                         label: 'High Demand Skills',
                                         value: kpis != null
-                                            ? _formatCount(kpis.highDemandSkills)
+                                            ? _formatCount(
+                                                kpis.highDemandSkills,
+                                              )
                                             : '...',
                                       ),
                                     ),
@@ -414,9 +451,11 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           child: FutureBuilder<_AdminOverviewCharts>(
                             future: _chartsFuture,
                             builder: (context, snapshot) {
-                              final data = snapshot.data?.topRoles ?? const <_BarDatum>[];
+                              final data =
+                                  snapshot.data?.topRoles ??
+                                  const <_BarDatum>[];
                               return SizedBox(
-                                height: 200,
+                                height: 260,
                                 child: _MostSelectedJobRolesChart(
                                   screenWidth: screenWidth,
                                   data: data,
@@ -432,8 +471,12 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           child: FutureBuilder<_AdminOverviewCharts>(
                             future: _chartsFuture,
                             builder: (context, snapshot) {
-                              final labels = snapshot.data?.weeklyLabels ?? const <String>[];
-                              final values = snapshot.data?.weeklyValues ?? const <double>[];
+                              final labels =
+                                  snapshot.data?.weeklyLabels ??
+                                  const <String>[];
+                              final values =
+                                  snapshot.data?.weeklyValues ??
+                                  const <double>[];
                               return SizedBox(
                                 height: 180,
                                 child: _WeeklyActivityChart(
@@ -451,7 +494,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           child: FutureBuilder<_AdminOverviewCharts>(
                             future: _chartsFuture,
                             builder: (context, snapshot) {
-                              final segments = snapshot.data?.academicSegments ?? const <_PieDatum>[];
+                              final segments =
+                                  snapshot.data?.academicSegments ??
+                                  const <_PieDatum>[];
                               return _AcademicLevelDonut(segments: segments);
                             },
                           ),
@@ -522,15 +567,20 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       );
     }
     if (charts.academicSegments.isNotEmpty) {
-      final topSegment = charts.academicSegments
-          .reduce((a, b) => a.percent >= b.percent ? a : b);
+      final topSegment = charts.academicSegments.reduce(
+        (a, b) => a.percent >= b.percent ? a : b,
+      );
       insights.add(
         '${topSegment.label} is the largest academic segment (${topSegment.percent.toStringAsFixed(0)}%).',
       );
     }
     final weeklyTotal = charts.weeklyValues.fold<double>(0, (a, b) => a + b);
-    insights.add('Weekly assessments captured: ${weeklyTotal.toInt()} (last 7 days).');
-    insights.add('High demand skills tracked: ${_formatCount(kpis.highDemandSkills)}.');
+    insights.add(
+      'Weekly assessments captured: ${weeklyTotal.toInt()} (last 7 days).',
+    );
+    insights.add(
+      'High demand skills tracked: ${_formatCount(kpis.highDemandSkills)}.',
+    );
     return insights;
   }
 }
@@ -567,10 +617,7 @@ class _BarDatum {
   final String label;
   final double value;
 
-  const _BarDatum({
-    required this.label,
-    required this.value,
-  });
+  const _BarDatum({required this.label, required this.value});
 }
 
 class _PieDatum {
@@ -613,9 +660,7 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: iconColor, size: 26),
-            ],
+            children: [Icon(icon, color: iconColor, size: 26)],
           ),
           const SizedBox(height: 10),
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
@@ -687,100 +732,118 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (data.isEmpty) {
-      return const Center(
-        child: Text('No role selection data yet.'),
-      );
+      return const Center(child: Text('No role selection data yet.'));
     }
-    final maxValue = data
-        .map((d) => d.value)
-        .reduce((a, b) => a > b ? a : b);
-    final maxY = (maxValue <= 0 ? 10.0 : maxValue * 1.2);
-    final interval = (maxY / 4).clamp(1, 1000000).toDouble();
+    final maxValue = data.map((d) => d.value).reduce((a, b) => a > b ? a : b);
+    final maxY = maxValue + 1.0;
 
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: maxY,
-        barTouchData: BarTouchData(
-          enabled: true,
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final label = (groupIndex >= 0 && groupIndex < data.length)
-                  ? data[groupIndex].label
-                  : 'Role';
-              return BarTooltipItem(
-                '$label\n${rod.toY.toInt()}',
-                const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              );
-            },
-          ),
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 32,
-              getTitlesWidget: (value, meta) => Text(
-                value.toInt().toString(),
-                style: const TextStyle(color: Colors.grey, fontSize: 10),
-              ),
-              interval: interval,
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 36,
-              getTitlesWidget: (value, meta) {
-                final i = value.toInt();
-                if (i >= 0 && i < data.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      data[i].label,
-                      style: const TextStyle(color: Colors.grey, fontSize: 11),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          groupsSpace: 32,
+          minY: 0,
+          maxY: maxY,
+          barTouchData: BarTouchData(
+            enabled: false,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => Colors.transparent,
+              tooltipPadding: EdgeInsets.zero,
+              tooltipMargin: 4,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  rod.toY.toInt().toString(),
+                  const TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                );
               },
             ),
           ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: interval,
-          getDrawingHorizontalLine: (value) =>
-              FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: data.asMap().entries.map((e) {
-          return BarChartGroupData(
-            x: e.key,
-            barRods: [
-              BarChartRodData(
-                toY: e.value.value,
-                color: Theme.of(context).colorScheme.primary,
-                width: (screenWidth - 32 - 48) / 3 * 0.45,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(6),
-                ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 32,
+                getTitlesWidget: (value, meta) {
+                  if (value % 1 != 0) return const SizedBox.shrink();
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(color: Colors.grey, fontSize: 10),
+                  );
+                },
+                interval: 1.0,
               ),
-            ],
-            showingTooltipIndicators: [],
-          );
-        }).toList(),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 120,
+                getTitlesWidget: (value, meta) {
+                  final i = value.toInt();
+                  if (i >= 0 && i < data.length) {
+                    String text = data[i].label;
+                    if (text.length > 15) {
+                      text = '${text.substring(0, 12)}...';
+                    }
+                    return SideTitleWidget(
+                      axisSide: meta.axisSide,
+                      angle: -0.785398, // -45 degrees
+                      space: 12,
+                      child: Text(
+                        text,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.visible,
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: 1.0,
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: Colors.grey.withValues(alpha: 0.2),
+              strokeWidth: 1,
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: data.asMap().entries.map((e) {
+            return BarChartGroupData(
+              x: e.key,
+              barRods: [
+                BarChartRodData(
+                  toY: e.value.value,
+                  color: const Color(0xFF121212),
+                  width: (screenWidth - 32 - 48) / 3 * 0.45,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(6),
+                  ),
+                ),
+              ],
+              showingTooltipIndicators: [0],
+            );
+          }).toList(),
+        ),
+        duration: const Duration(milliseconds: 0),
       ),
-      duration: const Duration(milliseconds: 0),
     );
   }
 }
@@ -789,17 +852,12 @@ class _WeeklyActivityChart extends StatelessWidget {
   final List<String> labels;
   final List<double> values;
 
-  const _WeeklyActivityChart({
-    required this.labels,
-    required this.values,
-  });
+  const _WeeklyActivityChart({required this.labels, required this.values});
 
   @override
   Widget build(BuildContext context) {
     if (values.isEmpty || labels.isEmpty) {
-      return const Center(
-        child: Text('No weekly activity yet.'),
-      );
+      return const Center(child: Text('No weekly activity yet.'));
     }
 
     final spots = values
@@ -821,11 +879,15 @@ class _WeeklyActivityChart extends StatelessWidget {
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final index = spot.x.toInt();
-                final label =
-                    (index >= 0 && index < labels.length) ? labels[index] : 'Day';
+                final label = (index >= 0 && index < labels.length)
+                    ? labels[index]
+                    : 'Day';
                 return LineTooltipItem(
                   '$label: ${spot.y.toInt()}',
-                  const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 );
               }).toList();
             },
@@ -878,7 +940,7 @@ class _WeeklyActivityChart extends StatelessWidget {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: Theme.of(context).colorScheme.primary,
+            color: const Color(0xFF121212),
             barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: true),
@@ -962,10 +1024,7 @@ class _QuickInsightsCard extends StatelessWidget {
   final List<String> bullets;
   final bool isLiveData;
 
-  const _QuickInsightsCard({
-    required this.bullets,
-    required this.isLiveData,
-  });
+  const _QuickInsightsCard({required this.bullets, required this.isLiveData});
 
   @override
   Widget build(BuildContext context) {
@@ -995,7 +1054,11 @@ class _QuickInsightsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 20),
+              const Icon(
+                Icons.bar_chart_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'Quick Insights',

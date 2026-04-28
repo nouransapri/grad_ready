@@ -125,6 +125,73 @@ String _skillNameOrId(dynamic raw) {
   return (raw['skillId']?.toString() ?? '').trim();
 }
 
+double computeUserSuccessRate(List<Map<String, dynamic>> users) {
+  int qualifiedCount = 0;
+  int totalWithAnalysis = 0;
+  for (final u in users) {
+    final last = u['last_analysis'];
+    if (last is Map) {
+      totalWithAnalysis++;
+      if (last['isQualified'] == true) {
+        qualifiedCount++;
+      }
+    }
+  }
+  if (totalWithAnalysis == 0) return 0.0;
+  return (qualifiedCount / totalWithAnalysis) * 100;
+}
+
+List<(String, int)> computeMostMissingMandatorySkills(
+  List<Map<String, dynamic>> users, {
+  int top = 5,
+}) {
+  final count = <String, int>{};
+  for (final u in users) {
+    final last = u['last_analysis'];
+    if (last is Map) {
+      final missing = last['missingMandatorySkills'] as List?;
+      if (missing != null) {
+        for (final m in missing) {
+          final s = m.toString().trim();
+          if (s.isNotEmpty) {
+            count[s] = (count[s] ?? 0) + 1;
+          }
+        }
+      }
+    }
+  }
+  final sorted = count.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return sorted.take(top).map((e) => (e.key, e.value)).toList();
+}
+
+List<(String, int)> computeTopDemandedSkills(
+  List<JobDocument> jobs, {
+  int top = 5,
+}) {
+  final count = <String, int>{};
+  for (final j in jobs) {
+    for (final s in j.technicalSkills) {
+      if (s.priority == 'Critical') {
+        count[s.name] = (count[s.name] ?? 0) + 1;
+      }
+    }
+    for (final s in j.softSkills) {
+      if (s.priority == 'Critical') {
+        count[s.name] = (count[s.name] ?? 0) + 1;
+      }
+    }
+    for (final s in j.tools) {
+      if (s.priority == 'Critical') {
+        count[s.name] = (count[s.name] ?? 0) + 1;
+      }
+    }
+  }
+  final sorted = count.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return sorted.take(top).map((e) => (e.key, e.value)).toList();
+}
+
 /// 4. Job Category Distribution: from jobs collection, group by category, percent of total.
 List<(String, int)> computeCategoryDistribution(List<JobDocument> jobs) {
   final byCat = <String, int>{};
@@ -390,6 +457,11 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
       activitySeries.spots,
       _periodIndex,
     );
+
+    final userSuccessRate = computeUserSuccessRate(users);
+    final mostMissingMandatorySkills = computeMostMissingMandatorySkills(users);
+    final topDemandedSkills = computeTopDemandedSkills(jobs);
+
     final keyInsights = computeKeyInsights(
       users: users,
       jobs: jobs,
@@ -473,6 +545,12 @@ class _AdminAnalyticsContentState extends State<AdminAnalyticsContent> {
                 distribution: categoryDistribution,
               ),
             ),
+            const SizedBox(height: 16),
+            _UserSuccessRateCard(successRate: userSuccessRate),
+            const SizedBox(height: 16),
+            _TopDemandedSkillsCard(skills: topDemandedSkills),
+            const SizedBox(height: 16),
+            _MostMissingMandatorySkillsCard(skills: mostMissingMandatorySkills),
             const SizedBox(height: 16),
             _KeyInsightsSummaryCard(insights: keyInsights),
           ],
@@ -1430,6 +1508,126 @@ class _KeyInsightsSummaryCard extends StatelessWidget {
                 }).toList()),
         ],
       ),
+    );
+  }
+}
+
+class _UserSuccessRateCard extends StatelessWidget {
+  final double successRate;
+
+  const _UserSuccessRateCard({required this.successRate});
+
+  @override
+  Widget build(BuildContext context) {
+    return _AnalyticsCard(
+      title: 'User Success Rate (Qualified)',
+      child: Center(
+        child: Column(
+          children: [
+            Text(
+              '${successRate.toStringAsFixed(1)}%',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Percentage of users meeting mandatory requirements',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopDemandedSkillsCard extends StatelessWidget {
+  final List<(String, int)> skills;
+
+  const _TopDemandedSkillsCard({required this.skills});
+
+  @override
+  Widget build(BuildContext context) {
+    return _AnalyticsCard(
+      title: 'Top Demanded Critical Skills',
+      child: skills.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'No critical skills found in jobs.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          : Column(
+              children: skills.map((e) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          e.$1,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Text(
+                        '${e.$2} jobs',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+    );
+  }
+}
+
+class _MostMissingMandatorySkillsCard extends StatelessWidget {
+  final List<(String, int)> skills;
+
+  const _MostMissingMandatorySkillsCard({required this.skills});
+
+  @override
+  Widget build(BuildContext context) {
+    return _AnalyticsCard(
+      title: 'Most Missing Mandatory Skills',
+      child: skills.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'No missing mandatory skills data yet.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          : Column(
+              children: skills.map((e) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red[400], size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          e.$1,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Text(
+                        '${e.$2} users',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
     );
   }
 }

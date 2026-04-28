@@ -10,7 +10,7 @@
 // we fall back to legacy [JobRole]-style technical/soft lists and name-based matching.
 import 'dart:developer' as developer;
 
-import '../models/course.dart';
+
 import '../models/job_document.dart';
 import '../models/job_role.dart';
 import '../models/skill.dart';
@@ -24,15 +24,11 @@ class LearningStep {
   final String skillName;
   final int priority;
   final List<String> suggestedCourses;
-  /// Courses with URLs (from `courses` collection); preferred over [suggestedCourses] for taps.
-  final List<Course> suggestedCourseLinks;
-
   const LearningStep({
     required this.stepNumber,
     required this.skillName,
     required this.priority,
     required this.suggestedCourses,
-    this.suggestedCourseLinks = const [],
   });
 }
 
@@ -78,8 +74,10 @@ class GapAnalysisResult {
   final SkillMatchDistribution skillMatchDistribution;
   final List<String> prioritySkills;
   final List<String> missingSkillsByPriority;
-  /// Same keys as [skillRecommendations]; full course rows for opening URLs in UI.
-  final Map<String, List<Course>> skillCourseResources;
+  final bool isQualified;
+  final List<String> missingMandatorySkills;
+  final List<String> mandatorySkills;
+
 
   const GapAnalysisResult({
     required this.matchedSkills,
@@ -93,7 +91,9 @@ class GapAnalysisResult {
     required this.skillMatchDistribution,
     required this.prioritySkills,
     required this.missingSkillsByPriority,
-    this.skillCourseResources = const <String, List<Course>>{},
+    required this.isQualified,
+    required this.missingMandatorySkills,
+    required this.mandatorySkills,
   });
 
   bool isHighPriority(String skillName) {
@@ -502,8 +502,7 @@ class GapAnalysisService {
       Set<String> userSkillIds,
     )?
     fetchSmartRecommendations,
-    Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
-    fetchCourseDetails,
+
     Map<String, Skill>? skillsCatalog,
   }) async {
     final jobRole = job.toJobRole();
@@ -525,17 +524,20 @@ class GapAnalysisService {
         ),
         prioritySkills: <String>[],
         missingSkillsByPriority: <String>[],
+        isQualified: false,
+        missingMandatorySkills: <String>[],
+        mandatorySkills: <String>[],
       );
     }
     if (jobRole.requiredSkillsWithLevel.isNotEmpty) {
       final merged = mergeJobRequiredSkillsCatalog(job, skillsCatalog);
       return _runLevelBasedGapAnalysis(
         userData,
+        job,
         jobRole,
         merged,
         fetchRecommendations,
         fetchSmartRecommendations,
-        fetchCourseDetails,
       );
     }
     return _runLegacyGapAnalysis(
@@ -543,12 +545,12 @@ class GapAnalysisService {
       jobRole,
       fetchRecommendations,
       fetchSmartRecommendations,
-      fetchCourseDetails,
     );
   }
 
   static Future<GapAnalysisResult> _runLevelBasedGapAnalysis(
     Map<String, dynamic> userData,
+    JobDocument jobDoc,
     JobRole job,
     Map<String, Skill> skillsCatalog,
     Future<Map<String, List<String>>> Function(List<String> missingSkillNames)?
@@ -558,22 +560,91 @@ class GapAnalysisService {
       Set<String> userSkillIds,
     )?
     fetchSmartRecommendations,
-    Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
-    fetchCourseDetails,
+
   ) async {
     final userLevels = collectUserLevelsBySkillId(userData, skillsCatalog);
     final requiredList = job.requiredSkillsWithLevel;
+    final mandatoryIds = jobDoc.gapMandatorySkillIds;
+    // Name-based fallback: catches mandatory skills even when skillId resolution
+    // produces a different canonical id than what was stored in mandatoryIds.
+    final mandatoryNormalizedNames = jobDoc.gapMandatorySkillNames
+        .map(normalizeSkillName)
+        .where((n) => n.isNotEmpty)
+        .toSet();
+    final hasMandatoryDefined =
+        mandatoryIds.isNotEmpty || mandatoryNormalizedNames.isNotEmpty;
+
+    developer.log(
+      'Mandatory setup: mandatoryIds=${mandatoryIds.length} [${mandatoryIds.join(", ")}] | '
+      'mandatoryNames=${mandatoryNormalizedNames.length} [${mandatoryNormalizedNames.join(", ")}] | '
+      'hasMandatoryDefined=$hasMandatoryDefined | requiredList=${requiredList.length}',
+      name: 'GapAnalysisService',
+    );
+
+    // ---------------------------------------------------------------
+    // Stage 1 — Hard Gate: evaluate mandatory skills independently.
+    // A skill is mandatory when its raw OR resolved canonical id is in
+    // mandatoryIds, OR its display name matches a mandatory name.
+    // Checking both IDs prevents silent misses caused by catalog
+    // resolution changing "machine-learning-python" → "python" etc.
+    // ---------------------------------------------------------------
+    final missingMandatorySkills = <String>[];
+
+    for (final req in requiredList) {
+      final rawCanonical = canonicalSkillId(req.skillId);
+      final resolvedReqId =
+          _resolveSkillIdFromCatalog(skillsCatalog, req.skillId) ?? req.skillId;
+      final reqCanonical = canonicalSkillId(resolvedReqId);
+      final skill = _catalogSkill(skillsCatalog, resolvedReqId);
+      final name = skill?.name ?? displayNameFromSkillId(resolvedReqId);
+
+      final isMandatory = mandatoryIds.contains(reqCanonical) ||
+          mandatoryIds.contains(rawCanonical) ||
+          mandatoryNormalizedNames.contains(normalizeSkillName(name)) ||
+          mandatoryNormalizedNames.contains(
+              normalizeSkillName(displayNameFromSkillId(req.skillId)));
+      if (!isMandatory) continue;
+
+      int userLevel = _userLevelFor(userLevels, resolvedReqId);
+      if (userLevel == 0) {
+        userLevel = _legacyUserLevelByName(userData, name);
+      }
+      var score = skillScoreForLevel(userLevel, req.requiredLevel);
+      if (_isCompositeFallback(req.skillId, resolvedReqId)) {
+        score *= _compositeFallbackPenalty;
+      }
+
+      if (score < 1.0) {
+        missingMandatorySkills.add(name);
+      }
+    }
+
+    developer.log(
+      'Hard Gate: mandatoryIds=${mandatoryIds.length}, '
+      'mandatoryNames=${mandatoryNormalizedNames.length}, '
+      'missing=${missingMandatorySkills.length}'
+      '${missingMandatorySkills.isNotEmpty ? " [${missingMandatorySkills.join(", ")}]" : ""}',
+      name: 'GapAnalysisService',
+    );
+
+    // ---------------------------------------------------------------
+    // Stage 2 — Scoring: compute match percentages from ALL skills
+    // (mandatory + optional). These numbers inform the UI but never
+    // change the isQualified verdict from Stage 1.
+    // ---------------------------------------------------------------
     final skillScores = <double>[];
     final weights = <int>[];
     final matchedNames = <String>[];
     final missingWithMeta =
-        <({String skillId, String name, int importance, double score})>[];
+        <({String skillId, String name, int importance, double score, bool isMandatory})>[];
 
     for (final req in requiredList) {
       final resolvedReqId =
           _resolveSkillIdFromCatalog(skillsCatalog, req.skillId) ?? req.skillId;
       final skill = _catalogSkill(skillsCatalog, resolvedReqId);
       final name = skill?.name ?? resolvedReqId;
+      final reqCanonical = canonicalSkillId(resolvedReqId);
+      final isMandatory = mandatoryIds.contains(reqCanonical);
       int userLevel = _userLevelFor(userLevels, resolvedReqId);
       if (userLevel == 0) {
         userLevel = _legacyUserLevelByName(userData, name);
@@ -593,9 +664,9 @@ class GapAnalysisService {
           name: name,
           importance: req.importance.clamp(1, 3),
           score: score,
+          isMandatory: isMandatory,
         ));
       }
-      
     }
 
     final weightedScore = SkillsAnalysisService.weightedMatchRatio(
@@ -607,13 +678,37 @@ class GapAnalysisService {
     final matchPercentage = simpleScore * 100;
     final weightedMatchPercentage = weightedScore * 100;
 
-    // Sort missing by importance (high first), then by gap (low score first).
+    developer.log(
+      'Scoring: total=${requiredList.length}, matched=$matchedCount, '
+      'match%=${matchPercentage.toStringAsFixed(1)}, '
+      'weighted%=${weightedMatchPercentage.toStringAsFixed(1)}',
+      name: 'GapAnalysisService',
+    );
+
+    // Sort missing by mandatory first, then importance (high→low), then gap (low score first).
     missingWithMeta.sort((a, b) {
+      if (a.isMandatory != b.isMandatory) {
+        return a.isMandatory ? -1 : 1;
+      }
       final impCmp = b.importance.compareTo(a.importance);
       if (impCmp != 0) return impCmp;
       return a.score.compareTo(b.score);
     });
     final missingSkills = missingWithMeta.map((e) => e.name).toList();
+
+    // If no mandatory skills are configured on the job, require a 100% match.
+    // This prevents "Qualified" when the job has no Critical-priority skills
+    // but the user matches very few required skills.
+    final isQualified = mandatoryIds.isEmpty
+        ? missingSkills.isEmpty
+        : missingMandatorySkills.isEmpty;
+
+    developer.log(
+      'Hard Gate result: qualified=$isQualified '
+      '(mandatoryIds=${mandatoryIds.length}, missingMandatory=${missingMandatorySkills.length}, '
+      'missingTotal=${missingSkills.length})',
+      name: 'GapAnalysisService',
+    );
 
     final skillPriorityRanking = <String, int>{};
     for (var i = 0; i < requiredList.length; i++) {
@@ -655,20 +750,7 @@ class GapAnalysisService {
       }
     }
 
-    Map<String, List<Course>> skillCourseResources = {};
-    if (fetchCourseDetails != null && missingSkills.isNotEmpty) {
-      try {
-        skillCourseResources = await fetchCourseDetails(missingSkills);
-      } catch (e, st) {
-        developer.log(
-          'fetchCourseDetails failed: $e',
-          name: 'GapAnalysisService',
-          error: e,
-          stackTrace: st,
-        );
-        skillCourseResources = <String, List<Course>>{};
-      }
-    }
+
 
     final learningPath = <LearningStep>[];
     for (var i = 0; i < missingWithMeta.length; i++) {
@@ -679,16 +761,17 @@ class GapAnalysisService {
           skillName: m.name,
           priority: skillPriorityRanking[m.name] ?? 0,
           suggestedCourses: skillRecommendations[m.name] ?? [],
-          suggestedCourseLinks: skillCourseResources[m.name] ?? const [],
         ),
       );
     }
 
     final skillGapSeverity = <String, String>{};
     for (final m in missingWithMeta) {
-      skillGapSeverity[m.name] = m.importance >= 3
-          ? 'High Gap'
-          : (m.importance >= 2 ? 'Medium Gap' : 'Low Gap');
+      skillGapSeverity[m.name] = m.isMandatory
+          ? 'Hard Gate'
+          : (m.importance >= 3
+              ? 'High Gap'
+              : (m.importance >= 2 ? 'Medium Gap' : 'Low Gap'));
     }
 
     final technicalIds = skillsCatalog.values
@@ -718,7 +801,7 @@ class GapAnalysisService {
     );
 
     final prioritySkills = missingWithMeta
-        .where((m) => m.importance >= 3)
+        .where((m) => m.isMandatory || m.importance >= 3)
         .map((m) => m.name)
         .toList();
 
@@ -734,7 +817,9 @@ class GapAnalysisService {
       skillMatchDistribution: skillMatchDistribution,
       prioritySkills: prioritySkills,
       missingSkillsByPriority: List.from(missingSkills),
-      skillCourseResources: skillCourseResources,
+      isQualified: isQualified,
+      missingMandatorySkills: missingMandatorySkills,
+      mandatorySkills: jobDoc.gapMandatorySkillNames,
     );
   }
 
@@ -748,8 +833,7 @@ class GapAnalysisService {
       Set<String> userSkillIds,
     )?
     fetchSmartRecommendations,
-    Future<Map<String, List<Course>>> Function(List<String> missingSkillNames)?
-    fetchCourseDetails,
+
   ) async {
     final user = collectAllUserSkillNames(userData);
     final requiredSkills = _getRequiredSkillNamesFromRole(job);
@@ -917,20 +1001,7 @@ class GapAnalysisService {
       }
     }
 
-    Map<String, List<Course>> skillCourseResources = {};
-    if (fetchCourseDetails != null && missingSkills.isNotEmpty) {
-      try {
-        skillCourseResources = await fetchCourseDetails(missingSkills);
-      } catch (e, st) {
-        developer.log(
-          'fetchCourseDetails failed: $e',
-          name: 'GapAnalysisService',
-          error: e,
-          stackTrace: st,
-        );
-        skillCourseResources = <String, List<Course>>{};
-      }
-    }
+
 
     final learningPath = <LearningStep>[];
     for (var i = 0; i < missingSkills.length; i++) {
@@ -941,7 +1012,6 @@ class GapAnalysisService {
           skillName: skill,
           priority: skillPriorityRanking[skill] ?? 0,
           suggestedCourses: skillRecommendations[skill] ?? [],
-          suggestedCourseLinks: skillCourseResources[skill] ?? const [],
         ),
       );
     }
@@ -981,6 +1051,16 @@ class GapAnalysisService {
     final prioritySkills = missingSkills
         .where((s) => (skillPriorityRanking[s] ?? 0) >= _criticalPriorityThreshold)
         .toList();
+    final missingMandatorySkills = missingSkills
+        .where((s) => criticalNormalized.contains(normalize(s)))
+        .toList();
+    final mandatorySkills = requiredSkills
+        .where((s) => criticalNormalized.contains(normalize(s)))
+        .toList();
+    // Same rule as level-based path: no critical skills configured → must match all.
+    final isQualified = criticalNormalized.isEmpty
+        ? missingSkills.isEmpty
+        : missingMandatorySkills.isEmpty;
 
     return GapAnalysisResult(
       matchedSkills: matchedSkills,
@@ -994,7 +1074,9 @@ class GapAnalysisService {
       skillMatchDistribution: skillMatchDistribution,
       prioritySkills: prioritySkills,
       missingSkillsByPriority: List.from(missingSkills),
-      skillCourseResources: skillCourseResources,
+      isQualified: isQualified,
+      missingMandatorySkills: missingMandatorySkills,
+      mandatorySkills: mandatorySkills,
     );
   }
 }

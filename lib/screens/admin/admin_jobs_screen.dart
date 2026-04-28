@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/job_document.dart';
 import '../../services/firestore_service.dart';
 import 'admin_create_job_role_screen.dart';
@@ -57,7 +58,14 @@ class _AdminJobsContentState extends State<AdminJobsContent> {
     return StreamBuilder<List<JobDocument>>(
       stream: _jobsStream,
       builder: (context, snapshot) {
+        if (FirebaseAuth.instance.currentUser == null) {
+          return const SizedBox.shrink();
+        }
         if (snapshot.hasError) {
+          final errorStr = snapshot.error.toString().toLowerCase();
+          if (errorStr.contains('permission-denied') || errorStr.contains('permission_denied')) {
+            return const SizedBox.shrink();
+          }
           return Padding(
             padding: const EdgeInsets.all(24),
             child: Center(

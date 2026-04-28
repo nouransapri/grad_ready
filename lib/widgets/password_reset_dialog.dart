@@ -35,13 +35,17 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
     final email = _emailController.text.trim();
 
     try {
-      final ok = await AuthService.resetPassword(email);
+      await AuthService.resetPassword(email);
       if (!mounted) return;
-      if (ok) {
-        Navigator.pop(context, true);
-      } else {
-        Navigator.pop(context, false);
-      }
+      // Success – pop with `true` so the caller shows a success SnackBar.
+      Navigator.pop(context, true);
+    } on PasswordResetException catch (e) {
+      if (!mounted) return;
+      // Pop with the error message string so the caller shows it in a SnackBar.
+      Navigator.pop(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pop(context, 'Something went wrong. Please try again.');
     } finally {
       if (mounted) {
         setState(() => _loading = false);

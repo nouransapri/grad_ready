@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import '../models/course.dart';
+import '../models/skill_model.dart';
 import '../services/analysis_service.dart';
 import '../utils/constants.dart';
 
@@ -63,12 +63,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             .doc(user.uid)
             .snapshots(),
         builder: (context, userSnapshot) {
+          if (FirebaseAuth.instance.currentUser == null) {
+            return const SizedBox.shrink();
+          }
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF2A6CFF)),
             );
           }
           if (userSnapshot.hasError) {
+            final errorStr = userSnapshot.error.toString().toLowerCase();
+            if (errorStr.contains('permission-denied') || errorStr.contains('permission_denied')) {
+              return const SizedBox.shrink();
+            }
             return _ErrorPane(
               message: userSnapshot.error.toString(),
               onRetry: _retry,
@@ -235,22 +242,22 @@ class _CoursesCatalogSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Course>>(
+    return StreamBuilder<List<SkillModel>>(
       key: ValueKey('analysis-catalog-stream-$retryTick'),
-      stream: AnalysisService.watchCatalogCourses(),
-      builder: (context, courseSnapshot) {
-        final catalogLoading = courseSnapshot.connectionState == ConnectionState.waiting;
-        final catalog = courseSnapshot.data ?? [];
-        final catalogError = courseSnapshot.error;
-        final barGroups = AnalysisService.buildAvgRatingBySkillBars(catalog, maxBars: 8);
-        final barLabels = AnalysisService.avgRatingBarLabels(catalog, maxBars: 8);
+      stream: AnalysisService.watchSkillsCatalog(),
+      builder: (context, snapshot) {
+        final catalogLoading = snapshot.connectionState == ConnectionState.waiting;
+        final catalog = snapshot.data ?? [];
+        final catalogError = snapshot.error;
+        final barGroups = AnalysisService.buildJobCountBySkillBars(catalog, maxBars: 8);
+        final barLabels = AnalysisService.jobCountBarLabels(catalog, maxBars: 8);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionTitle(
               icon: Icons.bar_chart_rounded,
-              title: 'Course catalog (avg rating by skill)',
+              title: 'Market Demand (Jobs per Skill)',
             ),
             const SizedBox(height: 8),
             if (catalogLoading)
@@ -275,7 +282,7 @@ class _CoursesCatalogSection extends StatelessWidget {
                 child: BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
-                    maxY: 5,
+                    maxY: null,
                     gridData: const FlGridData(show: true),
                     barTouchData: BarTouchData(
                       enabled: true,
@@ -284,7 +291,7 @@ class _CoursesCatalogSection extends StatelessWidget {
                           final label =
                               group.x >= 0 && group.x < barLabels.length ? barLabels[group.x] : 'Skill';
                           return BarTooltipItem(
-                            '$label\n${rod.toY.toStringAsFixed(1)} / 5',
+                            '$label\n${rod.toY.toInt()} jobs',
                             const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                           );
                         },

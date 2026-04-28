@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/job_document.dart';
 import '../models/skill.dart';
 import '../services/firestore_service.dart';
@@ -116,6 +117,9 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
     return StreamBuilder<List<JobDocument>>(
       stream: _jobsStream,
       builder: (context, snapshot) {
+        if (FirebaseAuth.instance.currentUser == null) {
+          return const SizedBox.shrink();
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: Color(0xFFF8F9FA),
@@ -125,6 +129,10 @@ class _SelectJobRoleScreenState extends State<SelectJobRoleScreen> {
           );
         }
         if (snapshot.hasError) {
+          final errorStr = snapshot.error.toString().toLowerCase();
+          if (errorStr.contains('permission-denied') || errorStr.contains('permission_denied')) {
+            return const SizedBox.shrink();
+          }
           return Scaffold(
             backgroundColor: const Color(0xFFF8F9FA),
             body: Center(child: Text('Error: ${snapshot.error}')),

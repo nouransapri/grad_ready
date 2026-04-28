@@ -144,6 +144,7 @@ class UserModel {
   final List<ClubModel> clubs;
   final List<ProjectModel> projects;
   final bool profileCompleted;
+  final bool isActive;
 
   const UserModel({
     required this.uid,
@@ -159,6 +160,7 @@ class UserModel {
     this.clubs = const [],
     this.projects = const [],
     this.profileCompleted = false,
+    this.isActive = true,
   });
 
   factory UserModel.fromFirestore(String uid, Map<String, dynamic> map) {
@@ -210,6 +212,7 @@ class UserModel {
               .where((p) => p.name.isNotEmpty || p.description.isNotEmpty)
               .toList(),
       profileCompleted: map['profile_completed'] == true,
+      isActive: map['isSuspended'] != true,
     );
   }
 
@@ -257,6 +260,7 @@ class UserModel {
       'clubs': clubs.map((e) => e.toMap()).toList(),
       'projects': projects.map((e) => e.toMap()).toList(),
       'profile_completed': profileCompleted,
+      'isSuspended': !isActive,
     };
   }
 }

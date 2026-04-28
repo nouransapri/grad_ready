@@ -98,7 +98,6 @@ class _GradReadyBootstrapState extends State<_GradReadyBootstrap> {
           Future<void>(() async {
             try {
               await FirestoreService().uploadHomeMockDataIfEmpty();
-              await FirestoreService.seedCoursesIfEmpty();
               await FirestoreService.seedJobsIfEmpty();
               await FirestoreService.seedJobsUpsert();
             } catch (_) {}
@@ -215,12 +214,17 @@ Future<DocumentSnapshot<Map<String, dynamic>>> _userProfileSnapshotOnce(
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  /// Global navigator key so we can show a SnackBar even after a forced logout
+  /// rebuilds the widget tree (the new LoginScreen scaffold receives the message).
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GradReady',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
+      navigatorKey: navigatorKey,
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
@@ -244,6 +248,8 @@ class MyApp extends StatelessWidget {
 }
 
 /// Loads admin status (claims or admins/{uid}) + user profile. Never trusts users.role.
+/// Also sets up a real-time Firestore listener to enforce immediate logout when
+/// an admin deactivates (suspends) the user's account mid-session.
 class _ProfileGate extends StatefulWidget {
   final User user;
 
@@ -256,10 +262,88 @@ class _ProfileGate extends StatefulWidget {
 class _ProfileGateState extends State<_ProfileGate> {
   late Future<_ProfileGateData> _gateFuture;
 
+  /// Real-time listener on `users/{uid}` to detect suspension while the app is active.
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userDocSub;
+
+  /// Prevents duplicate sign-out calls if the stream fires multiple times.
+  bool _isForceLoggingOut = false;
+
   @override
   void initState() {
     super.initState();
     _gateFuture = _loadProfileGate();
+  }
+
+  @override
+  void dispose() {
+    _userDocSub?.cancel();
+    super.dispose();
+  }
+
+  /// Starts the real-time suspension listener for a non-admin user.
+  /// Called once after the initial profile gate resolves successfully.
+  void _startSuspensionListener(String uid) {
+    // Avoid duplicate subscriptions.
+    if (_userDocSub != null) return;
+
+    _userDocSub = FirebaseFirestore.instance
+        .collection(AppConstants.collectionUsers)
+        .doc(uid)
+        .snapshots()
+        .listen((snapshot) {
+      final data = snapshot.data();
+      if (data == null) return;
+
+      if (data[AppConstants.userFieldIsSuspended] == true) {
+        _forceLogout();
+      }
+    }, onError: (_) {
+      // Transient Firestore errors should not crash the app.
+    });
+  }
+
+  /// Signs the user out immediately and shows a deactivation message.
+  /// The sign-out triggers [authStateChanges] in [MyApp], which rebuilds
+  /// the tree to show [LoginScreen] automatically.
+  Future<void> _forceLogout() async {
+    if (_isForceLoggingOut) return;
+    _isForceLoggingOut = true;
+
+    // Cancel the listener first to avoid re-entrant calls.
+    await _userDocSub?.cancel();
+    _userDocSub = null;
+
+    await AuthService.signOut();
+
+    // Show the deactivation message via the global navigator's overlay.
+    // We use a post-frame callback to ensure the new LoginScreen scaffold
+    // is mounted before we try to show the SnackBar.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = MyApp.navigatorKey.currentContext;
+      if (ctx != null) {
+        ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.block_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Your session has ended because your account has been deactivated. Please contact support.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    });
   }
 
   void _retry() {
@@ -339,6 +423,10 @@ class _ProfileGateState extends State<_ProfileGate> {
         if (gate.isAdmin) {
           return const AdminOverviewScreen();
         }
+
+        // Start the real-time suspension listener for non-admin users.
+        _startSuspensionListener(gate.uid);
+
         final profileSnap = gate.profileSnap;
         if (profileSnap == null) {
           return _profileLoadErrorScaffold();
@@ -428,3 +516,4 @@ class _SuspendedAccountScreen extends StatelessWidget {
     );
   }
 }
+

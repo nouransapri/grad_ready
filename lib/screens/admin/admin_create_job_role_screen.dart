@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../models/job_document.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/skill_utils.dart';
+import '../login_screen.dart';
 import 'job_skills_editor.dart';
 
 const Color _pageBg = Color(0xFF0A0A0A);
@@ -87,7 +89,7 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     return title.isNotEmpty &&
         description.isNotEmpty &&
         category.isNotEmpty &&
-        total >= 5;
+        total >= 1;
   }
 
   @override
@@ -114,6 +116,15 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
             child: StreamBuilder<List<JobDocument>>(
               stream: _jobsStream,
               builder: (context, snapshot) {
+                if (FirebaseAuth.instance.currentUser == null) {
+                  return const SizedBox.shrink();
+                }
+                if (snapshot.hasError) {
+                  final errorStr = snapshot.error.toString().toLowerCase();
+                  if (errorStr.contains('permission-denied') || errorStr.contains('permission_denied')) {
+                    return const SizedBox.shrink();
+                  }
+                }
                 final jobs = snapshot.data ?? [];
                 final categories = jobs
                     .map((j) => j.category)
@@ -321,9 +332,12 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
               ),
               IconButton(
                 onPressed: () async {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                  await Future.delayed(const Duration(milliseconds: 50));
                   await AuthService.signOut();
-                  if (!context.mounted) return;
-                  Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 24),
                 tooltip: 'Log out',
@@ -691,10 +705,10 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     }
 
     final totalSkills = _technicalSkills.length + _softSkills.length + _tools.length;
-    if (totalSkills < 5) {
+    if (totalSkills < 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Add at least 5 skills (Technical, Soft, or Tools)'),
+          content: Text('Add at least 1 skill (Technical, Soft, or Tools)'),
         ),
       );
       return;
@@ -806,16 +820,32 @@ class _AdminCreateJobRoleScreenState extends State<AdminCreateJobRoleScreen> {
     if (!confirmed) return;
     setState(() => _saving = true);
     try {
-      await _firestore.deleteJobSoft(doc.id);
+
+      await _firestore.deleteJobHard(doc.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Job deleted.')),
+        const SnackBar(
+          content: Text('Job deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pop(context);
     } catch (e) {
+
       if (!mounted) return;
+      final errMsg = e.toString();
+      final isPermissionDenied = errMsg.contains('permission-denied') ||
+          errMsg.contains('PERMISSION_DENIED');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text(
+            isPermissionDenied
+                ? 'Permission denied. Check Firestore security rules for the admin role.'
+                : 'Failed to delete: $e',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/job_document.dart';
 import '../services/firestore_service.dart';
 import 'skills_gap_analysis_screen.dart';
@@ -16,6 +17,9 @@ class JobRequirementsScreen extends StatelessWidget {
     return StreamBuilder<JobDocument?>(
       stream: firestore.getJobStream(job.id),
       builder: (context, snapshot) {
+        if (FirebaseAuth.instance.currentUser == null) {
+          return const SizedBox.shrink();
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             backgroundColor: const Color(0xFFF0F0F0),
@@ -25,6 +29,10 @@ class JobRequirementsScreen extends StatelessWidget {
           );
         }
         if (snapshot.hasError) {
+          final errorStr = snapshot.error.toString().toLowerCase();
+          if (errorStr.contains('permission-denied') || errorStr.contains('permission_denied')) {
+            return const SizedBox.shrink();
+          }
           return Scaffold(
             backgroundColor: const Color(0xFFF0F0F0),
             appBar: AppBar(

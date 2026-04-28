@@ -2,13 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
-import '../models/course.dart';
+
 import '../models/insight_model.dart';
 import '../models/admin_user_summary.dart';
 import '../models/job_document.dart';
 import '../models/job_role.dart';
 import '../models/skill.dart';
 import '../models/skill_document.dart';
+import '../models/skill_model.dart';
 import '../models/trend_model.dart';
 import '../models/user_model.dart';
 import '../data/seed_jobs_data.dart';
@@ -912,8 +913,7 @@ class FirestoreService {
   static String _skillNameToDocId(String name) => skillNameToSkillId(name);
 
   /// Fetch suggested learning resources (course names) for missing skills from Firestore.
-  /// 1) Reads [suggestedCourses] on each `skills/{id}` doc when present.
-  /// 2) If empty, falls back to [courses] collection (same data as Recommendations tab).
+  /// Reads [suggestedCourses] on each `skills/{id}` doc when present.
   /// Returns map skillName (display) -> up to [maxPerSkill] short labels.
   Future<Map<String, List<String>>> getSuggestedCoursesForSkills(
     List<String> skillNames, {
@@ -973,35 +973,7 @@ class FirestoreService {
     } catch (_) {
     }
 
-    bool allowFallback(String name) {
-      if (!verifiedOnly) return true;
-      final id = _matchSkillIdFromCatalog(name, catalog) ?? _skillNameToDocId(name);
-      if (id.isEmpty) return false;
-      final s = catalog[canonicalSkillId(id)] ?? catalog[id];
-      return s?.isVerified == true;
-    }
-    final needFallback = names
-        .where((n) => result[n]!.isEmpty && allowFallback(n))
-        .toList();
-    if (needFallback.isEmpty) return result;
 
-    try {
-      final fromCourses = await getCoursesForSkills(needFallback, maxPerSkill);
-      for (final name in needFallback) {
-        final courses = fromCourses[name] ?? [];
-        result[name] = courses
-            .map((c) {
-              final t = c.title.trim();
-              final p = c.platform.trim();
-              if (t.isEmpty) return '';
-              return p.isNotEmpty ? '$t ($p)' : t;
-            })
-            .where((s) => s.isNotEmpty)
-            .take(maxPerSkill)
-            .toList();
-      }
-    } catch (_) {
-    }
 
     return result;
   }
@@ -1044,240 +1016,7 @@ class FirestoreService {
   }
 
   // ---------------------------------------------------------------------------
-  // Courses collection: full course documents for Recommendations tab.
-  // ---------------------------------------------------------------------------
 
-  /// Fetches courses for a single skill from Firestore `courses` collection.
-  /// Tries exact match first, then title-case match for flexibility.
-  Future<List<Course>> getCoursesForSkill(String skillName, int limit) async {
-    final name = skillName.trim();
-    if (name.isEmpty) return [];
-    try {
-      var list = await _getCoursesForSkillExact(name, limit);
-      if (list.isEmpty && name.isNotEmpty) {
-        final titleCase = name.split(' ').map((w) {
-          if (w.isEmpty) return w;
-          return w.substring(0, 1).toUpperCase() + w.substring(1).toLowerCase();
-        }).join(' ');
-        list = await _getCoursesForSkillExact(titleCase, limit);
-      }
-      if (list.isEmpty) {
-        final docId = skillNameToSkillId(name);
-        if (docId.isNotEmpty) {
-          final snap = await _db.collection('skills').doc(docId).get();
-          final data = snap.data();
-          final fromSkillDoc =
-              data?['skillName']?.toString().trim() ??
-              data?['name']?.toString().trim() ??
-              '';
-          if (fromSkillDoc.isNotEmpty && fromSkillDoc != name) {
-            list = await _getCoursesForSkillExact(fromSkillDoc, limit);
-          }
-        }
-      }
-      return list;
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<List<Course>> _getCoursesForSkillExact(String skillName, int limit) async {
-    final fetchLimit = (limit <= 0 ? 10 : limit * 5).clamp(10, 100);
-    final snapshot = await _db
-        .collection('courses')
-        .where('skillName', isEqualTo: skillName)
-        .limit(fetchLimit)
-        .get();
-    final courses = snapshot.docs
-        .map((d) => Course.fromFirestore(d.data()))
-        .where((c) => c.title.isNotEmpty && c.url.isNotEmpty)
-        .toList();
-    courses.sort((a, b) {
-      final scoreCmp = b.relevanceScore.compareTo(a.relevanceScore);
-      if (scoreCmp != 0) return scoreCmp;
-      final ratingCmp = b.rating.compareTo(a.rating);
-      if (ratingCmp != 0) return ratingCmp;
-      return a.priority.compareTo(b.priority);
-    });
-    return courses.take(limit).toList();
-  }
-
-  /// Fetches courses for multiple skills in parallel. Returns map skillName -> list of courses (up to maxPerSkill each).
-  Future<Map<String, List<Course>>> getCoursesForSkills(
-    List<String> skillNames,
-    int maxPerSkill,
-  ) async {
-    final entries = await Future.wait(
-      skillNames.map((name) async {
-        final courses = await getCoursesForSkill(name, maxPerSkill);
-        return MapEntry(name, courses);
-      }),
-    );
-    return Map.fromEntries(entries);
-  }
-
-  /// Adds a course document to Firestore (admin). Returns the new document id.
-  Future<String> addCourse(Course course) async {
-    final uri = Uri.tryParse(course.url.trim());
-    final validUrl = uri != null &&
-        uri.hasScheme &&
-        (uri.scheme == 'http' || uri.scheme == 'https') &&
-        (uri.host.isNotEmpty);
-    if (!validUrl) {
-      throw StateError('Course URL must be a valid http/https URL.');
-    }
-    final skill = await getSkillByNameOrAlias(course.skillName);
-    if (skill == null) {
-      throw StateError(
-        'Course skill "${course.skillName}" was not found in skills catalog.',
-      );
-    }
-    final normalized = Course(
-      skillName: skill.name,
-      skillId: canonicalSkillId(skill.id),
-      title: course.title.trim(),
-      platform: course.platform.trim(),
-      url: course.url.trim(),
-      duration: course.duration.trim(),
-      cost: course.cost.trim(),
-      estimatedPrice: course.estimatedPrice?.trim(),
-      rating: course.rating,
-      level: course.level.trim(),
-      description: course.description.trim(),
-      priority: course.priority,
-      relevanceScore: course.relevanceScore,
-    );
-    final ref = _db.collection('courses').doc();
-    await ref.set(normalized.toFirestore());
-    return ref.id;
-  }
-
-  /// One-time seed for `courses` collection if empty (debug only). Call from main in kDebugMode.
-  static Future<void> seedCoursesIfEmpty() async {
-    final db = FirebaseFirestore.instance;
-    final snapshot = await db.collection(AppConstants.collectionCourses).limit(1).get();
-    if (snapshot.docs.isNotEmpty) return;
-    final batch = db.batch();
-    for (final doc in _seedCourses) {
-      final course = Course.fromFirestore(doc);
-      final ref = db.collection(AppConstants.collectionCourses).doc();
-      batch.set(ref, course.toFirestore());
-    }
-    await batch.commit();
-    
-  }
-
-  static final List<Map<String, dynamic>> _seedCourses = [
-    ..._seedCoursesForSkill('JavaScript', [
-      {
-        'skillName': 'JavaScript',
-        'title': 'JavaScript - The Complete Guide 2024',
-        'platform': 'Udemy',
-        'url': 'https://www.udemy.com/course/javascript-the-complete-guide-2020-beginner-advanced/',
-        'duration': '52 hours',
-        'cost': 'Paid',
-        'estimatedPrice': r'$84.99',
-        'rating': 4.6,
-        'level': 'Beginner',
-        'description': 'Master JavaScript with the most complete course! Projects, challenges, quizzes, ES6+, OOP, AJAX, Webpack',
-      },
-      {
-        'skillName': 'JavaScript',
-        'title': 'The Modern JavaScript Tutorial',
-        'platform': 'FreeCodeCamp',
-        'url': 'https://www.freecodecamp.org/news/learn-javascript-full-course/',
-        'duration': '8 hours',
-        'cost': 'Free',
-        'rating': 4.8,
-        'level': 'Beginner',
-        'description': 'Learn JavaScript from scratch with hands-on projects and exercises.',
-      },
-    ]),
-    ..._seedCoursesForSkill('Python', [
-      {
-        'skillName': 'Python',
-        'title': 'Python for Everybody Specialization',
-        'platform': 'Coursera',
-        'url': 'https://www.coursera.org/specializations/python',
-        'duration': '8 months',
-        'cost': 'Freemium',
-        'estimatedPrice': r'$49/month',
-        'rating': 4.8,
-        'level': 'Beginner',
-        'description': 'Learn to Program and Analyze Data with Python by University of Michigan',
-      },
-      {
-        'skillName': 'Python',
-        'title': 'Learn Python - Full Course for Beginners',
-        'platform': 'FreeCodeCamp',
-        'url': 'https://www.freecodecamp.org/news/learn-python-full-course/',
-        'duration': '4.5 hours',
-        'cost': 'Free',
-        'rating': 4.7,
-        'level': 'Beginner',
-        'description': 'Complete Python tutorial for beginners with exercises.',
-      },
-    ]),
-    ..._seedCoursesForSkill('React', [
-      {'skillName': 'React', 'title': 'React - The Complete Guide', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/react-the-complete-guide/', 'duration': '48 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.6, 'level': 'Beginner', 'description': 'Dive in and learn React from scratch. Hooks, Redux, React Router.'},
-      {'skillName': 'React', 'title': 'Front-End Development with React', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/front-end-react', 'duration': '26 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Intermediate', 'description': 'Build dynamic user interfaces with React by The Hong Kong University of Science and Technology.'},
-    ]),
-    ..._seedCoursesForSkill('Node.js', [
-      {'skillName': 'Node.js', 'title': 'Node.js, Express, MongoDB & More', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/nodejs-express-mongodb/', 'duration': '40 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.7, 'level': 'Beginner', 'description': 'Complete Node.js bootcamp with Express, MongoDB and authentication.'},
-      {'skillName': 'Node.js', 'title': 'Server-Side Development with NodeJS', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/server-development-nodejs', 'duration': '32 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.6, 'level': 'Intermediate', 'description': 'Build backend services and APIs with Node.js and Express.'},
-    ]),
-    ..._seedCoursesForSkill('SQL', [
-      {'skillName': 'SQL', 'title': 'SQL for Data Science', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/sql-for-data-science', 'duration': '14 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.6, 'level': 'Beginner', 'description': 'Learn SQL fundamentals for querying and analyzing data.'},
-      {'skillName': 'SQL', 'title': 'The Complete SQL Bootcamp', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/the-complete-sql-bootcamp/', 'duration': '9 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.7, 'level': 'Beginner', 'description': 'Go from zero to hero in SQL with PostgreSQL.'},
-    ]),
-    ..._seedCoursesForSkill('Java', [
-      {'skillName': 'Java', 'title': 'Java Programming and Software Engineering Fundamentals', 'platform': 'Coursera', 'url': 'https://www.coursera.org/specializations/java-programming', 'duration': '5 months', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Beginner', 'description': 'Learn core Java and object-oriented programming by Duke University.'},
-      {'skillName': 'Java', 'title': 'Java Tutorial for Complete Beginners', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/java-tutorial/', 'duration': '16 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.5, 'level': 'Beginner', 'description': 'Learn Java step by step with practical examples.'},
-    ]),
-    ..._seedCoursesForSkill('Git', [
-      {'skillName': 'Git', 'title': 'Version Control with Git', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/version-control-with-git', 'duration': '13 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Beginner', 'description': 'Learn Git for version control and collaboration.'},
-      {'skillName': 'Git', 'title': 'Git Complete: The Definitive Guide', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/git-complete/', 'duration': '6.5 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.6, 'level': 'Beginner', 'description': 'From zero to hero in Git and GitHub.'},
-    ]),
-    ..._seedCoursesForSkill('Docker', [
-      {'skillName': 'Docker', 'title': 'Docker for the Absolute Beginner', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/docker-for-the-absolute-beginner/', 'duration': '4 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.6, 'level': 'Beginner', 'description': 'Hands-on Docker with Kubernetes and Docker Compose.'},
-      {'skillName': 'Docker', 'title': 'Containers and Kubernetes', 'platform': 'edX', 'url': 'https://www.edx.org/learn/docker', 'duration': '4 weeks', 'cost': 'Freemium', 'estimatedPrice': r'$99', 'rating': 4.5, 'level': 'Intermediate', 'description': 'Learn containerization and orchestration with Docker and Kubernetes.'},
-    ]),
-    ..._seedCoursesForSkill('AWS', [
-      {'skillName': 'AWS', 'title': 'AWS Cloud Technical Essentials', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/aws-cloud-technical-essentials', 'duration': '14 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Beginner', 'description': 'Introduction to AWS services and cloud concepts.'},
-      {'skillName': 'AWS', 'title': 'AWS Certified Solutions Architect', 'platform': 'Udemy', 'url': 'https://www.udemy.com/course/aws-certified-solutions-architect-associate/', 'duration': '17 hours', 'cost': 'Paid', 'estimatedPrice': r'$84.99', 'rating': 4.6, 'level': 'Intermediate', 'description': 'Prepare for AWS certification with hands-on labs.'},
-    ]),
-    ..._seedCoursesForSkill('Machine Learning', [
-      {'skillName': 'Machine Learning', 'title': 'Machine Learning', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/machine-learning', 'duration': '60 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.9, 'level': 'Intermediate', 'description': 'Machine Learning by Stanford University - Andrew Ng.'},
-      {'skillName': 'Machine Learning', 'title': 'Intro to Machine Learning', 'platform': 'Udacity', 'url': 'https://www.udacity.com/course/intro-to-machine-learning--ud120', 'duration': '10 weeks', 'cost': 'Freemium', 'estimatedPrice': r'$399/month', 'rating': 4.5, 'level': 'Intermediate', 'description': 'Supervised and unsupervised learning with Python.'},
-    ]),
-    ..._seedCoursesForSkill('Communication', [
-      {'skillName': 'Communication', 'title': 'Improve Your English Communication Skills', 'platform': 'Coursera', 'url': 'https://www.coursera.org/specializations/improve-english', 'duration': '4 months', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Beginner', 'description': 'Write and speak professionally in English.'},
-      {'skillName': 'Communication', 'title': 'Effective Communication: Writing, Design, and Presentation', 'platform': 'Coursera', 'url': 'https://www.coursera.org/specializations/effective-business-communication', 'duration': '5 months', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.6, 'level': 'Beginner', 'description': 'Build communication skills for the workplace.'},
-    ]),
-    ..._seedCoursesForSkill('Teamwork', [
-      {'skillName': 'Teamwork', 'title': 'Teamwork Skills: Communicating Effectively in Groups', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/teamwork-skills-effective-communication', 'duration': '15 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Beginner', 'description': 'Learn to collaborate and communicate in teams.'},
-      {'skillName': 'Teamwork', 'title': 'Leading Teams', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/leading-teams', 'duration': '17 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.8, 'level': 'Intermediate', 'description': 'Build and lead high-performing teams.'},
-    ]),
-    ..._seedCoursesForSkill('Problem Solving', [
-      {'skillName': 'Problem Solving', 'title': 'Creative Problem Solving', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/creative-problem-solving', 'duration': '4 weeks', 'cost': 'Freemium', 'estimatedPrice': r'$49', 'rating': 4.7, 'level': 'Beginner', 'description': 'Learn creative problem-solving techniques by University of Minnesota.'},
-      {'skillName': 'Problem Solving', 'title': 'Critical Thinking and Problem Solving', 'platform': 'LinkedIn Learning', 'url': 'https://www.linkedin.com/learning/critical-thinking-and-problem-solving', 'duration': '1.5 hours', 'cost': 'Freemium', 'estimatedPrice': r'$39.99/month', 'rating': 4.6, 'level': 'Beginner', 'description': 'Develop critical thinking and structured problem-solving skills.'},
-    ]),
-    ..._seedCoursesForSkill('Leadership', [
-      {'skillName': 'Leadership', 'title': 'Inspiring Leadership through Emotional Intelligence', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/emotional-intelligence-leadership', 'duration': '19 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.8, 'level': 'Intermediate', 'description': 'Build leadership and emotional intelligence skills.'},
-      {'skillName': 'Leadership', 'title': 'Leading People and Teams', 'platform': 'Coursera', 'url': 'https://www.coursera.org/specializations/leading-people-teams', 'duration': '5 months', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Intermediate', 'description': 'Leadership fundamentals from University of Michigan.'},
-    ]),
-    ..._seedCoursesForSkill('Time Management', [
-      {'skillName': 'Time Management', 'title': 'Work Smarter, Not Harder: Time Management for Personal & Professional Productivity', 'platform': 'Coursera', 'url': 'https://www.coursera.org/learn/work-smarter-not-harder', 'duration': '10 hours', 'cost': 'Freemium', 'estimatedPrice': r'$49/month', 'rating': 4.7, 'level': 'Beginner', 'description': 'Manage time and priorities effectively.'},
-      {'skillName': 'Time Management', 'title': 'Time Management Fundamentals', 'platform': 'LinkedIn Learning', 'url': 'https://www.linkedin.com/learning/time-management-fundamentals', 'duration': '2 hours', 'cost': 'Freemium', 'estimatedPrice': r'$39.99/month', 'rating': 4.6, 'level': 'Beginner', 'description': 'Plan and prioritize to get more done.'},
-    ]),
-  ];
-
-  static List<Map<String, dynamic>> _seedCoursesForSkill(
-    String skillName,
-    List<Map<String, dynamic>> courses,
-  ) {
-    return courses.map((m) => {...m, 'skillName': skillName}).toList();
-  }
 
   // ---------------------------------------------------------------------------
   // Skill add/update API: updates Firestore skills, profile completion, and
@@ -1470,7 +1209,7 @@ class FirestoreService {
                 userSkillIds,
                 verifiedOnly: true,
               ),
-          fetchCourseDetails: (names) => getCoursesForSkills(names, 3),
+
           skillsCatalog: skillsCatalog.isNotEmpty ? skillsCatalog : null,
         );
         return MapEntry(
@@ -3063,5 +2802,74 @@ class FirestoreService {
     }
 
     await batch.commit();
+  }
+
+  Future<void> deleteJobHard(String jobId) async {
+    try {
+      await _db.collection(AppConstants.collectionJobs).doc(jobId).delete();
+      CachedDataService.invalidateAll();
+    } catch (e, st) {
+      _recordFirestoreFailure('deleteJobHard', e, st);
+      rethrow;
+    }
+  }
+
+  Future<List<SkillModel>> getSkillModelsOnce({int limit = 100}) async {
+    try {
+      final snap = await _db.collection('skills').limit(limit).get();
+      return snap.docs
+          .map((doc) => SkillModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+    } catch (e, st) {
+      _recordFirestoreFailure('getSkillModelsOnce', e, st);
+      return [];
+    }
+  }
+
+  Future<void> uploadSkillsBatch(List<SkillModel> skills, {bool clearExisting = false}) async {
+    if (clearExisting) {
+      await clearAllSkills();
+    }
+    final batch = _db.batch();
+    for (final skill in skills) {
+      final docRef = _db.collection('skills').doc(skill.id.isNotEmpty ? skill.id : _db.collection('skills').doc().id);
+      batch.set(docRef, {
+        'skillName': skill.skillName,
+        if (skill.category != null) 'category': skill.category,
+        if (skill.courseUrl != null) 'courseUrl': skill.courseUrl,
+        if (skill.platform != null) 'platform': skill.platform,
+        if (skill.jobCount != null) 'jobCount': skill.jobCount,
+        if (skill.demandLevel != null) 'demandLevel': skill.demandLevel,
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
+    CachedDataService.invalidateAll();
+  }
+
+  Future<void> updateSkillModel(SkillModel skill) async {
+    await _db.collection('skills').doc(skill.id).update({
+      'skillName': skill.skillName,
+      if (skill.category != null) 'category': skill.category,
+      if (skill.courseUrl != null) 'courseUrl': skill.courseUrl,
+      if (skill.platform != null) 'platform': skill.platform,
+      if (skill.jobCount != null) 'jobCount': skill.jobCount,
+      if (skill.demandLevel != null) 'demandLevel': skill.demandLevel,
+    });
+    CachedDataService.invalidateAll();
+  }
+
+  Future<void> deleteSkill(String id) async {
+    await _db.collection('skills').doc(id).delete();
+    CachedDataService.invalidateAll();
+  }
+
+  Future<void> clearAllSkills() async {
+    final snap = await _db.collection('skills').get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    CachedDataService.invalidateAll();
   }
 }

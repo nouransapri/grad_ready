@@ -5,6 +5,13 @@ String normalizeSkillName(String? value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
+/// Smart normalization for fuzzy matching (e.g. 'React.js' vs 'React JS').
+/// Removes all non-alphanumeric characters and converts to lowercase.
+String smartNormalize(String? value) {
+  if (value == null) return '';
+  return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+}
+
 /// Stronger normalization key used for alias matching.
 /// Removes punctuation so variants like "Node.js", "Node js", "nodejs" converge.
 String normalizeSkillAliasKey(String? value) {

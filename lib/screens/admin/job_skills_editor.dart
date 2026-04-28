@@ -403,7 +403,7 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
                                     radius: 18,
                                     backgroundColor: _colorFrom(s.color).withValues(alpha: 0.25),
                                     child: Text(
-                                      (s.icon ?? s.skillName.substring(0, 1)).toUpperCase(),
+                                      (s.icon ?? (s.skillName.isNotEmpty ? s.skillName.substring(0, 1) : '?')).toUpperCase(),
                                       style: TextStyle(color: _colorFrom(s.color), fontSize: 13),
                                     ),
                                   ),
@@ -589,16 +589,10 @@ class _JobSkillsEditorState extends State<JobSkillsEditor> {
                 item: items[index],
                 rowBg: rowBg,
                 accent: accent,
-                onLevelChanged: (v) => _updateInList(
+                onChanged: (updated) => _updateInList(
                   tabIndex,
                   index,
-                  JobSkillItem(
-                    name: items[index].name,
-                    requiredLevel: v.round(),
-                    priority: items[index].priority,
-                    weight: items[index].weight,
-                    category: items[index].category,
-                  ),
+                  updated,
                 ),
                 onRemove: () => _removeFromList(tabIndex, index),
               ),
@@ -613,7 +607,7 @@ class _CompactSkillRow extends StatefulWidget {
   final JobSkillItem item;
   final Color rowBg;
   final Color accent;
-  final ValueChanged<double> onLevelChanged;
+  final ValueChanged<JobSkillItem> onChanged;
   final VoidCallback onRemove;
 
   const _CompactSkillRow({
@@ -621,7 +615,7 @@ class _CompactSkillRow extends StatefulWidget {
     required this.item,
     required this.rowBg,
     required this.accent,
-    required this.onLevelChanged,
+    required this.onChanged,
     required this.onRemove,
   });
 
@@ -665,7 +659,21 @@ class _CompactSkillRowState extends State<_CompactSkillRow> {
     if (n == null) return;
     final c = n.clamp(0, 100);
     if (c != n) _levelController.text = c.toString();
-    widget.onLevelChanged(c.toDouble());
+    
+    _triggerChange(level: c);
+  }
+
+  void _triggerChange({int? level, String? priority}) {
+    widget.onChanged(
+      JobSkillItem(
+        skillId: widget.item.skillId,
+        name: widget.item.name,
+        requiredLevel: level ?? widget.item.requiredLevel,
+        priority: priority ?? widget.item.priority,
+        weight: widget.item.weight,
+        category: widget.item.category,
+      ),
+    );
   }
 
   void _schedule() {
@@ -688,6 +696,7 @@ class _CompactSkillRowState extends State<_CompactSkillRow> {
       child: Row(
         children: [
           Expanded(
+            flex: 2,
             child: Text(
               widget.item.name,
               maxLines: 1,
@@ -699,6 +708,34 @@ class _CompactSkillRowState extends State<_CompactSkillRow> {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: ['Critical', 'Important', 'Nice-to-Have'].contains(widget.item.priority)
+                  ? widget.item.priority
+                  : 'Important',
+              isDense: true,
+              icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600, size: 20),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: widget.item.priority == 'Critical'
+                    ? const Color(0xFFDC2626) // Red for mandatory
+                    : Colors.grey.shade800,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Critical', child: Text('Mandatory (Critical)')),
+                DropdownMenuItem(value: 'Important', child: Text('Important')),
+                DropdownMenuItem(value: 'Nice-to-Have', child: Text('Nice-to-Have')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  _triggerChange(priority: val);
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
           SizedBox(
             width: 56,
             child: TextField(

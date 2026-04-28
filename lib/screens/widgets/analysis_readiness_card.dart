@@ -4,12 +4,16 @@ class AnalysisReadinessCard extends StatelessWidget {
   final int score;
   final int matchedSkillsCount;
   final int totalSkillsCount;
+  final bool isQualified;
+  final List<String> missingMandatorySkills;
 
   const AnalysisReadinessCard({
     super.key,
     required this.score,
     required this.matchedSkillsCount,
     required this.totalSkillsCount,
+    required this.isQualified,
+    this.missingMandatorySkills = const [],
   });
 
   @override
@@ -18,28 +22,24 @@ class AnalysisReadinessCard extends StatelessWidget {
     String emoji;
     List<Color> gradientColors;
     String message;
-    if (score >= 90) {
-      label = 'Job Ready';
+
+    if (isQualified) {
+      label = 'Qualified & Highly Suitable';
       emoji = '🎯';
       gradientColors = [const Color(0xFF10B981), const Color(0xFF059669)];
       message =
-          'You have strong alignment with this role. Focus on polishing your interview skills and portfolio.';
-    } else if (score >= 70) {
-      label = 'Beginner';
-      emoji = '🚀';
-      gradientColors = [const Color(0xFFEF4444), const Color(0xFFDC2626)];
-      message = 'Start with the priority skills to build a strong foundation.';
-    } else if (score >= 50) {
-      label = 'Needs Improvement';
-      emoji = '📚';
-      gradientColors = [const Color(0xFFF59E0B), const Color(0xFFD97706)];
-      message =
-          'Build foundational skills in the critical gap areas to improve your match.';
+          'You meet all mandatory requirements for this role. The match percentage below is for your information.';
     } else {
-      label = 'Beginner';
+      label = 'Status: Not Yet Qualified';
       emoji = '🚀';
       gradientColors = [const Color(0xFFEF4444), const Color(0xFFDC2626)];
-      message = 'Start with the priority skills to build a strong foundation.';
+      if (missingMandatorySkills.isEmpty) {
+        message =
+            'You must meet all required skills to become qualified for this role.';
+      } else {
+        message =
+            'To become qualified, you must master the following mandatory skills: ${missingMandatorySkills.join(', ')}';
+      }
     }
 
     return Container(
@@ -69,15 +69,38 @@ class AnalysisReadinessCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$score%',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -98,16 +121,23 @@ class AnalysisReadinessCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text.rich(
                   TextSpan(
-                    text: 'You match ',
+                    text: 'Overall Compatibility: ',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.95),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                     children: [
+                      TextSpan(
+                        text: 'You match ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.95),
+                        ),
+                      ),
                       TextSpan(
                         text: '$matchedSkillsCount',
                         style: const TextStyle(
@@ -130,13 +160,22 @@ class AnalysisReadinessCard extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text: ' required skills',
+                        text: ' required skills.',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
                           color: Colors.white.withValues(alpha: 0.95),
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '(Independent of qualification status)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.white.withValues(alpha: 0.85),
                   ),
                 ),
               ],

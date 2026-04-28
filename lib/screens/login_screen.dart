@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -116,13 +116,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _emailLoading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await AuthService.signInWithEmail(
         email: email,
         password: password,
       ).timeout(const Duration(seconds: 12));
 
       if (!mounted) return;
       await _goAfterLogin();
+    } on AccountDeactivatedException catch (e) {
+      if (!mounted) return;
+      _showError(e.message);
     } on TimeoutException {
       if (!mounted) return;
       _showError('Connection timeout. Check internet and try again.');
@@ -181,6 +184,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await AuthService.signInWithGoogle();
       if (!mounted) return;
       await _goAfterLogin();
+    } on AccountDeactivatedException catch (e) {
+      if (!mounted) return;
+      _showError(e.message);
     } on GoogleSignInCanceledException {
       if (!mounted) return;
       _showError('Google sign-in was cancelled.');
@@ -197,36 +203,21 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showPasswordResetDialog() async {
-    final sent = await showDialog<bool?>(
+    final result = await showDialog<Object?>(
       context: context,
       builder: (_) => PasswordResetDialog(initialEmail: emailController.text),
     );
     if (!mounted) return;
-    if (sent == true) {
+    if (result == true) {
       _showSuccess(
         'If this email is registered, check your inbox and spam for a reset link.',
       );
-    } else if (sent == false) {
-      _showError(
-        'Email not registered for password sign-in. Use a registered email or continue with Google.',
-      );
+    } else if (result is String) {
+      _showError(result);
     }
   }
 
-  /// Debug-only: plain [sendPasswordResetEmail] + console logs (see [AuthService.testResetEmail]).
-  Future<void> _testFirebaseEmail() async {
-    final email = emailController.text.trim();
-    if (email.isEmpty) {
-      _showError('Enter an email in the field above, then tap Test Firebase Email.');
-      return;
-    }
-    await AuthService.sendTestResetEmail(email);
-    if (!mounted) return;
-    _showSuccess(
-      'Check debug console for === EMAIL TEST === / projectId / sign-in methods. '
-      'If inbox is empty, verify Firebase Email/Password, templates, authorized domains, spam.',
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -395,27 +386,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                                     ),
-                                    if (kDebugMode) ...[
-                                      const SizedBox(height: 8),
-                                      OutlinedButton(
-                                        onPressed: _testFirebaseEmail,
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white70,
-                                          side: BorderSide(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.45,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Test Firebase Email',
-                                          style: TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                    ],
                                     const SizedBox(height: 16),
                                     Row(
                                       children: [

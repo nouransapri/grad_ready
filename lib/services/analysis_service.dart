@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart' show BorderRadius, Color;
 
-import '../models/course_model.dart';
+import '../models/skill_model.dart';
 
 /// Academic analysis: GPA, chart groups from Firestore [courses], safe parsing of user data.
 class AnalysisService {
@@ -184,31 +184,22 @@ class AnalysisService {
     return null;
   }
 
-  /// Bar groups: average [Course.rating] per skill (top [maxBars] by count).
-  static List<BarChartGroupData> buildAvgRatingBySkillBars(
-    List<Course> courses, {
+  /// Bar groups: total [SkillModel.jobCount] per skill (top [maxBars] by count).
+  static List<BarChartGroupData> buildJobCountBySkillBars(
+    List<SkillModel> skills, {
     int maxBars = 8,
   }) {
     try {
-      final bySkill = <String, List<double>>{};
-      for (final c in courses) {
-        final k = c.skillName.trim().isEmpty ? 'General' : c.skillName.trim();
-        bySkill.putIfAbsent(k, () => []).add(c.rating.clamp(0.0, 5.0));
-      }
-      final averages = <MapEntry<String, double>>[];
-      for (final e in bySkill.entries) {
-        if (e.value.isEmpty) continue;
-        final avg = e.value.reduce((a, b) => a + b) / e.value.length;
-        averages.add(MapEntry(e.key, avg));
-      }
-      averages.sort((a, b) => b.value.compareTo(a.value));
-      final take = averages.take(maxBars).toList();
+      final sortedSkills = List<SkillModel>.from(skills)
+        ..sort((a, b) => (b.jobCount ?? 0).compareTo(a.jobCount ?? 0));
+      
+      final take = sortedSkills.take(maxBars).toList();
       return List.generate(take.length, (i) {
         return BarChartGroupData(
           x: i,
           barRods: [
             BarChartRodData(
-              toY: take[i].value,
+              toY: (take[i].jobCount ?? 0).toDouble(),
               width: 14,
               borderRadius: BorderRadius.circular(4),
               color: const Color(0xFF2A6CFF),
@@ -218,7 +209,7 @@ class AnalysisService {
       });
     } catch (e, st) {
       developer.log(
-        'buildAvgRatingBySkillBars: $e',
+        'buildJobCountBySkillBars: $e',
         name: 'AnalysisService',
         error: e,
         stackTrace: st,
@@ -227,31 +218,22 @@ class AnalysisService {
     }
   }
 
-  /// X labels for [buildAvgRatingBySkillBars] (same order).
-  static List<String> avgRatingBarLabels(
-    List<Course> courses, {
+  /// X labels for [buildJobCountBySkillBars] (same order).
+  static List<String> jobCountBarLabels(
+    List<SkillModel> skills, {
     int maxBars = 8,
   }) {
     try {
-      final bySkill = <String, List<double>>{};
-      for (final c in courses) {
-        final k = c.skillName.trim().isEmpty ? 'General' : c.skillName.trim();
-        bySkill.putIfAbsent(k, () => []).add(c.rating);
-      }
-      final averages = <MapEntry<String, double>>[];
-      for (final e in bySkill.entries) {
-        if (e.value.isEmpty) continue;
-        final avg = e.value.reduce((a, b) => a + b) / e.value.length;
-        averages.add(MapEntry(e.key, avg));
-      }
-      averages.sort((a, b) => b.value.compareTo(a.value));
-      return averages
+      final sortedSkills = List<SkillModel>.from(skills)
+        ..sort((a, b) => (b.jobCount ?? 0).compareTo(a.jobCount ?? 0));
+      
+      return sortedSkills
           .take(maxBars)
-          .map((e) => e.key.length > 10 ? '${e.key.substring(0, 9)}…' : e.key)
+          .map((e) => e.skillName.length > 10 ? '${e.skillName.substring(0, 9)}…' : e.skillName)
           .toList();
     } catch (e, st) {
       developer.log(
-        'avgRatingBarLabels: $e',
+        'jobCountBarLabels: $e',
         name: 'AnalysisService',
         error: e,
         stackTrace: st,
@@ -309,10 +291,10 @@ class AnalysisService {
     }
   }
 
-  /// Stream of catalog [Course] for charts (real-time).
-  static Stream<List<Course>> watchCatalogCourses({int limit = 80}) {
+  /// Stream of catalog [SkillModel] for charts (real-time).
+  static Stream<List<SkillModel>> watchSkillsCatalog({int limit = 80}) {
     return FirebaseFirestore.instance
-        .collection('courses')
+        .collection('skills')
         .limit(limit)
         .snapshots()
         .map((snap) {
@@ -320,10 +302,10 @@ class AnalysisService {
         return snap.docs
             .map((d) {
               try {
-                return Course.fromFirestore(d.data());
+                return SkillModel.fromFirestore(d.id, d.data());
               } catch (e, st) {
                 developer.log(
-                  'Course.fromFirestore: $e',
+                  'SkillModel.fromFirestore: $e',
                   name: 'AnalysisService',
                   error: e,
                   stackTrace: st,
@@ -331,20 +313,22 @@ class AnalysisService {
                 return null;
               }
             })
-            .whereType<Course>()
+            .whereType<SkillModel>()
             .toList();
       } catch (e, st) {
         developer.log(
-          'watchCatalogCourses map: $e',
+          'watchSkillsCatalog map: $e',
           name: 'AnalysisService',
           error: e,
           stackTrace: st,
         );
-        return <Course>[];
+        return <SkillModel>[];
       }
     });
   }
 }
+
+
 
 class UserSkillProgress {
   final String label;
@@ -354,4 +338,18 @@ class UserSkillProgress {
     required this.label,
     required this.percent,
   });
+}
+
+class UserCourseEntry {
+  final String name;
+  final double gradePoints;
+  final double credits;
+  
+  const UserCourseEntry({
+    required this.name,
+    required this.gradePoints,
+    required this.credits,
+  });
+
+  bool get isValid => name.isNotEmpty && credits > 0;
 }

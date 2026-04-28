@@ -53,35 +53,7 @@ class AnalysisLearningPathSection extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
-                      if (step.suggestedCourseLinks.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: step.suggestedCourseLinks
-                              .take(3)
-                              .map(
-                                (c) => InkWell(
-                                  onTap: c.url.trim().isEmpty
-                                      ? null
-                                      : () => onOpenCourseUrl(c.url),
-                                  child: Text(
-                                    c.title.isNotEmpty ? c.title : c.platform,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ] else if (step.suggestedCourses.isNotEmpty)
+                      if (step.suggestedCourses.isNotEmpty)
                         Text(
                           'Resources: ${step.suggestedCourses.take(2).join(', ')}',
                           style: TextStyle(

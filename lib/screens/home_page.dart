@@ -57,6 +57,9 @@ class _HomePageState extends State<HomePage> {
             .doc(user.uid)
             .snapshots(),
         builder: (context, snapshot) {
+          if (FirebaseAuth.instance.currentUser == null) {
+            return const SizedBox.shrink();
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Column(
               children: [
@@ -70,6 +73,10 @@ class _HomePageState extends State<HomePage> {
             );
           }
           if (snapshot.hasError) {
+            final errorStr = snapshot.error.toString().toLowerCase();
+            if (errorStr.contains('permission-denied') || errorStr.contains('permission_denied')) {
+              return const SizedBox.shrink();
+            }
             return Column(
               children: [
                 _buildHeader(null),
@@ -259,12 +266,12 @@ class _HomePageState extends State<HomePage> {
               const Spacer(),
               IconButton(
                 onPressed: () async {
-                  await AuthService.signOut();
-                  if (!context.mounted) return;
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (_) => const SplashScreen()),
                     (_) => false,
                   );
+                  await Future.delayed(const Duration(milliseconds: 50));
+                  await AuthService.signOut();
                 },
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
               ),
@@ -366,11 +373,11 @@ class _HomePageState extends State<HomePage> {
           const Color(0xFF9C27B0),
         ),
         _buildStatCard(
-          '${stats.coursesCount}',
-          'Courses',
-          Icons.menu_book,
-          const Color(0xFFE3F2FD),
-          const Color(0xFF2196F3),
+          '${stats.criticalGapsCount}',
+          'Critical Gaps',
+          Icons.warning_amber_rounded,
+          const Color(0xFFFFF0F0),
+          const Color(0xFFD32F2F),
         ),
         _buildStatCard(
           '${stats.profileCompletionPercent}%',
@@ -1121,13 +1128,13 @@ class _AnimatedInsightBarState extends State<_AnimatedInsightBar>
 
 class _DashboardStats {
   final int skillsCount;
-  final int coursesCount;
+  final int criticalGapsCount;
   final int profileCompletionPercent;
   final String lastAnalysis;
 
   const _DashboardStats({
     required this.skillsCount,
-    required this.coursesCount,
+    required this.criticalGapsCount,
     required this.profileCompletionPercent,
     required this.lastAnalysis,
   });
@@ -1139,14 +1146,13 @@ class _DashboardStats {
     if (data == null) {
       return const _DashboardStats(
         skillsCount: 0,
-        coursesCount: 0,
+        criticalGapsCount: 0,
         profileCompletionPercent: 0,
         lastAnalysis: 'N/A',
       );
     }
     final skillsCount =
         userModel?.skills.length ?? (data['skills'] as List?)?.length ?? 0;
-    final courses = data['added_courses'] as List?;
     final lastAnalysisValue = data['last_analysis'];
     String resolvedLastAnalysis() {
       if (lastAnalysisValue is Map) {
@@ -1159,9 +1165,14 @@ class _DashboardStats {
       if (raw != null && raw.isNotEmpty) return raw;
       return 'N/A';
     }
+    int criticalGapsCount = 0;
+    if (lastAnalysisValue is Map && lastAnalysisValue['criticalSkills'] is List) {
+      criticalGapsCount = (lastAnalysisValue['criticalSkills'] as List).length;
+    }
+    
     return _DashboardStats(
       skillsCount: skillsCount,
-      coursesCount: courses?.length ?? 0,
+      criticalGapsCount: criticalGapsCount,
       profileCompletionPercent: _HomePageState._profileCompletionPercentage(
         data,
         userModel,

@@ -12,7 +12,28 @@
           "package_name": "com.example.grad_ready"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1085571193268-79hbsau1hv45468kvh9243odlsf40nr2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.grad_ready",
+            "certificate_hash": "8188664f86fdb424168fb002f87563b75d1dcea5"
+          }
+        },
+        {
+          "client_id": "1085571193268-jjv7098uackp9e9l2n2bnt800pdftspv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.grad_ready",
+            "certificate_hash": "1f80566505a1e45ce7e89f2ee2a24a70c03b02d3"
+          }
+        },
+        {
+          "client_id": "1085571193268-uvtr5uci12260h9ra2fviq7asf4lavg8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBJpbKQpXZ9VLXloGr1vIOX3tjy4CbEUc0"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085571193268-uvtr5uci12260h9ra2fviq7asf4lavg8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1085571193268-nq8mkocg5nlfkuuusdtocakplgta378j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.gradReady"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +64,12 @@
           "package_name": "com.gradready.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1085571193268-uvtr5uci12260h9ra2fviq7asf4lavg8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBJpbKQpXZ9VLXloGr1vIOX3tjy4CbEUc0"
@@ -39,7 +77,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085571193268-uvtr5uci12260h9ra2fviq7asf4lavg8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1085571193268-nq8mkocg5nlfkuuusdtocakplgta378j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.gradReady"
+              }
+            }
+          ]
         }
       }
     }

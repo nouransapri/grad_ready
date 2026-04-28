@@ -12,6 +12,7 @@ class SkillsListSection extends StatelessWidget {
   final IconData icon;
   final Color color;
   final Set<String>? highPrioritySkills;
+  final Set<String>? mandatorySkills;
 
   const SkillsListSection({
     super.key,
@@ -20,6 +21,7 @@ class SkillsListSection extends StatelessWidget {
     required this.icon,
     required this.color,
     this.highPrioritySkills,
+    this.mandatorySkills,
   });
 
   @override
@@ -32,6 +34,14 @@ class SkillsListSection extends StatelessWidget {
       if (key.isEmpty || !seen.add(key)) continue;
       uniqueSkills.add(s);
     }
+    uniqueSkills.sort((a, b) {
+      final isMandatoryA = mandatorySkills?.contains(a) ?? false;
+      final isMandatoryB = mandatorySkills?.contains(b) ?? false;
+      if (isMandatoryA && !isMandatoryB) return -1;
+      if (!isMandatoryA && isMandatoryB) return 1;
+      return 0; // maintain original order (which is by priority)
+    });
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -91,22 +101,40 @@ class SkillsListSection extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: uniqueSkills.map((s) {
+                final isMandatory = mandatorySkills?.contains(s) ?? false;
                 final isHigh = highPrioritySkills?.contains(s) ?? false;
                 final short = s.length > 22 ? '${s.substring(0, 22)}…' : s;
+                
+                Widget? avatar;
+                if (isMandatory) {
+                  avatar = const Icon(
+                    Icons.shield_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  );
+                } else if (isHigh) {
+                  avatar = const Icon(
+                    Icons.priority_high_rounded,
+                    size: 14,
+                    color: AppTheme.warning,
+                  );
+                }
+
                 return Chip(
                   label: Text(
                     short,
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isMandatory ? Colors.white : null,
+                      fontWeight: isMandatory ? FontWeight.bold : null,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  avatar: isHigh
-                      ? const Icon(
-                          Icons.priority_high_rounded,
-                          size: 14,
-                          color: AppTheme.warning,
-                        )
-                      : null,
-                  backgroundColor: color.withValues(alpha: 0.15),
+                  avatar: avatar,
+                  backgroundColor: isMandatory
+                      ? const Color(0xFFDC2626) // strong red for mandatory
+                      : color.withValues(alpha: 0.15),
+                  side: BorderSide.none,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 4,

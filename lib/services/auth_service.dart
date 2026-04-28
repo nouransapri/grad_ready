@@ -28,7 +28,63 @@ class AuthService {
         serverClientId: _googleServerClientId,
       );
 
+  // ---------------------------------------------------------------------------
+  // Gatekeeper: check isSuspended after successful Firebase Auth
+  // ---------------------------------------------------------------------------
+
+  /// Checks whether the authenticated user is suspended in Firestore.
+  /// If `isSuspended == true`, signs the user out immediately and throws
+  /// [AccountDeactivatedException].
+  static Future<void> _enforceActiveStatus(User user) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 8));
+
+      final data = doc.data();
+      if (data != null && data['isSuspended'] == true) {
+        await _auth.signOut();
+        throw AccountDeactivatedException();
+      }
+    } on AccountDeactivatedException {
+      rethrow;
+    } catch (_) {
+      // If the Firestore fetch fails (network, permissions, etc.) we allow
+      // login to proceed rather than locking users out due to transient errors.
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Email / Password sign-in
+  // ---------------------------------------------------------------------------
+
+  /// Signs in with email & password, then enforces the active-status gatekeeper.
+  /// Throws [AccountDeactivatedException] if the account is suspended.
+  static Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final userCred = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = userCred.user;
+    if (user != null) {
+      await _enforceActiveStatus(user);
+    }
+
+    return userCred;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Google sign-in
+  // ---------------------------------------------------------------------------
+
   /// Signs in with Google and ensures a Firestore `users/{uid}` document exists.
+  /// Throws [AccountDeactivatedException] if the account is suspended.
   static Future<UserCredential> signInWithGoogle() async {
     final googleSignIn = _googleSignIn();
 
@@ -46,6 +102,13 @@ class AuthService {
 
     final userCred = await _auth.signInWithCredential(credential);
     await ensureUserDocument(userCred.user);
+
+    // Gatekeeper: block suspended users even via Google sign-in.
+    final user = userCred.user;
+    if (user != null) {
+      await _enforceActiveStatus(user);
+    }
+
     return userCred;
   }
 
@@ -98,15 +161,40 @@ class AuthService {
     await _auth.signOut();
   }
 
-  /// Password reset: verifies email/password registration, then sends reset mail with [ActionCodeSettings].
-  /// Returns `false` if email is not registered for password auth or on error. Logs details in debug mode.
-  static Future<bool> resetPassword(String email) async {
+  /// Password reset: checks the user's auth provider before sending a reset email.
+  ///
+  /// - **Google-only accounts** → throws [PasswordResetException] telling the
+  ///   user to sign in with Google.
+  /// - **Email/password accounts** → sends a reset email via Firebase.
+  /// - **Unknown email** → throws [PasswordResetException] saying no account found.
+  ///
+  /// On success the method completes normally; all error paths throw.
+  static Future<void> resetPassword(String email) async {
     final trimmed = email.trim();
     if (trimmed.isEmpty) {
-      return false;
+      throw PasswordResetException('Please enter a valid email address.');
     }
 
     try {
+      // ignore: deprecated_member_use
+      final methods = await _auth.fetchSignInMethodsForEmail(trimmed);
+
+      if (methods.isEmpty) {
+        // Case C – no account registered with this email.
+        throw PasswordResetException(
+          'No account found with this email.',
+        );
+      }
+
+      if (methods.contains('google.com') && !methods.contains('password')) {
+        // Case A – Google-only user; no password to reset.
+        throw PasswordResetException(
+          'This account is linked with Google. '
+          'Please sign in directly using the Google button.',
+        );
+      }
+
+      // Case B – email/password user (may also have Google linked).
       final actionCodeSettings = ActionCodeSettings(
         url: 'https://gradready.page.link/reset',
         handleCodeInApp: true,
@@ -120,16 +208,21 @@ class AuthService {
         email: trimmed,
         actionCodeSettings: actionCodeSettings,
       );
-      return true;
+    } on PasswordResetException {
+      rethrow;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'invalid-email') {
-        return false;
+        throw PasswordResetException('Invalid email address.');
       }
-      // Treat unknown/user-not-found as success response to avoid leaking account existence
-      // and to keep flow resilient when provider-enumeration is restricted.
-      return true;
+      // For other Firebase errors (user-not-found when enumeration is off, etc.)
+      // surface a generic but helpful message.
+      throw PasswordResetException(
+        'Unable to process request. Please try again later.',
+      );
     } catch (_) {
-      return false;
+      throw PasswordResetException(
+        'Something went wrong. Please try again.',
+      );
     }
   }
 
@@ -153,4 +246,25 @@ class AuthService {
 class GoogleSignInCanceledException implements Exception {
   @override
   String toString() => 'GoogleSignInCanceledException';
+}
+
+/// Thrown when a user whose Firestore document has `isSuspended: true` attempts to sign in.
+class AccountDeactivatedException implements Exception {
+  final String message;
+  const AccountDeactivatedException([
+    this.message = 'This account has been deactivated. Please contact support.',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
+/// Thrown by [AuthService.resetPassword] to carry a user-facing message
+/// describing why the reset could not proceed.
+class PasswordResetException implements Exception {
+  final String message;
+  const PasswordResetException(this.message);
+
+  @override
+  String toString() => message;
 }

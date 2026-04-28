@@ -262,6 +262,22 @@ class SkillDocument {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Prioritized display name: skillName → humanized skillId → 'Unnamed Skill'.
+  String get name {
+    if (skillName.isNotEmpty) return skillName;
+    if (skillId.isNotEmpty) {
+      // Convert slug "flutter-development" → "Flutter Development"
+      return skillId
+          .replaceAll(RegExp(r'[-_]'), ' ')
+          .trim()
+          .split(' ')
+          .where((w) => w.isNotEmpty)
+          .map((w) => w[0].toUpperCase() + w.substring(1))
+          .join(' ');
+    }
+    return 'Unnamed Skill';
+  }
+
   const SkillDocument({
     required this.skillId,
     required this.skillName,
