@@ -99,7 +99,6 @@ class _GradReadyBootstrapState extends State<_GradReadyBootstrap> {
             try {
               await FirestoreService().uploadHomeMockDataIfEmpty();
               await FirestoreService.seedJobsIfEmpty();
-              await FirestoreService.seedJobsUpsert();
             } catch (_) {}
           }),
         );
