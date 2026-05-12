@@ -896,7 +896,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'You must master these required skills to be considered qualified for this role:',
+                      'Learn these required skills to qualify:',
                       style: TextStyle(
                         color: Color(0xFF991B1B),
                         fontSize: 13,
@@ -966,7 +966,7 @@ class _SkillsGapAnalysisScreenState extends State<SkillsGapAnalysisScreen>
               ),
               const SizedBox(height: 16),
               SkillsListSection(
-                title: 'Skills below requirement (by priority)',
+                title: 'Skill Gaps(by priority)',
                 skills: _gapResult!.missingSkills,
                 icon: Icons.warning_amber_rounded,
                 color: AppTheme.warning,

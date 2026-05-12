@@ -53,7 +53,7 @@ class AnalysisHighPrioritySkillsSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Focus on these skills first to make the biggest impact on your readiness.',
+          'Focus on key skills first for best results.',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey.shade700,

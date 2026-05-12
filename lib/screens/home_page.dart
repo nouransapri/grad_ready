@@ -322,7 +322,7 @@ class _HomePageState extends State<HomePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Welcome back,',
+              'Welcome,',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -433,20 +433,22 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    value,
+                    style: const TextStyle(
+                       fontSize: 16,
+                       fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.start,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
                 Text(
                   label,
                   style: const TextStyle(fontSize: 11, color: Colors.black54),
                   overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
+                  maxLines: 2,
+                  softWrap: true,
+                  ),
               ],
             ),
           ),
@@ -479,8 +481,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 12),
           _tipRow('Keep your profile updated with new skills '),
-          _tipRow(
-            'Analyze multiple job roles to explore different career paths',
+          _tipRow('Analyze multiple job roles to explore different career paths',
           ),
           _tipRow('Focus on critical gaps to maximize your job readiness'),
         ],

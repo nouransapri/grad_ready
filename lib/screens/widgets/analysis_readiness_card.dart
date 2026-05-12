@@ -24,23 +24,29 @@ class AnalysisReadinessCard extends StatelessWidget {
     String message;
 
     if (isQualified) {
-      label = 'Qualified & Highly Suitable';
-      emoji = '🎯';
-      gradientColors = [const Color(0xFF10B981), const Color(0xFF059669)];
-      message =
-          'You meet all mandatory requirements for this role. The match percentage below is for your information.';
-    } else {
-      label = 'Status: Not Yet Qualified';
-      emoji = '🚀';
-      gradientColors = [const Color(0xFFEF4444), const Color(0xFFDC2626)];
-      if (missingMandatorySkills.isEmpty) {
-        message =
-            'You must meet all required skills to become qualified for this role.';
-      } else {
-        message =
-            'To become qualified, you must master the following mandatory skills: ${missingMandatorySkills.join(', ')}';
-      }
-    }
+  label = 'Qualified';
+  emoji = '🎯';
+  gradientColors = [
+    const Color(0xFF10B981),
+    const Color(0xFF059669),
+  ];
+  message = 'You meet all mandatory requirements for this role.';
+} else {
+  label = 'Not Qualified';
+  emoji = '🚀';
+  gradientColors = [
+    const Color(0xFFEF4444),
+    const Color(0xFFDC2626),
+  ];
+
+  if (missingMandatorySkills.isEmpty) {
+    message =
+        'You must meet all required skills to be qualified.';
+  } else {
+    message =
+        'Qualification requires the following skills:';
+  }
+}
 
     return Container(
       width: double.infinity,

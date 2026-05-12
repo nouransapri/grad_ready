@@ -21,7 +21,7 @@ const Color _pdfBlue = Color(0xFF2196F3);
 /// Fixed palette for academic level segments (by index).
 const _academicColors = [
   Color(0xFF6B5BAE),
-  Color(0xFF5B4B9E),
+  Color.fromARGB(255, 14, 20, 100),
   Color(0xFF2196F3),
   Color(0xFF2E7D32),
   Color(0xFFFF9800),

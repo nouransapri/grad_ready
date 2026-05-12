@@ -755,7 +755,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                 return BarTooltipItem(
                   rod.toY.toInt().toString(),
                   const TextStyle(
-                    color: Colors.black87,
+                    color: Color.fromARGB(221, 0, 0, 225),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -772,7 +772,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                   if (value % 1 != 0) return const SizedBox.shrink();
                   return Text(
                     value.toInt().toString(),
-                    style: const TextStyle(color: Colors.grey, fontSize: 10),
+                    style: const TextStyle(color: Colors.black, fontSize: 10),
                   );
                 },
                 interval: 1.0,
@@ -796,7 +796,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                       child: Text(
                         text,
                         style: const TextStyle(
-                          color: Colors.grey,
+                           color: Colors.black,
                           fontSize: 10,
                         ),
                         maxLines: 1,
@@ -831,7 +831,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                   toY: e.value.value,
-                  color: const Color(0xFF121212),
+                  color: Colors.blue,
                   width: (screenWidth - 32 - 48) / 3 * 0.45,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(6),
@@ -885,7 +885,7 @@ class _WeeklyActivityChart extends StatelessWidget {
                 return LineTooltipItem(
                   '$label: ${spot.y.toInt()}',
                   const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontWeight: FontWeight.w600,
                   ),
                 );
@@ -900,7 +900,7 @@ class _WeeklyActivityChart extends StatelessWidget {
               reservedSize: 28,
               getTitlesWidget: (value, meta) => Text(
                 value.toInt().toString(),
-                style: const TextStyle(color: Colors.grey, fontSize: 10),
+                style: const TextStyle(color: Colors.black, fontSize: 10),
               ),
               interval: interval,
             ),
@@ -914,7 +914,7 @@ class _WeeklyActivityChart extends StatelessWidget {
                 if (i >= 0 && i < labels.length) {
                   return Text(
                     labels[i],
-                    style: const TextStyle(color: Colors.grey, fontSize: 10),
+                    style: const TextStyle(color: Colors.black, fontSize: 10),
                   );
                 }
                 return const SizedBox.shrink();
@@ -940,7 +940,7 @@ class _WeeklyActivityChart extends StatelessWidget {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: const Color(0xFF121212),
+            color: Colors.blue,
             barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: true),

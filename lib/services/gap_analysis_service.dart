@@ -115,6 +115,7 @@ class GapAnalysisService {
   static const int _criticalWeight = 10;
   static const int _defaultWeight = 5;
   static const double _compositeFallbackPenalty = 0.85;
+  static const int _experienceEvidenceLevel = 55;
 
   static String? _resolveSkillIdFromCatalog(
     Map<String, Skill> catalog,
@@ -300,6 +301,106 @@ class GapAnalysisService {
 
   /// Delegates to shared [normalizeSkillName] for consistent matching.
   static String normalize(String? value) => normalizeSkillName(value);
+
+  /// Normalizes free text to lowercase words for phrase matching.
+  static String _normalizeFreeText(String? value) {
+    if (value == null) return '';
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9#+]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  /// Builds searchable text chunks from internships/projects/clubs sections.
+  static List<String> _collectExperienceTextChunks(Map<String, dynamic> userData) {
+    final chunks = <String>[];
+
+    void addText(String? raw) {
+      final n = _normalizeFreeText(raw);
+      if (n.isNotEmpty) chunks.add(n);
+    }
+
+    void addFromSection(
+      List<dynamic>? list,
+      List<String> textKeys, {
+      String? skillsListKey,
+    }) {
+      if (list == null) return;
+      for (final item in list) {
+        if (item is! Map) continue;
+        final m = Map<String, dynamic>.from(Map<dynamic, dynamic>.from(item));
+        for (final key in textKeys) {
+          addText(m[key]?.toString());
+        }
+        if (skillsListKey != null && m[skillsListKey] is List) {
+          final rawSkills = m[skillsListKey] as List;
+          for (final s in rawSkills) {
+            addText(s?.toString());
+          }
+        }
+      }
+    }
+
+    addFromSection(
+      userData['internships'] as List?,
+      const ['title', 'company', 'duration'],
+      skillsListKey: 'skills',
+    );
+    addFromSection(
+      userData['projects'] as List?,
+      const ['name', 'description'],
+      skillsListKey: 'skills',
+    );
+    addFromSection(
+      userData['clubs'] as List?,
+      const ['name', 'role'],
+      skillsListKey: 'skills',
+    );
+    return chunks;
+  }
+
+  static bool _containsTermInChunks(List<String> chunks, String term) {
+    final normalizedTerm = _normalizeFreeText(term);
+    if (normalizedTerm.isEmpty) return false;
+    final escapedTerm = RegExp.escape(normalizedTerm).replaceAll(' ', r' +');
+    final pattern = RegExp('(^| )$escapedTerm( |\$)');
+    for (final chunk in chunks) {
+      if (pattern.hasMatch(chunk)) return true;
+    }
+    return false;
+  }
+
+  /// Checks whether experience text suggests familiarity with a skill.
+  static bool _hasExperienceEvidenceForSkill(
+    List<String> experienceChunks,
+    String skillName, {
+    Skill? catalogSkill,
+  }) {
+    final candidates = <String>{
+      skillName,
+      displayNameFromSkillId(skillName),
+    };
+    if (catalogSkill != null) {
+      candidates.add(catalogSkill.name);
+      candidates.add(catalogSkill.id);
+      candidates.addAll(catalogSkill.aliases);
+    }
+    for (final candidate in candidates) {
+      if (_containsTermInChunks(experienceChunks, candidate)) {
+        return true;
+      }
+      // Alias-key fallback catches punctuation variants like "Node.js".
+      final candidateAlias = normalizeSkillAliasKey(candidate);
+      if (candidateAlias.isEmpty) continue;
+      for (final chunk in experienceChunks) {
+        if (smartNormalize(chunk).contains(candidateAlias)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
   static void _addSkillNames(
     Set<String> normalizedSet,
@@ -563,6 +664,7 @@ class GapAnalysisService {
 
   ) async {
     final userLevels = collectUserLevelsBySkillId(userData, skillsCatalog);
+    final experienceChunks = _collectExperienceTextChunks(userData);
     final requiredList = job.requiredSkillsWithLevel;
     final mandatoryIds = jobDoc.gapMandatorySkillIds;
     // Name-based fallback: catches mandatory skills even when skillId resolution
@@ -609,6 +711,14 @@ class GapAnalysisService {
       if (userLevel == 0) {
         userLevel = _legacyUserLevelByName(userData, name);
       }
+      if (userLevel == 0 &&
+          _hasExperienceEvidenceForSkill(
+            experienceChunks,
+            req.skillId,
+            catalogSkill: skill,
+          )) {
+        userLevel = _experienceEvidenceLevel;
+      }
       var score = skillScoreForLevel(userLevel, req.requiredLevel);
       if (_isCompositeFallback(req.skillId, resolvedReqId)) {
         score *= _compositeFallbackPenalty;
@@ -648,6 +758,14 @@ class GapAnalysisService {
       int userLevel = _userLevelFor(userLevels, resolvedReqId);
       if (userLevel == 0) {
         userLevel = _legacyUserLevelByName(userData, name);
+      }
+      if (userLevel == 0 &&
+          _hasExperienceEvidenceForSkill(
+            experienceChunks,
+            req.skillId,
+            catalogSkill: skill,
+          )) {
+        userLevel = _experienceEvidenceLevel;
       }
       var score = skillScoreForLevel(userLevel, req.requiredLevel);
       if (_isCompositeFallback(req.skillId, resolvedReqId)) {
@@ -836,6 +954,7 @@ class GapAnalysisService {
 
   ) async {
     final user = collectAllUserSkillNames(userData);
+    final experienceChunks = _collectExperienceTextChunks(userData);
     final requiredSkills = _getRequiredSkillNamesFromRole(job);
     final userSkillNormalized = user.normalized;
 
@@ -868,8 +987,15 @@ class GapAnalysisService {
       bool meets(SkillProficiency s) {
         final n = normalize(s.name);
         final need = requiredPctByNorm[n] ?? s.percent.clamp(0, 100);
-        final u = _legacyUserLevelByName(userData, s.name);
-        if (need <= 0) return userSkillNormalized.contains(n);
+        var u = _legacyUserLevelByName(userData, s.name);
+        final hasExperienceEvidence = _hasExperienceEvidenceForSkill(
+          experienceChunks,
+          s.name,
+        );
+        if (u == 0 && hasExperienceEvidence) {
+          u = _experienceEvidenceLevel;
+        }
+        if (need <= 0) return userSkillNormalized.contains(n) || hasExperienceEvidence;
         return skillScoreForLevel(u, need) >= 1.0;
       }
 
@@ -908,9 +1034,16 @@ class GapAnalysisService {
       if (n.isEmpty) continue;
       if (useTechSoftLevels && requiredPctByNorm.isNotEmpty) {
         final need = requiredPctByNorm[n] ?? 0;
-        final userLevel = _legacyUserLevelByName(userData, skill);
+        final hasExperienceEvidence = _hasExperienceEvidenceForSkill(
+          experienceChunks,
+          skill,
+        );
+        var userLevel = _legacyUserLevelByName(userData, skill);
+        if (userLevel == 0 && hasExperienceEvidence) {
+          userLevel = _experienceEvidenceLevel;
+        }
         if (need <= 0) {
-          if (userSkillNormalized.contains(n)) {
+          if (userSkillNormalized.contains(n) || hasExperienceEvidence) {
             matchedSkills.add(skill);
           } else {
             missingSkills.add(skill);
@@ -946,9 +1079,16 @@ class GapAnalysisService {
         final n = normalize(skill);
         if (n.isEmpty) continue;
         final need = requiredPctByNorm[n] ?? 0;
-        final userLevel = _legacyUserLevelByName(userData, skill);
+        final hasExperienceEvidence = _hasExperienceEvidenceForSkill(
+          experienceChunks,
+          skill,
+        );
+        var userLevel = _legacyUserLevelByName(userData, skill);
+        if (userLevel == 0 && hasExperienceEvidence) {
+          userLevel = _experienceEvidenceLevel;
+        }
         if (need <= 0) {
-          scores.add(userSkillNormalized.contains(n) ? 1.0 : 0.0);
+          scores.add((userSkillNormalized.contains(n) || hasExperienceEvidence) ? 1.0 : 0.0);
         } else {
           scores.add(skillScoreForLevel(userLevel, need));
         }
