@@ -490,14 +490,14 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                         const SizedBox(height: 16),
                         // Users by academic level
                         _SectionCard(
-                          title: 'Users by Academic Level',
+                          title: 'Users by Degree Level',
                           child: FutureBuilder<_AdminOverviewCharts>(
                             future: _chartsFuture,
                             builder: (context, snapshot) {
                               final segments =
                                   snapshot.data?.academicSegments ??
                                   const <_PieDatum>[];
-                              return _AcademicLevelDonut(segments: segments);
+                              return _DegreeLevelDonut(segments: segments);
                             },
                           ),
                         ),
@@ -838,7 +838,7 @@ class _MostSelectedJobRolesChart extends StatelessWidget {
                   ),
                 ),
               ],
-              showingTooltipIndicators: [0],
+              
             );
           }).toList(),
         ),
@@ -953,10 +953,10 @@ class _WeeklyActivityChart extends StatelessWidget {
   }
 }
 
-class _AcademicLevelDonut extends StatelessWidget {
+class _DegreeLevelDonut extends StatelessWidget {
   final List<_PieDatum> segments;
 
-  const _AcademicLevelDonut({required this.segments});
+  const _DegreeLevelDonut({required this.segments});
 
   @override
   Widget build(BuildContext context) {
